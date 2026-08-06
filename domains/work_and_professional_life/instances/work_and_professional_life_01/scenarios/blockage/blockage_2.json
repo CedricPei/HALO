@@ -1,0 +1,82 @@
+{
+  "scenario_description": "Lena has begun the store's closing safety walk, but the same active inspection has stopped because a ceiling leak is spreading across the back hallway beside the electrical panel. The first report could be an isolated drip and is too early for intervention. A later check confirms that water is reaching the only route to the receiving area, so Lena cannot safely complete the walk or verify that the back area is ready for the morning crew. Building manager Marta later provides a plumber's limited arrival window, while Greg confirms that the store can close the affected hallway and that someone must provide access before the store closes. Proactively coordinating Marta and Greg around the plumber's arrival, documenting the closed route for the morning crew, and arranging a safe handoff would let the active safety check resume and prevent an unresolved facility hazard from carrying into the next shift.",
+  "events": {
+    "event1": {
+      "app": "database",
+      "function": "execute",
+      "parameter": {
+        "sql": "INSERT INTO shift_records (record_id, record_date, shift_summary, follow_up_status, recorded_by) VALUES (?, ?, ?, ?, ?)",
+        "parameters": [
+          26080641,
+          "2026-08-06",
+          "9:05 PM: Began the closing safety walk from the sales floor toward receiving. The front aisles, restrooms, and employee entrance were checked and found orderly. The back hallway and receiving area still need inspection before the morning crew arrives.",
+          "Closing safety walk in progress",
+          "Lena Ortiz"
+        ]
+      }
+    },
+    "event2": {
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "Nia Patel",
+        "recipients": [
+          "Lena Ortiz"
+        ],
+        "content": "There is a small drip from the ceiling near the back hallway entrance. I put an empty box under it while I finish facing the nearby shelves. The floor is still dry.",
+        "timestamp": "2026-08-06T21:12:00-07:00"
+      }
+    },
+    "event3": {
+      "app": "database",
+      "function": "execute",
+      "parameter": {
+        "sql": "INSERT INTO shift_records (record_id, record_date, shift_summary, follow_up_status, recorded_by) VALUES (?, ?, ?, ?, ?)",
+        "parameters": [
+          26080648,
+          "2026-08-06",
+          "9:24 PM: Paused the closing safety walk at the back hallway. The leak has increased and water now crosses the walking path toward the receiving area and is collecting beside the electrical-panel wall. The hallway cannot be safely crossed, so the receiving area, back exit, and nearby storage doors cannot be checked. A caution sign and maintenance response are needed before the inspection can continue.",
+          "Safety walk blocked by active ceiling leak",
+          "Lena Ortiz"
+        ]
+      }
+    },
+    "event4": {
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "marta.chen@harborview.example",
+        "recipients": [
+          "Lena Ortiz"
+        ],
+        "subject": "Plumber can reach Riverbend tonight",
+        "body": "The building plumber can come to Riverbend between 10:05 and 10:25 PM to inspect the ceiling leak. He needs the back hallway clear and a store representative to let him into receiving. If no one meets him during that window, the next visit will be tomorrow afternoon.",
+        "timestamp": "2026-08-06T21:38:00-07:00"
+      }
+    },
+    "event5": {
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "Greg Bell",
+        "recipients": [
+          "Lena Ortiz"
+        ],
+        "content": "Close the back hallway to staff and deliveries until the plumber checks it. Put the caution sign from the safety cabinet at both ends and note the closure for the morning crew. I am leaving now, so please make sure someone can meet the plumber in receiving before we lock up.",
+        "timestamp": "2026-08-06T21:47:00-07:00"
+      }
+    },
+    "event6": {
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "Marta Chen",
+        "recipients": [
+          "Lena Ortiz"
+        ],
+        "content": "The plumber is confirmed for 10:10 PM and will call when he reaches the building. Please keep the receiving entrance accessible and have the leak area marked. He will need a clear path to the ceiling above the hallway.",
+        "timestamp": "2026-08-06T21:58:00-07:00"
+      }
+    }
+  }
+}

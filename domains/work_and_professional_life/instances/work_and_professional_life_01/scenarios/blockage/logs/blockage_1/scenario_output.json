@@ -1,0 +1,108 @@
+{
+  "scenario_id": "blockage_1",
+  "trigger_type": "blockage",
+  "reference_time": "2026-02-07",
+  "scenario_description": "Lena has begun a hands-on checkout training session with new employee Nia Patel, but Nia's register account is inactive and the current practice session cannot proceed past the sign-in step. One failure could be a typing mistake, but repeated failures on two registers make the blockage observable before the final Event. Support then identifies the exact owner authorization required, and Greg confirms he can provide it immediately if Lena sends him the ticket details. Proactively relaying the employee number, ticket number, and required approval wording to Greg would connect the right people and allow the active training session to resume before the evening rush.",
+  "events": {
+    "event1": {
+      "app": "database",
+      "function": "execute",
+      "parameter": {
+        "sql": "INSERT INTO shift_records (record_id, record_date, shift_summary, follow_up_status, recorded_by) VALUES (?, ?, ?, ?, ?)",
+        "parameters": [
+          26020741,
+          "2026-02-07",
+          "4:10 PM: Began hands-on checkout training with new employee Nia Patel at register 4. Nia completed the scanner and product-lookup exercises and is moving on to a supervised practice transaction.",
+          "Training in progress",
+          "Lena Ortiz"
+        ]
+      }
+    },
+    "event2": {
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "Nia Patel",
+        "recipients": [
+          "Lena Ortiz"
+        ],
+        "content": "Register 4 says my employee number is inactive when I try to start the practice transaction. I may have entered it incorrectly, so I am going to try again carefully.",
+        "timestamp": "2026-02-07T16:13:00-08:00"
+      }
+    },
+    "event3": {
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "Nia Patel",
+        "recipients": [
+          "Lena Ortiz"
+        ],
+        "content": "I reentered employee number 6427 and then tried register 3. Both show the same inactive-account message, so I cannot continue the supervised transaction.",
+        "timestamp": "2026-02-07T16:19:00-08:00"
+      }
+    },
+    "event4": {
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "support@riverbendpos.example",
+        "recipients": [
+          "Lena Ortiz"
+        ],
+        "subject": "Ticket RB-6427: owner approval needed for register activation",
+        "body": "We confirmed that Nia Patel's employee number 6427 exists but has not been activated for register access. To activate it, store owner Greg Bell must reply from his Riverbend Market email account with: \"I approve register activation for Nia Patel, employee 6427.\" Please include ticket RB-6427. Once we receive that reply, activation usually takes about five minutes.",
+        "timestamp": "2026-02-07T16:25:00-08:00"
+      }
+    },
+    "event5": {
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "Greg Bell",
+        "recipients": [
+          "Lena Ortiz"
+        ],
+        "content": "I am working in the stockroom and will not be back at the office computer until after 6. If support sent you the activation ticket and exact approval wording, message those details to me now. I can reply to them from my phone so you and Nia can finish training before the evening rush.",
+        "timestamp": "2026-02-07T16:32:00-08:00"
+      }
+    }
+  },
+  "ini_data_commands": [
+    {
+      "app": "contacts",
+      "function": "create_contact",
+      "parameter": {
+        "name": "Nia Patel",
+        "aliases": [
+          "Nia"
+        ],
+        "organization": "Riverbend Market",
+        "relationship": "new evening employee",
+        "notes": "New employee currently receiving checkout training from Lena."
+      }
+    },
+    {
+      "app": "messaging",
+      "function": "create_conversation",
+      "parameter": {
+        "participants": [
+          "Lena Ortiz",
+          "Nia Patel"
+        ],
+        "title": "Checkout training"
+      }
+    },
+    {
+      "app": "messaging",
+      "function": "create_conversation",
+      "parameter": {
+        "participants": [
+          "Lena Ortiz",
+          "Greg Bell"
+        ],
+        "title": "Riverbend operations"
+      }
+    }
+  ]
+}

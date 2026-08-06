@@ -1,0 +1,69 @@
+{
+  "scenario_description": "Lena can turn a small amount of still-saleable bakery surplus into an optional donation to Eastside Community Pantry. The opportunity becomes clear when the pantry's Thursday pickup route lines up with the store's morning handoff and Lena's later count confirms there are enough sealed items to make the trip worthwhile. Ignoring it causes no operational loss, but proactively sending the item count, confirming the donation, and recording the pickup would reduce waste and provide useful food to the pantry.",
+  "events": {
+    "event1": {
+      "app": "database",
+      "function": "execute",
+      "parameter": {
+        "sql": "INSERT INTO stock_checks (check_id, check_date, department, issue_type, details) VALUES (?, ?, ?, ?, ?)",
+        "parameters": [
+          26040831,
+          "2026-04-08",
+          "Bakery",
+          "Unsold packaged goods",
+          "3:05 PM: Six packaged loaves and four sealed pastry boxes remained from yesterday's bakery display. All were within their sell-by dates and were moved to the marked clearance shelf for the evening team to monitor."
+        ]
+      }
+    },
+    "event2": {
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "Greg Bell",
+        "recipients": [
+          "Lena Ortiz"
+        ],
+        "content": "Eastside Community Pantry is planning its Thursday morning neighborhood route. They said they may be able to collect sealed bakery items from Riverbend if we have a worthwhile amount, but I have not promised anything. Please keep an eye on what remains tonight.",
+        "timestamp": "2026-04-08T15:40:00-08:00"
+      }
+    },
+    "event3": {
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "Priya Nair",
+        "recipients": [
+          "Lena Ortiz"
+        ],
+        "content": "Our Thursday route will pass near Riverbend at about 8:30 AM. We can accept sealed bread and pastry boxes that are still within their sell-by dates. If you have a useful quantity, please send the item count by this evening so I can plan space in the van.",
+        "timestamp": "2026-04-08T17:10:00-08:00"
+      }
+    },
+    "event4": {
+      "app": "database",
+      "function": "execute",
+      "parameter": {
+        "sql": "INSERT INTO stock_checks (check_id, check_date, department, issue_type, details) VALUES (?, ?, ?, ?, ?)",
+        "parameters": [
+          26040844,
+          "2026-04-08",
+          "Bakery",
+          "Donation opportunity",
+          "6:25 PM: Rechecked the clearance shelf. Four packaged loaves and three sealed pastry boxes remain, all marked with April 9 sell-by dates. The items are intact and suitable for a morning pickup if donated tonight."
+        ]
+      }
+    },
+    "event5": {
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "Priya Nair",
+        "recipients": [
+          "Lena Ortiz"
+        ],
+        "content": "Seven sealed items would make the stop worthwhile: four loaves and three pastry boxes. I can collect them at Riverbend around 8:30 AM Thursday, but I need confirmation and the final count by 9:00 PM tonight to reserve van space. Please have the box labeled Eastside Community Pantry and ready with the morning handoff.",
+        "timestamp": "2026-04-08T20:35:00-08:00"
+      }
+    }
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "scenario_description": "Riverbend Market has a preventive pest-control treatment scheduled for Monday morning, but the bakery dry-storage area must first be cleared along the walls and its open ingredients sealed. The routine stock count at the second Event is too early for intervention because Lena has not yet received the preparation requirements. When the vendor's instructions arrive at the third Event, connecting them with that stock count shows that substantial preparation is required before Lena's final Saturday shift ends. Greg's later message confirms that suitable containers are available and adds urgency without changing the fact that intervention was already justified. Proactively creating a Saturday preparation reminder, organizing a concrete checklist for moving and sealing the ingredients, and confirming the plan with Greg would prevent the treatment from being limited or postponed.",
+  "events": {
+    "event1": {
+      "app": "calendar",
+      "function": "create_event",
+      "parameter": {
+        "title": "Preventive pest-control treatment",
+        "start_time": "2026-07-13T07:00:00-07:00",
+        "end_time": "2026-07-13T09:00:00-07:00",
+        "description": "Scheduled preventive treatment of Riverbend Market's bakery dry-storage area before the store opens.",
+        "location": "Riverbend Market bakery dry storage",
+        "attendees": [
+          "Lena Ortiz",
+          "Greg Bell",
+          "Portland Safe Pest Services"
+        ],
+        "organizer": "Portland Safe Pest Services",
+        "status": "confirmed"
+      }
+    },
+    "event2": {
+      "app": "database",
+      "function": "execute",
+      "parameter": {
+        "sql": "INSERT INTO stock_checks (check_id, check_date, department, issue_type, details) VALUES (?, ?, ?, ?, ?)",
+        "parameters": [
+          26070861,
+          "2026-07-08",
+          "Bakery dry storage",
+          "Routine storage count",
+          "5:20 PM: Counted 18 open ingredient bags on the lower perimeter shelves: 10 flour, 4 sugar, and 4 baking-mix bags. All bags were folded or clipped according to the normal nightly storage routine, and no stock problem was observed."
+        ]
+      }
+    },
+    "event3": {
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "service@portlandsafepest.example",
+        "recipients": [
+          "Lena Ortiz",
+          "Greg Bell"
+        ],
+        "subject": "Required preparation for Riverbend treatment on July 13",
+        "body": "Before our technician arrives Monday, all bakery ingredients and other goods must be removed from the perimeter shelves and floor edges so the walls are accessible. Open ingredient bags must be placed inside sealed, lidded containers rather than left folded or clipped. Please complete this by store closing on Saturday, July 11. If the area is not prepared, the technician will be unable to treat the blocked sections.",
+        "timestamp": "2026-07-09T10:35:00-07:00"
+      }
+    },
+    "event4": {
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "Greg Bell",
+        "recipients": [
+          "Lena Ortiz"
+        ],
+        "content": "The pest-control company confirmed that Monday's route is full, so they cannot add preparation time or return later that day. I placed 20 clean lidded ingredient bins in the receiving cabinet, which should cover the 18 open bags from Wednesday's count. Saturday evening is our last staffed shift before the technician arrives.",
+        "timestamp": "2026-07-11T14:20:00-07:00"
+      }
+    }
+  }
+}

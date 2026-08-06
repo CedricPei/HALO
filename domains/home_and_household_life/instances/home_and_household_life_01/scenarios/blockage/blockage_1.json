@@ -1,0 +1,67 @@
+{
+  "scenario_description": "Lena has begun replacing the townhouse furnace filter and has already removed the old one. The spare she retrieves is the wrong size, so she cannot complete the same replacement attempt and leaves the furnace off rather than operate it without a filter. At event2, the work is proceeding normally and intervention would be premature. By event3, the attempt is observably blocked. The household-stock record shows that two correctly sized filters are already stored in the upstairs linen closet, information that can immediately unblock Lena without waiting for the property owner or making an unnecessary purchase. Later messages add urgency as the home cools and confirm that the owner cannot bring another filter promptly.",
+  "events": {
+    "event1": {
+      "app": "database",
+      "function": "execute",
+      "parameter": {
+        "sql": "INSERT INTO maintenance_log (record_id, area, issue, status, last_checked) VALUES (?, ?, ?, ?, ?)",
+        "parameters": [
+          2001,
+          "furnace",
+          "Replacing furnace filter; old filter removed",
+          "in progress",
+          "2026-02-07T08:00:00-06:00"
+        ]
+      }
+    },
+    "event2": {
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "Lena Ortiz",
+        "recipients": [
+          "Mark Jensen"
+        ],
+        "content": "I have started changing the furnace filter. The old one is out, and I am getting the spare filter from the basement now.",
+        "timestamp": "2026-02-07T08:04:00-06:00"
+      }
+    },
+    "event3": {
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "Lena Ortiz",
+        "recipients": [
+          "Mark Jensen"
+        ],
+        "content": "The basement spare is 16 x 20 x 1, but the furnace opening needs 16 x 25 x 1. I cannot finish the filter change with this one, and I have left the furnace off while the filter slot is empty.",
+        "timestamp": "2026-02-07T08:08:00-06:00"
+      }
+    },
+    "event4": {
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "Mark Jensen",
+        "recipients": [
+          "Lena Ortiz"
+        ],
+        "content": "Please do not run the furnace with the filter slot empty. I am out of town and cannot bring a 16 x 25 x 1 filter until tomorrow afternoon. With the cold today, it would be better to get the correct filter installed as soon as possible.",
+        "timestamp": "2026-02-07T08:13:00-06:00"
+      }
+    },
+    "event5": {
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "Lena Ortiz",
+        "recipients": [
+          "Mark Jensen"
+        ],
+        "content": "The thermostat now reads 63 degrees. I checked the basement shelf and the entry cupboard again, but I still cannot find a filter in the correct size, so the replacement is still stopped.",
+        "timestamp": "2026-02-07T08:25:00-06:00"
+      }
+    }
+  }
+}

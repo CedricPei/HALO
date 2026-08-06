@@ -1,0 +1,144 @@
+{
+  "scenario_id": "risk_2",
+  "trigger_type": "risk",
+  "reference_time": "2026-05-08",
+  "scenario_description": "Lena's planned closing team is gradually reduced by two unrelated employee emergencies. Carlos leaving sick is manageable because Devon is still scheduled as Lena's second trained closer, so that checkpoint is too early for intervention. When Devon later reports that he must leave before closing, the staffing plan shows that Lena would be the only trained closer for the final hour, creating a risk during the cash count, safety walk, and final lockup. This risk is sufficiently observable at the third Event. Jordan's later message provides a time-limited coverage option without changing that intervention was already justified. Proactively coordinating Greg's approval and confirming Jordan's coverage would preserve the two-person closing procedure and prevent Lena from closing the store alone.",
+  "events": {
+    "event1": {
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "Carlos Vega",
+        "recipients": [
+          "Lena Ortiz"
+        ],
+        "content": "I am feeling nauseated and need to sit down for a while. I have not decided whether I need to leave, and I am hoping I can return after my break. Devon is handling the front end for me.",
+        "timestamp": "2026-05-08T15:05:00-07:00"
+      }
+    },
+    "event2": {
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "Carlos Vega",
+        "recipients": [
+          "Lena Ortiz"
+        ],
+        "content": "I am getting worse, so I am going home now. Devon confirmed that he can take my closing duties tonight.",
+        "timestamp": "2026-05-08T16:40:00-07:00"
+      }
+    },
+    "event3": {
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "Devon Price",
+        "recipients": [
+          "Lena Ortiz"
+        ],
+        "content": "My son's caregiver just called with an emergency. I need to leave by 9:15 PM and cannot stay through closing. I have completed the evening front-end tasks, but the cash count, safety walk, and final lockup will still need to be done after I leave.",
+        "timestamp": "2026-05-08T18:25:00-07:00"
+      }
+    },
+    "event4": {
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "Jordan Kim",
+        "recipients": [
+          "Lena Ortiz"
+        ],
+        "content": "My plans ended early, and I could come in from 9:00 to 10:45 tonight if the store needs coverage. I am trained on closing and cash count, but Greg needs to approve any added shift. Please confirm by 8:00 PM because I will make other plans after that.",
+        "timestamp": "2026-05-08T19:10:00-07:00"
+      }
+    }
+  },
+  "ini_data_commands": [
+    {
+      "app": "database",
+      "function": "execute",
+      "parameter": {
+        "sql": "INSERT INTO shift_records (record_id, record_date, shift_summary, follow_up_status, recorded_by) VALUES (?, ?, ?, ?, ?)",
+        "parameters": [
+          26050772,
+          "2026-05-07",
+          "Staffing plan for Friday, May 8: Lena Ortiz supervises 2:00-10:30 PM. Trained closers Carlos Vega and Devon Price are both scheduled through 10:30 PM. Mei Lawson works until 9:30 PM but is not yet trained for closing cash count or final lockup. Store procedure requires the supervisor and one additional trained closer to complete the cash count, safety walk, and final lockup together.",
+          "Friday closing coverage confirmed",
+          "Lena Ortiz"
+        ]
+      }
+    },
+    {
+      "app": "contacts",
+      "function": "create_contact",
+      "parameter": {
+        "name": "Carlos Vega",
+        "aliases": [
+          "Carlos"
+        ],
+        "organization": "Riverbend Market",
+        "relationship": "evening employee",
+        "notes": "Trained to complete Riverbend Market closing duties."
+      }
+    },
+    {
+      "app": "contacts",
+      "function": "create_contact",
+      "parameter": {
+        "name": "Devon Price",
+        "aliases": [
+          "Devon"
+        ],
+        "organization": "Riverbend Market",
+        "relationship": "evening employee",
+        "notes": "Trained to complete Riverbend Market closing duties."
+      }
+    },
+    {
+      "app": "contacts",
+      "function": "create_contact",
+      "parameter": {
+        "name": "Jordan Kim",
+        "aliases": [
+          "Jordan"
+        ],
+        "organization": "Riverbend Market",
+        "relationship": "store employee",
+        "notes": "Trained on closing and cash count. Added shifts require approval from store owner Greg Bell."
+      }
+    },
+    {
+      "app": "messaging",
+      "function": "create_conversation",
+      "parameter": {
+        "participants": [
+          "Lena Ortiz",
+          "Carlos Vega"
+        ],
+        "title": "Friday evening coverage with Carlos"
+      }
+    },
+    {
+      "app": "messaging",
+      "function": "create_conversation",
+      "parameter": {
+        "participants": [
+          "Lena Ortiz",
+          "Devon Price"
+        ],
+        "title": "Friday evening coverage with Devon"
+      }
+    },
+    {
+      "app": "messaging",
+      "function": "create_conversation",
+      "parameter": {
+        "participants": [
+          "Lena Ortiz",
+          "Jordan Kim"
+        ],
+        "title": "Riverbend shift coverage with Jordan"
+      }
+    }
+  ]
+}

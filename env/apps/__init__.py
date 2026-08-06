@@ -1,0 +1,12 @@
+"""Lightweight simulated apps for the Proactive Agent Benchmark."""
+
+from .Calendar import Calendar
+from .Contacts import Contacts
+from .Database import Database
+from .Email import Email
+from .Files import Files
+from .Messaging import Messaging
+from .Wallet import Wallet
+from .Web import Web
+
+__all__ = ["Email", "Calendar", "Messaging", "Contacts", "Wallet", "Database", "Files", "Web"]

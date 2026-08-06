@@ -1,0 +1,77 @@
+{
+  "scenario_id": "risk_1",
+  "trigger_type": "risk",
+  "reference_time": "2026-03-09",
+  "scenario_description": "The dairy display cooler door is repeatedly opening after it appears to be closed. The first occurrence looks like a routine stocking mistake, but repeated checks show that the latch is failing and the temperature is rising toward the store's safe limit. The risk is sufficiently observable before the final Event, while later information confirms that repairs will not arrive before the cooler is left unattended overnight and that suitable space is available in the walk-in cooler. Proactively coordinating the evening team to move the dairy stock, mark the display cooler out of use, and document the issue for the morning crew would prevent likely spoilage and unsafe sales.",
+  "events": {
+    "event1": {
+      "app": "database",
+      "function": "execute",
+      "parameter": {
+        "sql": "INSERT INTO stock_checks (check_id, check_date, department, issue_type, details) VALUES (?, ?, ?, ?, ?)",
+        "parameters": [
+          26030931,
+          "2026-03-09",
+          "Dairy",
+          "Routine cooler check",
+          "2:35 PM: Display cooler door was slightly ajar with a milk carton blocking it. Removed the carton and closed the door. Cooler temperature was normal at 37 F."
+        ]
+      }
+    },
+    "event2": {
+      "app": "database",
+      "function": "execute",
+      "parameter": {
+        "sql": "INSERT INTO shift_records (record_id, record_date, shift_summary, follow_up_status, recorded_by) VALUES (?, ?, ?, ?, ?)",
+        "parameters": [
+          26030942,
+          "2026-03-09",
+          "4:20 PM: Dairy display cooler door was ajar again even though nothing was blocking it. The latch held after the door was pushed firmly. Temperature was 38 F, and another check was scheduled for later in the shift.",
+          "Monitoring during evening shift",
+          "Lena Ortiz"
+        ]
+      }
+    },
+    "event3": {
+      "app": "database",
+      "function": "execute",
+      "parameter": {
+        "sql": "INSERT INTO stock_checks (check_id, check_date, department, issue_type, details) VALUES (?, ?, ?, ?, ?)",
+        "parameters": [
+          26030953,
+          "2026-03-09",
+          "Dairy",
+          "Cooler door latch failure",
+          "6:05 PM: Found the display cooler door ajar for the third time. With no product near the door, it reopened about two minutes after being closed. Temperature had risen to 39 F. Products were still cold and no spoilage was observed."
+        ]
+      }
+    },
+    "event4": {
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "Greg Bell",
+        "recipients": [
+          "Lena Ortiz"
+        ],
+        "content": "CoolerCare cannot inspect the dairy display cooler until tomorrow at noon. The lower rack in the walk-in cooler is empty now that today's produce delivery has been shelved, and it has room for about 12 dairy crates.",
+        "timestamp": "2026-03-09T18:18:00-08:00"
+      }
+    },
+    "event5": {
+      "app": "database",
+      "function": "execute",
+      "parameter": {
+        "sql": "INSERT INTO shift_records (record_id, record_date, shift_summary, follow_up_status, recorded_by) VALUES (?, ?, ?, ?, ?)",
+        "parameters": [
+          26030965,
+          "2026-03-09",
+          "8:40 PM: Dairy display cooler door opened on its own again within one minute of being closed. Temperature is now 40 F, just below the store's 41 F safe limit. The store closes at 10:30 PM, and this cooler will be unattended overnight unless the evening team takes protective action.",
+          "Immediate closing-shift action needed",
+          "Lena Ortiz"
+        ]
+      }
+    }
+  },
+  "ini_data_commands": []
+}

@@ -1,0 +1,80 @@
+{
+  "scenario_description": "Lena has started an evening laundry load, and the washer is initially filling and tumbling normally. Event2 is a meaningful checkpoint but remains too early for intervention because the active wash has not yet encountered a problem. At event3, the same cycle has stopped with water and clothes trapped behind the locked door, making the blockage observable at a non-final event. Mark then authorizes a repair but cannot coordinate it himself. Lake Street Laundry Appliance Service offers a same-evening visit only if it promptly receives the washer details and Mark's authorization reference. A proactive agent can connect the model and serial number in Lena's maintenance guide with Mark's authorization, the offered service window, and Lena's access confirmation to book the visit before the slot is released. Event6 adds urgency and confirms access without resolving the stopped laundry attempt.",
+  "events": {
+    "event1": {
+      "app": "database",
+      "function": "execute",
+      "parameter": {
+        "sql": "INSERT INTO maintenance_log (record_id, area, issue, status, last_checked) VALUES (?, ?, ?, ?, ?)",
+        "parameters": [
+          2002,
+          "laundry room",
+          "Evening laundry load started; washer filling and tumbling normally",
+          "in progress",
+          "2026-08-06T18:10:00-05:00"
+        ]
+      }
+    },
+    "event2": {
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "Lena Ortiz",
+        "recipients": [
+          "Maya Ortiz"
+        ],
+        "content": "The washer is running with the towels and clothes. It should finish in about 35 minutes, and then we can move the load to the dryer.",
+        "timestamp": "2026-08-06T18:14:00-05:00"
+      }
+    },
+    "event3": {
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "Lena Ortiz",
+        "recipients": [
+          "Mark Jensen"
+        ],
+        "content": "The washer stopped in the middle of the same load and shows E3. The tub is still full of water, the clothes are soaking, and the door remains locked. I followed the display prompt to restart it once, but it stopped again, so I cannot continue the laundry or remove the load.",
+        "timestamp": "2026-08-06T18:25:00-05:00"
+      }
+    },
+    "event4": {
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "Mark Jensen",
+        "recipients": [
+          "Lena Ortiz"
+        ],
+        "content": "Do not force the washer door or try to take the machine apart. I authorize Lake Street Laundry Appliance Service to inspect it at my expense under reference NSR-806-WASH. I am tied up this evening and cannot call them myself, but they may be able to come tonight if you coordinate access.",
+        "timestamp": "2026-08-06T18:34:00-05:00"
+      }
+    },
+    "event5": {
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "Lake Street Laundry Appliance Service",
+        "recipients": [
+          "Lena Ortiz"
+        ],
+        "subject": "Washer service opening tonight",
+        "body": "We have one technician available at your townhouse from 7:00 to 8:00 PM tonight. To reserve the visit, reply by 6:50 PM with the washer model and serial number, the property owner's authorization reference, and confirmation that someone can provide access. Otherwise, our next opening is tomorrow afternoon.",
+        "timestamp": "2026-08-06T18:42:00-05:00"
+      }
+    },
+    "event6": {
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "Lena Ortiz",
+        "recipients": [
+          "Mark Jensen"
+        ],
+        "content": "I can stay home and provide access from 7:00 to 8:00 tonight. The wet load is still trapped in the stopped washer, but I cannot read the label around the door while it is locked, and the repair company will release tonight's opening at 6:50 if it does not receive the machine details and your authorization reference.",
+        "timestamp": "2026-08-06T18:47:00-05:00"
+      }
+    }
+  }
+}

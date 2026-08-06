@@ -1,0 +1,138 @@
+{
+  "scenario_id": "failed_1",
+  "trigger_type": "blockage",
+  "reference_time": "2026-02-07",
+  "scenario_description": "Lena has begun the store's closing procedure and completed the physical checks, but her active closing attempt is blocked when the security system refuses to arm even though the rear exit is latched. The alarm company cannot repair the sensor until morning, and store procedure forbids leaving the building unattended while the alarm is disarmed. Proactively obtaining Greg's authorization and relaying it to NightWatch so a temporary guard can be dispatched would let Lena secure the store and finish closing.",
+  "events": {
+    "event1": {
+      "app": "database",
+      "function": "execute",
+      "parameter": {
+        "sql": "INSERT INTO shift_records (record_id, record_date, shift_summary, follow_up_status, recorded_by) VALUES (?, ?, ?, ?, ?)",
+        "parameters": [
+          2101,
+          "2026-02-07",
+          "9:42 PM: Began the Saturday closing procedure. Customer doors are locked and the final store checks are in progress.",
+          "closing in progress",
+          "Lena Ortiz"
+        ]
+      }
+    },
+    "event2": {
+      "app": "database",
+      "function": "execute",
+      "parameter": {
+        "sql": "UPDATE shift_records SET shift_summary = ?, follow_up_status = ? WHERE record_id = ?",
+        "parameters": [
+          "9:56 PM: Closing is underway. Customer doors are locked, all departments are clear, cash drawers are secured, and the rear exit was checked and is physically latched. Arming the security system is the remaining step.",
+          "ready to arm security system",
+          2101
+        ]
+      }
+    },
+    "event3": {
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "alerts@nightwatchsecurity.example",
+        "recipients": [
+          "Lena Ortiz"
+        ],
+        "subject": "Riverbend Market arming attempt failed",
+        "body": "At 10:01 PM, the security system received an arming attempt from the Riverbend Market panel but could not complete it because the rear-exit sensor is reporting open. The building remains disarmed.",
+        "timestamp": "2026-02-07T22:02:00-08:00"
+      }
+    },
+    "event4": {
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "dispatch@nightwatchsecurity.example",
+        "recipients": [
+          "Lena Ortiz"
+        ],
+        "subject": "Remote reset unsuccessful — temporary guard available",
+        "body": "We attempted a remote reset, but the rear-exit sensor still will not clear. Our first repair visit is 7:30 AM tomorrow. Because your closing instructions do not allow the store to be left disarmed, we can send a mobile guard for overnight coverage if account owner Greg Bell authorizes it by email or phone. Dispatch needs authorization by 10:25 PM for the guard to arrive before 10:45 PM.",
+        "timestamp": "2026-02-07T22:08:00-08:00"
+      }
+    },
+    "event5": {
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "Devin Ross",
+        "recipients": [
+          "Lena Ortiz"
+        ],
+        "content": "I finished the last cleanup check. My ride is here, so I need to leave at 10:20. That will leave you as the only person in the store while the alarm is still refusing to set.",
+        "timestamp": "2026-02-07T22:13:00-08:00"
+      }
+    }
+  },
+  "ini_data_commands": [
+    {
+      "app": "files",
+      "function": "replace_file",
+      "parameter": {
+        "name": "closing_checklist.txt",
+        "content": "Riverbend Market closing guide\n1. Lock customer entrances after the final customer leaves.\n2. Confirm each department is clear and secure the cash drawers.\n3. Check that the rear exit is physically latched.\n4. Arm the security system before everyone leaves.\n5. Never leave the store unattended if the security system cannot be armed. Contact NightWatch Security and store owner Greg Bell. Greg must authorize any paid temporary guard coverage."
+      }
+    },
+    {
+      "app": "contacts",
+      "function": "create_contact",
+      "parameter": {
+        "name": "NightWatch Security Dispatch",
+        "aliases": [
+          "NightWatch"
+        ],
+        "emails": [
+          "dispatch@nightwatchsecurity.example"
+        ],
+        "phone_numbers": [
+          "503-555-0174"
+        ],
+        "organization": "NightWatch Security",
+        "relationship": "Riverbend Market alarm monitoring service",
+        "notes": "Handles alarm faults and temporary guard dispatch. Greg Bell must authorize paid guard coverage."
+      }
+    },
+    {
+      "app": "contacts",
+      "function": "create_contact",
+      "parameter": {
+        "name": "Devin Ross",
+        "aliases": [
+          "Devin"
+        ],
+        "emails": [
+          "devin.ross@riverbendmarket.example"
+        ],
+        "organization": "Riverbend Market",
+        "relationship": "evening shift coworker"
+      }
+    },
+    {
+      "app": "messaging",
+      "function": "create_conversation",
+      "parameter": {
+        "participants": [
+          "Lena Ortiz",
+          "Devin Ross"
+        ],
+        "title": "Saturday closing shift"
+      }
+    },
+    {
+      "app": "messaging",
+      "function": "create_conversation",
+      "parameter": {
+        "participants": [
+          "Lena Ortiz",
+          "Greg Bell"
+        ],
+        "title": "Riverbend store operations"
+      }
+    }
+  ]
+}

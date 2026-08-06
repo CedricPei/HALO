@@ -1,0 +1,125 @@
+{
+  "scenario_id": "failed_1",
+  "trigger_type": "dependency",
+  "reference_time": "2026-01-08",
+  "scenario_description": "Elena has an upcoming substitute assignment at Northgate Middle School, but her car is scheduled for repairs during the assignment and the repair shop later confirms it will not be available. A coworker may be able to drive her, but Elena must coordinate the ride before the coworker's stated cutoff. The dependency becomes actionable when the assignment, repair timing, and vehicle unavailability are connected, while later messages add a practical deadline and confirm that the assignment still requires in-person arrival.",
+  "events": {
+    "event1": {
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "assignments@columbus-schools.example",
+        "recipients": [
+          "Elena Brooks"
+        ],
+        "subject": "Substitute assignment confirmed for Northgate Middle School",
+        "body": "Your substitute assignment is confirmed for Thursday, January 15, 2026, at Northgate Middle School, 4550 Karl Road, Columbus. Please arrive by 7:30 AM and report to the main office for classroom access.",
+        "timestamp": "2026-01-08T08:00:00-05:00"
+      }
+    },
+    "event2": {
+      "app": "calendar",
+      "function": "create_event",
+      "parameter": {
+        "title": "Vehicle repair appointment",
+        "start_time": "2026-01-13T08:00:00-05:00",
+        "end_time": "2026-01-16T17:00:00-05:00",
+        "description": "Leave the sedan at the repair shop for brake and suspension work.",
+        "location": "Clintonville Auto Care, Columbus, Ohio",
+        "organizer": "Clintonville Auto Care",
+        "status": "confirmed"
+      }
+    },
+    "event3": {
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "service@clintonvilleautocare.example",
+        "recipients": [
+          "Elena Brooks"
+        ],
+        "subject": "Repair delay for your sedan",
+        "body": "The parts shipment for your brake and suspension repair is delayed. We now expect to keep your sedan through Friday, January 16. It will not be available for your Northgate Middle School assignment on Thursday, January 15.",
+        "timestamp": "2026-01-10T09:00:00-05:00"
+      }
+    },
+    "event4": {
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "Marcus Lee",
+        "recipients": [
+          "Elena Brooks"
+        ],
+        "content": "I can drive you to Northgate on Thursday if you still need a ride. I would need your confirmation by Monday at 6:00 PM so I can plan the pickup before my own school day.",
+        "timestamp": "2026-01-11T14:00:00-05:00"
+      }
+    },
+    "event5": {
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "office@northgatemiddle.example",
+        "recipients": [
+          "Elena Brooks"
+        ],
+        "subject": "Northgate assignment remains scheduled",
+        "body": "Thursday's substitute assignment remains scheduled. Please arrive at the main office by 7:30 AM; the school cannot provide a remote or delayed-start alternative because classroom coverage begins with the morning bell.",
+        "timestamp": "2026-01-12T08:00:00-05:00"
+      }
+    }
+  },
+  "ini_data_commands": [
+    {
+      "app": "database",
+      "function": "execute",
+      "parameter": {
+        "sql": "INSERT INTO school_sites (site_name, address, arrival_notes, parking_rule, typical_minutes) VALUES (?, ?, ?, ?, ?)",
+        "parameters": [
+          "Northgate Middle School",
+          "4550 Karl Road, Columbus, Ohio",
+          "Enter through the main office and arrive before the morning bell.",
+          "Visitor parking is available when space permits.",
+          18
+        ]
+      }
+    },
+    {
+      "app": "contacts",
+      "function": "create_contact",
+      "parameter": {
+        "name": "Marcus Lee",
+        "phone_numbers": [
+          "614-555-0148"
+        ],
+        "organization": "Columbus Schools",
+        "relationship": "coworker",
+        "notes": "Substitute teacher who sometimes shares rides to school assignments."
+      }
+    },
+    {
+      "app": "contacts",
+      "function": "create_contact",
+      "parameter": {
+        "name": "Clintonville Auto Care",
+        "emails": [
+          "service@clintonvilleautocare.example"
+        ],
+        "organization": "Clintonville Auto Care",
+        "relationship": "service provider",
+        "notes": "Repair shop handling Elena's sedan."
+      }
+    },
+    {
+      "app": "messaging",
+      "function": "create_conversation",
+      "parameter": {
+        "participants": [
+          "Elena Brooks",
+          "Marcus Lee"
+        ],
+        "title": "Ride coordination"
+      }
+    }
+  ]
+}

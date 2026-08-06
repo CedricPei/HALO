@@ -1,0 +1,106 @@
+{
+  "scenario_id": "failed_5",
+  "trigger_type": "opportunity",
+  "reference_time": "2026-04-08",
+  "scenario_description": "Riverbend Market has a useful but optional chance to turn recurring unsold bakery items into a community donation rather than discard them. A single surplus observation is too early to justify changing the closing routine, but repeated records show a pattern. A nearby community pantry later confirms that its Thursday pickup route can accept packaged bread and pastries, and the pantry can provide receipts for the store's records. Proactively coordinating the first handoff, confirming which items can be donated, and recording a simple closing-shift process would reduce avoidable waste, strengthen a local partnership, and give the evening team a worthwhile reusable practice.",
+  "events": {
+    "event1": {
+      "app": "database",
+      "function": "execute",
+      "parameter": {
+        "sql": "INSERT INTO stock_checks (check_id, check_date, department, issue_type, details) VALUES (?, ?, ?, ?, ?)",
+        "parameters": [
+          26040831,
+          "2026-04-08",
+          "Bakery",
+          "Unsold packaged goods",
+          "3:05 PM: Six packaged loaves and four sealed pastry boxes remained from yesterday's bakery display. All were within their sell-by dates and were moved to the marked clearance shelf for the evening team to monitor.",
+          "Lena Ortiz"
+        ]
+      }
+    },
+    "event2": {
+      "app": "database",
+      "function": "execute",
+      "parameter": {
+        "sql": "INSERT INTO shift_records (record_id, record_date, shift_summary, follow_up_status, recorded_by) VALUES (?, ?, ?, ?, ?)",
+        "parameters": [
+          26040842,
+          "2026-04-08",
+          "6:40 PM: Most of the bakery clearance items remain unsold. This is the first recent shift record noting a possible surplus pattern, so the team will continue using the normal clearance process tonight.",
+          "Observe whether surplus repeats",
+          "Lena Ortiz"
+        ]
+      }
+    },
+    "event3": {
+      "app": "database",
+      "function": "execute",
+      "parameter": {
+        "sql": "INSERT INTO stock_checks (check_id, check_date, department, issue_type, details) VALUES (?, ?, ?, ?, ?)",
+        "parameters": [
+          26040953,
+          "2026-04-09",
+          "Bakery",
+          "Repeated unsold packaged goods",
+          "3:20 PM: The bakery again has seven packaged loaves and five sealed pastry boxes likely to remain unsold after clearance. The items are labeled, sealed, and within their sell-by dates. This is the second consecutive shift with substantial bakery surplus.",
+          "Lena Ortiz"
+        ]
+      }
+    },
+    "event4": {
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "Tessa Nguyen",
+        "recipients": [
+          "Lena Ortiz"
+        ],
+        "content": "Our Eastside Community Pantry pickup van already comes through the neighborhood on Thursday mornings. We can accept sealed bread and pastries that are still within their sell-by dates, and we can send Riverbend a donation receipt after each handoff. We have room on tomorrow's route if the items are ready at the store by 9:00 AM.",
+        "timestamp": "2026-04-09T16:10:00-08:00"
+      }
+    },
+    "event5": {
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "tessa.nguyen@eastsidepantry.example",
+        "recipients": [
+          "Lena Ortiz"
+        ],
+        "subject": "Thursday bakery pickup details",
+        "body": "The van will be at the Riverbend Market receiving entrance between 8:30 and 9:00 AM tomorrow, April 10. Please have only sealed bakery items within their sell-by dates boxed and labeled with the item count. Reply tonight if Riverbend would like to use this optional pickup, and I will alert the driver.",
+        "timestamp": "2026-04-09T18:05:00-08:00"
+      }
+    }
+  },
+  "ini_data_commands": [
+    {
+      "app": "contacts",
+      "function": "create_contact",
+      "parameter": {
+        "name": "Tessa Nguyen",
+        "aliases": [
+          "Tessa"
+        ],
+        "emails": [
+          "tessa.nguyen@eastsidepantry.example"
+        ],
+        "organization": "Eastside Community Pantry",
+        "relationship": "community pantry coordinator",
+        "notes": "Coordinates the pantry's Thursday morning pickup route through Lena's neighborhood."
+      }
+    },
+    {
+      "app": "messaging",
+      "function": "create_conversation",
+      "parameter": {
+        "participants": [
+          "Lena Ortiz",
+          "Tessa Nguyen"
+        ],
+        "title": "Eastside Community Pantry pickup"
+      }
+    }
+  ]
+}

@@ -1,0 +1,112 @@
+{
+  "scenario_id": "failed_6",
+  "trigger_type": "opportunity",
+  "reference_time": "2026-06-07",
+  "scenario_description": "Elena has a confirmed three-day assignment at Northgate Intermediate School, where driving remains workable but costs $11 per day for parking. A school parking notice in event2 makes the expense visible, but it is still too early to recommend another mode because no practical alternative is known. The opportunity becomes sufficiently observable at event3, when a new direct weekday bus is shown to connect a central Clintonville stop with the school at times that fit Elena's full schedule. A proactive agent could combine the assignment times, route schedule, school access details, and fare information into a concrete three-day transit plan, add the travel blocks to Elena's calendar, and prepare a compact packing plan for her badge, laptop, and lesson materials. Later events confirm convenient badge entry, secure storage, a $4 daily round-trip fare, and likely garage queues. Elena may still drive without jeopardizing the assignment, but using the bus could save about $21 in parking fees plus fuel while providing a predictable route.",
+  "events": {
+    "event1": {
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "assignments@columbusschools.example",
+        "recipients": [
+          "Elena Brooks"
+        ],
+        "subject": "June 16-18 assignment confirmed at Northgate Intermediate",
+        "body": "Your substitute assignment is confirmed at Northgate Intermediate School, 4770 Karl Road, for Tuesday through Thursday, June 16-18, 2026. Please report by 8:10 AM each day. Classes end at 2:45 PM, and substitutes are normally free to leave by 2:55 PM. You will remain at this school throughout each day and may bring your laptop and lesson materials.",
+        "timestamp": "2026-06-08T08:15:00-04:00"
+      }
+    },
+    "event2": {
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "office@northgateintermediate.example",
+        "recipients": [
+          "Elena Brooks"
+        ],
+        "subject": "Arrival and parking information for June 16-18",
+        "body": "For your June 16-18 assignment, check in at the main office with your district identification badge. The small visitor lot is reserved for families during summer classes. Staff and substitutes who drive may use the adjacent Northgate garage for $11 per day; spaces remain available and no advance reservation is needed.",
+        "timestamp": "2026-06-08T11:40:00-04:00"
+      }
+    },
+    "event3": {
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "riderupdates@cota.example",
+        "recipients": [
+          "Elena Brooks"
+        ],
+        "subject": "New direct weekday service from Clintonville to Northgate",
+        "body": "Beginning Monday, June 15, Route 42 will provide direct weekday service between the North High Street and North Broadway stop in Clintonville and Northgate Intermediate School on Karl Road. Morning buses leave the Clintonville stop at 7:18 AM and 7:38 AM, reaching the school's main entrance at 7:52 AM and 8:02 AM. Afternoon buses leave the school at 3:04 PM and 3:34 PM, reaching North High Street and North Broadway at 3:28 PM and 3:58 PM. No transfer is required.",
+        "timestamp": "2026-06-09T07:30:00-04:00"
+      }
+    },
+    "event4": {
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "Luis Ortega",
+        "recipients": [
+          "Elena Brooks"
+        ],
+        "content": "Northgate confirmed that substitutes arriving on Route 42 can use the entrance beside the bus stop starting at 7:45 AM. Your district badge will open that entrance, and the office can provide a secure cabinet for your laptop and teaching bag during the day if you ask when you check in.",
+        "timestamp": "2026-06-09T09:05:00-04:00"
+      }
+    },
+    "event5": {
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "fares@cota.example",
+        "recipients": [
+          "Elena Brooks"
+        ],
+        "subject": "Route 42 fare and payment details",
+        "body": "The standard fare on Route 42 is $2 each way. Riders may tap a contactless bank card or phone when boarding, so no pass or advance purchase is required. A round trip between Clintonville and Northgate costs $4 per day.",
+        "timestamp": "2026-06-10T13:20:00-04:00"
+      }
+    },
+    "event6": {
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "office@northgateintermediate.example",
+        "recipients": [
+          "Elena Brooks"
+        ],
+        "subject": "Garage entry work during your Northgate assignment",
+        "body": "The Northgate garage will remain open June 16-18, and substitutes may still park there for $11 per day. Pavement work at the garage entrance may add about 10 to 15 minutes to the morning entry queue. The Route 42 stop and the badge entrance beside it will not be affected.",
+        "timestamp": "2026-06-12T15:10:00-04:00"
+      }
+    }
+  },
+  "ini_data_commands": [
+    {
+      "app": "database",
+      "function": "execute",
+      "parameter": {
+        "sql": "INSERT INTO school_sites (site_name, address, arrival_notes, parking_rule, typical_minutes) VALUES (?, ?, ?, ?, ?)",
+        "parameters": [
+          "Northgate Intermediate School",
+          "4770 Karl Road, Columbus, OH 43229",
+          "Check in with a district identification badge; the Route 42 stop is beside a badge-access entrance.",
+          "Drivers may use the adjacent garage for $11 per day; no reservation is required.",
+          22
+        ]
+      }
+    },
+    {
+      "app": "messaging",
+      "function": "create_conversation",
+      "parameter": {
+        "participants": [
+          "Elena Brooks",
+          "Luis Ortega"
+        ],
+        "title": "Northgate June assignment travel"
+      }
+    }
+  ]
+}

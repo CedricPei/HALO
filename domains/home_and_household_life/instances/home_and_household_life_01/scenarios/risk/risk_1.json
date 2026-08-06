@@ -1,0 +1,70 @@
+{
+  "scenario_description": "Lena's townhouse electricity bill is due on March 13 and was expected to be paid automatically. The utility explains in advance that it will make one initial withdrawal and, if necessary, only one retry. The first failed withdrawal is still too early for intervention because the scheduled retry could resolve it. When the second and final automatic attempt also fails on March 11, the unpaid bill and approaching due date together make the risk sufficiently observable at a non-final event. A proactive agent can use the available wallet funds and the account reference from the failed transactions to make the one-time payment before Lena incurs a late charge or puts an essential household service at risk.",
+  "events": {
+    "event1": {
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "Minneapolis Electric Service",
+        "recipients": [
+          "Lena Ortiz"
+        ],
+        "subject": "March townhouse electricity bill",
+        "body": "Your electricity bill for account MES-ORTIZ-4826 is $184.72 and is due March 13, 2026. The balance is enrolled in automatic payment, with the first withdrawal scheduled for March 10.",
+        "timestamp": "2026-03-09T08:15:00-05:00"
+      }
+    },
+    "event2": {
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "Minneapolis Electric Service",
+        "recipients": [
+          "Lena Ortiz"
+        ],
+        "subject": "Automatic payment schedule for account MES-ORTIZ-4826",
+        "body": "We will attempt your scheduled $184.72 automatic payment on March 10. If that attempt is unsuccessful, our system will make one final automatic retry on March 11. Your account remains current through the March 13 due date.",
+        "timestamp": "2026-03-09T16:40:00-05:00"
+      }
+    },
+    "event3": {
+      "app": "wallet",
+      "function": "pay",
+      "parameter": {
+        "merchant": "Minneapolis Electric Service",
+        "amount": 184.72,
+        "timestamp": "2026-03-10T06:30:00-05:00",
+        "status": "failed",
+        "category": "utilities",
+        "reference": "MES-ORTIZ-4826",
+        "description": "First automatic attempt for March townhouse electricity bill"
+      }
+    },
+    "event4": {
+      "app": "wallet",
+      "function": "pay",
+      "parameter": {
+        "merchant": "Minneapolis Electric Service",
+        "amount": 184.72,
+        "timestamp": "2026-03-11T06:30:00-05:00",
+        "status": "failed",
+        "category": "utilities",
+        "reference": "MES-ORTIZ-4826",
+        "description": "Final automatic retry for March townhouse electricity bill"
+      }
+    },
+    "event5": {
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "Minneapolis Electric Service",
+        "recipients": [
+          "Lena Ortiz"
+        ],
+        "subject": "Balance remains due for account MES-ORTIZ-4826",
+        "body": "The $184.72 balance on your electricity account remains unpaid and is due tomorrow, March 13. A late charge will be added if payment is not received by the due date.",
+        "timestamp": "2026-03-12T09:05:00-05:00"
+      }
+    }
+  }
+}
