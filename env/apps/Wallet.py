@@ -8,6 +8,7 @@ from ._store import (
     next_id,
     parse_time,
     public,
+    required_text,
 )
 
 
@@ -142,6 +143,7 @@ class Wallet:
             "currency": wallet["currency"],
             "timestamp": timestamp,
             "status": status,
+            "flagged": False,
         }
         if reference is not None:
             transaction["reference"] = reference
@@ -173,6 +175,7 @@ class Wallet:
             "currency": wallet["currency"],
             "timestamp": timestamp,
             "status": status,
+            "flagged": False,
         }
         optional = {
             "category": category,
@@ -250,6 +253,7 @@ class Wallet:
         end_time=None,
         min_amount=None,
         max_amount=None,
+        flagged=None,
     ):
         """Search and filter transaction history in timestamp order."""
         results = [
@@ -264,8 +268,17 @@ class Wallet:
             and in_time_range(transaction["timestamp"], start_time, end_time)
             and (min_amount is None or transaction["amount"] >= min_amount)
             and (max_amount is None or transaction["amount"] <= max_amount)
+            and (flagged is None or transaction.get("flagged", False) == flagged)
         ]
         return clone(sorted(results, key=lambda item: parse_time(item["timestamp"])))
+
+    def flag_transaction(self, transaction_id, comment):
+        """Flag a transaction for the Instance owner's attention."""
+        transaction = self._transaction(transaction_id)
+        transaction["flagged"] = True
+        transaction["flag_comment"] = required_text(comment, "comment")
+        self.store.save()
+        return clone(transaction)
 
     @staticmethod
     def _transaction_matches(query, transaction):
@@ -277,6 +290,7 @@ class Wallet:
             transaction.get("category"),
             transaction.get("reference"),
             transaction.get("description"),
+            transaction.get("flag_comment"),
         )
 
     def update_transaction_status(self, transaction_id, status):
@@ -318,6 +332,7 @@ class Wallet:
             "timestamp": timestamp,
             "status": "completed",
             "reference": transaction_id,
+            "flagged": False,
         }
         if description is not None:
             refund["description"] = description

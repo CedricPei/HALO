@@ -5,27 +5,41 @@ import random
 from datetime import date, timedelta
 from pathlib import Path
 
-from benchmark_plan import TRIGGER_TYPES, load_plan
 from env.apps import Database, Files
+from llm_client import LLMClient
 
-from .llm_client import LLMClient
-from .prompt import build_scenario_creator_prompt
+from .prompt import TRIGGER_DEFINITIONS, build_scenario_creator_prompt
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 DOMAINS_DIR = ROOT_DIR / "domains"
-APPS_REFERENCE_PATH = ROOT_DIR / "env" / "apps.md"
 
 
-def random_reference_date():
-    year = load_plan()["design"]["benchmark_year"]
-    start = date(year, 1, 1)
-    day_count = (date(year + 1, 1, 1) - start).days
-    return (start + timedelta(days=random.randrange(day_count))).isoformat()
+class ScenarioOutputError(ValueError):
+    """The Creator response was not a usable JSON object."""
 
 
-def get_instance_dir(domains_dir, domain_id, instance_id):
-    return Path(domains_dir) / domain_id / "instances" / instance_id
+def next_reference_date(instance_dir, year):
+    """Choose the next date from a random, year-spanning ordered sample."""
+    accepted = load_accepted_scenarios(instance_dir)
+    year_start = date(year, 1, 1)
+    year_end = date(year, 12, 31)
+    earliest = (
+        max(date.fromisoformat(item["reference_time"]) for item in accepted)
+        + timedelta(days=1)
+        if accepted
+        else year_start
+    )
+    remaining = len(TRIGGER_DEFINITIONS) * 2 - len(accepted)
+    available_days = (year_end - earliest).days + 1
+    if available_days < remaining:
+        raise ValueError("No chronological reference date remains in benchmark year")
+    offset = min(random.sample(range(available_days), remaining))
+    return (earliest + timedelta(days=offset)).isoformat()
+
+
+def get_instance_dir(domain_id, instance_id):
+    return DOMAINS_DIR / domain_id / "instances" / instance_id
 
 
 def load_instance_context(instance_dir, instance_id):
@@ -37,11 +51,15 @@ def load_instance_context(instance_dir, instance_id):
         "AND name NOT LIKE 'sqlite_%' ORDER BY name"
     )["rows"]
     description = json.loads(
-        (instance_dir / "description.json").read_text(encoding="utf-8")
+        (instance_dir / "profile.json").read_text(encoding="utf-8")
+    )
+    instance_output = json.loads(
+        (instance_dir / "outputs" / "instance.json").read_text(encoding="utf-8")
     )
     file_descriptions = {
-        item["name"]: item["description"]
-        for item in description["file_description"]
+        command["parameter"]["name"]: command["description"]
+        for command in instance_output["commands"]
+        if command["app"] == "files"
     }
     files = Files(instance_dir / "data")
     apps = {
@@ -57,7 +75,10 @@ def load_instance_context(instance_dir, instance_id):
         "files": [
             {
                 "name": item["name"],
-                "description": file_descriptions[item["name"]],
+                "description": file_descriptions.get(
+                    item["name"],
+                    "Instance-specific text file added by an accepted Scenario.",
+                ),
                 "content": files.get_file(item["name"])["content"],
             }
             for item in files.list_files()
@@ -68,7 +89,7 @@ def load_instance_context(instance_dir, instance_id):
 
 def load_personal_description(instance_dir):
     return json.loads(
-        (Path(instance_dir) / "description.json").read_text(encoding="utf-8")
+        (Path(instance_dir) / "profile.json").read_text(encoding="utf-8")
     )["personal_description"]
 
 
@@ -76,49 +97,70 @@ def load_accepted_scenarios(instance_dir):
     """Load every accepted hidden Scenario."""
     instance_dir = Path(instance_dir)
     scenarios = []
-    for trigger in TRIGGER_TYPES:
+    for trigger in TRIGGER_DEFINITIONS:
         trigger_dir = instance_dir / "scenarios" / trigger
         for public_path in sorted(trigger_dir.glob(f"{trigger}_*.json")):
-            hidden = trigger_dir / "logs" / public_path.stem / "scenario_output.json"
+            hidden = (
+                instance_dir / "scenarios" / "logs" / public_path.stem
+                / "scenario_output.json"
+            )
             scenarios.append(json.loads(hidden.read_text(encoding="utf-8")))
     return scenarios
 
 
-def next_scenario_id(instance_dir, trigger_type):
-    trigger_dir = Path(instance_dir) / "scenarios" / trigger_type
-    numbers = [
-        int(path.stem.removeprefix(f"{trigger_type}_"))
-        for path in trigger_dir.glob(f"{trigger_type}_*.json")
-        if path.stem.removeprefix(f"{trigger_type}_").isdigit()
+def scenario_context_summary(scenario):
+    """Keep the causal design signals needed for set-level prompt context."""
+    return {
+        "scenario_id": scenario["scenario_id"],
+        "trigger_type": scenario["trigger_type"],
+        "scenario_description": scenario["scenario_description"],
+        "event_sequence": [
+            f"{event['app']}.{event['function']}"
+            for event in scenario["events"].values()
+        ],
+        "initialization_sources": sorted(
+            {
+                f"{command['app']}.{command['function']}"
+                for command in scenario["ini_data_commands"]
+            }
+        ),
+    }
+
+
+def load_scenario_context_summaries(instance_dir):
+    instance_dir = Path(instance_dir)
+    return [
+        {"instance_id": instance_dir.name, **scenario_context_summary(scenario)}
+        for scenario in load_accepted_scenarios(instance_dir)
     ]
-    return f"{trigger_type}_{max(numbers, default=0) + 1}"
 
 
-def assigned_event_count(scenario_id, trigger_type):
-    if scenario_id.endswith("_1"):
-        return 5
-    return 4 if trigger_type in {"dependency", "risk"} else 6
+def load_domain_scenario_context_summaries(domain_dir):
+    return [
+        summary
+        for instance_dir in sorted((Path(domain_dir) / "instances").glob("*"))
+        if instance_dir.is_dir()
+        for summary in load_scenario_context_summaries(instance_dir)
+    ]
 
 
 class ScenarioCreator:
     """Create one trigger-specific Scenario with one LLM request."""
 
-    def __init__(self, client=None, domains_dir=DOMAINS_DIR):
-        self.client = client or LLMClient(temperature=0.7)
-        self.domains_dir = Path(domains_dir)
+    def __init__(self):
+        self.client = LLMClient(temperature=0.7)
 
     def create_scenario(
         self,
         domain_id,
         instance_id,
         trigger_type,
-        reference_date=None,
-        retry_feedback=None,
+        reference_date,
+        scenario_id,
+        retry_feedback,
     ):
-        instance_dir = get_instance_dir(self.domains_dir, domain_id, instance_id)
-        scenario_id = next_scenario_id(instance_dir, trigger_type)
-        event_count = assigned_event_count(scenario_id, trigger_type)
-        accepted = load_accepted_scenarios(instance_dir)
+        instance_dir = get_instance_dir(domain_id, instance_id)
+        accepted = load_domain_scenario_context_summaries(DOMAINS_DIR / domain_id)
         prompt = build_scenario_creator_prompt(
             trigger_type=trigger_type,
             scenario_id=scenario_id,
@@ -130,37 +172,31 @@ class ScenarioCreator:
             other_scenarios=[
                 item for item in accepted if item["trigger_type"] != trigger_type
             ],
-            app_reference=APPS_REFERENCE_PATH.read_text(encoding="utf-8"),
-            reference_date=reference_date or random_reference_date(),
+            reference_date=reference_date,
             retry_feedback=retry_feedback,
-            target_event_count=event_count,
+        )
+        log_dir = instance_dir / "scenarios" / "logs" / scenario_id
+        raw_output = self.client.generate_text(
+            prompt,
+            request_label=f"{domain_id}/{instance_id}/{scenario_id}/Creator",
         )
         try:
-            generated = json.loads(self.client.generate_json(prompt))
+            generated = json.loads(raw_output)
         except json.JSONDecodeError as error:
-            raise ValueError(f"LLM returned invalid JSON: {error.msg}") from error
-        events = generated.get("events")
-        if not isinstance(events, dict) or len(events) != event_count:
-            actual = len(events) if isinstance(events, dict) else "invalid"
-            raise ValueError(f"Scenario must contain {event_count} Events; got {actual}")
+            raise ScenarioOutputError(
+                f"Creator returned invalid JSON: {error.msg}"
+            ) from error
+        if not isinstance(generated, dict):
+            raise ScenarioOutputError("Creator must return one JSON object")
         scenario = {
+            **generated,
             "scenario_id": scenario_id,
             "trigger_type": trigger_type,
             "reference_time": reference_date,
-            **generated,
         }
-        log_dir = (
-            instance_dir / "scenarios" / trigger_type / "logs" / scenario_id
-        )
         log_dir.mkdir(parents=True)
         (log_dir / "scenario_output.json").write_text(
             json.dumps(scenario, ensure_ascii=False, indent=2) + "\n",
             encoding="utf-8",
         )
         return scenario
-
-
-def create_scenario(domain_id, instance_id, trigger_type, reference_date=None, retry_feedback=None):
-    return ScenarioCreator().create_scenario(
-        domain_id, instance_id, trigger_type, reference_date, retry_feedback
-    )

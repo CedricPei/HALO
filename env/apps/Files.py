@@ -29,11 +29,13 @@ class Files:
         if self._path(name).exists():
             raise ValueError(f"File already exists: {name}")
 
-    def create_file(self, name):
-        """Create an empty TXT file."""
+    def create_file(self, name, content=""):
+        """Create a TXT file with optional initial content."""
         self._check_name(name)
-        self._path(name).write_text("", encoding="utf-8")
-        return {"name": name, "content": ""}
+        if not isinstance(content, str):
+            raise TypeError("content must be a string")
+        self._path(name).write_text(content, encoding="utf-8")
+        return {"name": name, "content": content}
 
     def get_file(self, name):
         """Return the name and content of an exact file."""
@@ -57,12 +59,16 @@ class Files:
 
     def append_file(self, name, content):
         """Append content to a file selected by name."""
+        if not isinstance(content, str):
+            raise TypeError("content must be a string")
         with self._file(name).open("a", encoding="utf-8") as file:
             file.write(content)
         return self.get_file(name)
 
     def replace_file(self, name, content):
         """Replace all content in a file selected by name."""
+        if not isinstance(content, str):
+            raise TypeError("content must be a string")
         self._file(name).write_text(content, encoding="utf-8")
         return self.get_file(name)
 

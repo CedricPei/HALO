@@ -1,15 +1,23 @@
 """Email and draft storage, filtering, and search."""
 
-from ._store import JsonStore, in_time_range, keyword_match, next_id, public
+from ._store import (
+    JsonStore,
+    in_time_range,
+    keyword_match,
+    next_id,
+    public,
+    required_text,
+)
 
 
 class Email:
     """Store sent and received emails and outgoing drafts in a JSON file."""
 
-    def __init__(self, state_path):
+    def __init__(self, state_path, owner=None):
         self.store = JsonStore(state_path, {"emails": [], "drafts": []})
         self.emails = self.store.data.setdefault("emails", [])
         self.drafts = self.store.data.setdefault("drafts", [])
+        self.owner = owner
 
     def _email(self, sender, subject, timestamp):
         """Find an email by sender, subject, and timestamp."""
@@ -51,6 +59,7 @@ class Email:
             "subject": subject,
             "body": body,
             "timestamp": timestamp,
+            "flagged": False,
         }
         if cc is not None:
             email["cc"] = cc
@@ -58,14 +67,27 @@ class Email:
         self.store.save()
         return public(email)
 
+    def send_email(self, recipients, subject, body, timestamp, cc=None):
+        """Send an outgoing email as the configured Instance owner."""
+        if not self.owner:
+            raise ValueError("Email owner is not configured")
+        return self.create_email(
+            self.owner, recipients, subject, body, timestamp, cc=cc
+        )
+
     def get_email(self, sender, subject, timestamp):
         """Return an email selected by sender, subject, and timestamp."""
         return public(self._email(sender, subject, timestamp))
 
     def list_emails(
-        self, sender=None, recipient=None, start_time=None, end_time=None
+        self,
+        sender=None,
+        recipient=None,
+        start_time=None,
+        end_time=None,
+        flagged=None,
     ):
-        """List emails with optional sender, recipient, and time filters."""
+        """List emails with optional sender, recipient, time, and flag filters."""
         return public(
             [
                 email
@@ -73,6 +95,7 @@ class Email:
                 if (sender is None or email["sender"] == sender)
                 and (recipient is None or recipient in email["recipients"])
                 and in_time_range(email["timestamp"], start_time, end_time)
+                and (flagged is None or email.get("flagged", False) == flagged)
             ]
         )
 
@@ -89,6 +112,7 @@ class Email:
                     email.get("cc", []),
                     email["subject"],
                     email["body"],
+                    email.get("flag_comment"),
                 )
             ]
         )
@@ -100,12 +124,20 @@ class Email:
         self.store.save()
         return public(email)
 
-    def create_draft(
-        self, sender, recipients, subject, body, timestamp, cc=None
-    ):
-        """Compose and save an outgoing email draft."""
+    def flag_email(self, sender, subject, timestamp, comment):
+        """Flag an email for the Instance owner's attention."""
+        email = self._email(sender, subject, timestamp)
+        email["flagged"] = True
+        email["flag_comment"] = required_text(comment, "comment")
+        self.store.save()
+        return public(email)
+
+    def create_draft(self, recipients, subject, body, timestamp, cc=None):
+        """Compose an outgoing email draft as the configured Instance owner."""
+        if not self.owner:
+            raise ValueError("Email owner is not configured")
         if any(
-            item["sender"] == sender
+            item["sender"] == self.owner
             and item["timestamp"] == timestamp
             for item in self.drafts
         ):
@@ -113,7 +145,7 @@ class Email:
 
         draft = {
             "draft_id": next_id(self.drafts, "draft_id", "draft"),
-            "sender": sender,
+            "sender": self.owner,
             "recipients": recipients,
             "subject": subject,
             "body": body,
@@ -143,9 +175,11 @@ class Email:
             ]
         )
 
-    def update_draft(self, sender, timestamp, **changes):
-        """Update a draft selected by sender and creation time."""
-        draft = self._draft(sender, timestamp)
+    def update_draft(self, timestamp, **changes):
+        """Update the configured Instance owner's draft by creation time."""
+        if not self.owner:
+            raise ValueError("Email owner is not configured")
+        draft = self._draft(self.owner, timestamp)
         changes.pop("draft_id", None)
         changes.pop("sender", None)
         changes.pop("timestamp", None)

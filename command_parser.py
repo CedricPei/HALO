@@ -1,6 +1,7 @@
 """Convert JSON commands into calls on initialized App objects."""
 
 import json
+import re
 from pathlib import Path
 
 from env.apps import Calendar, Contacts, Database, Email, Files, Messaging, Wallet
@@ -16,17 +17,35 @@ class CommandParser:
         instance_dir = Path(instance_dir)
         data_dir = instance_dir / "data"
         app_dir = instance_dir / "app"
+        owner = cls._instance_owner(instance_dir)
         return cls(
             {
                 "database": Database(data_dir / f"{instance_id}.sqlite"),
                 "files": Files(data_dir),
-                "email": Email(app_dir / "email.json"),
+                "email": Email(app_dir / "email.json", owner=owner),
                 "calendar": Calendar(app_dir / "calendar.json"),
-                "messaging": Messaging(app_dir / "messaging.json"),
+                "messaging": Messaging(app_dir / "messaging.json", owner=owner),
                 "contacts": Contacts(app_dir / "contacts.json"),
                 "wallet": Wallet(app_dir / "wallet.json"),
             }
         )
+
+    @staticmethod
+    def _instance_owner(instance_dir):
+        """Read the protagonist name from the Instance personal description."""
+        description_path = Path(instance_dir) / "profile.json"
+        if not description_path.exists():
+            return None
+        description = json.loads(description_path.read_text(encoding="utf-8"))
+        personal = description.get("personal_description", "").strip()
+        if personal.startswith("Identity:"):
+            personal = personal.removeprefix("Identity:").strip()
+        match = re.match(r"^(.+?)(?=,\s*age\b|\s+(?:is|was)\b)", personal)
+        if not match:
+            raise ValueError(
+                "personal_description must begin with the protagonist's full name"
+            )
+        return match.group(1).strip()
 
     def execute_command(self, command: dict):
         """Execute one command and return the App function result."""
@@ -49,9 +68,6 @@ class CommandParser:
             )
         return result
 
-    def execute_commands(self, data: dict | str) -> list:
-        """Read commands from a JSON object and execute them in order."""
-        if isinstance(data, str):
-            data = json.loads(data)
-        commands = data["commands"]
-        return [self.execute_command(command) for command in commands]
+    def execute_commands(self, data: dict) -> list:
+        """Execute the commands in one parsed JSON object."""
+        return [self.execute_command(command) for command in data["commands"]]

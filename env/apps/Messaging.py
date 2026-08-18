@@ -1,18 +1,27 @@
 """Group conversations, messages, and message drafts."""
 
-from ._store import JsonStore, in_time_range, keyword_match, next_id, parse_time, public
+from ._store import (
+    JsonStore,
+    in_time_range,
+    keyword_match,
+    next_id,
+    parse_time,
+    public,
+    required_text,
+)
 
 
 class Messaging:
     """Store conversations, messages, and outgoing message drafts."""
 
-    def __init__(self, state_path):
+    def __init__(self, state_path, owner=None):
         self.store = JsonStore(
             state_path, {"conversations": [], "messages": [], "drafts": []}
         )
         self.conversations = self.store.data.setdefault("conversations", [])
         self.messages = self.store.data.setdefault("messages", [])
         self.drafts = self.store.data.setdefault("drafts", [])
+        self.owner = owner
 
     @staticmethod
     def _same_people(left, right):
@@ -59,6 +68,7 @@ class Messaging:
                 self.conversations, "conversation_id", "conversation"
             ),
             "participants": participants,
+            "pinned": False,
         }
         if title is not None:
             conversation["title"] = title
@@ -70,8 +80,8 @@ class Messaging:
         """Return the conversation with exactly these participants."""
         return public(self._conversation(participants))
 
-    def list_conversations(self, participant=None, query=None):
-        """List conversations, optionally filtering by participant and text."""
+    def list_conversations(self, participant=None, query=None, pinned=None):
+        """List conversations, optionally filtering by participant, text, and pin."""
         return public(
             [
                 conversation
@@ -86,10 +96,20 @@ class Messaging:
                         query,
                         conversation["participants"],
                         conversation.get("title"),
+                        conversation.get("pin_comment"),
                     )
                 )
+                and (pinned is None or conversation.get("pinned", False) == pinned)
             ]
         )
+
+    def pin_conversation(self, participants, comment):
+        """Pin a conversation for the Instance owner's attention."""
+        conversation = self._conversation(participants)
+        conversation["pinned"] = True
+        conversation["pin_comment"] = required_text(comment, "comment")
+        self.store.save()
+        return public(conversation)
 
     def create_message(self, sender, recipients, content, timestamp):
         """Create a message inside an existing conversation."""
@@ -116,6 +136,12 @@ class Messaging:
         self.messages.append(message)
         self.store.save()
         return public(message)
+
+    def send_message(self, recipients, content, timestamp):
+        """Send an outgoing message as the configured Instance owner."""
+        if not self.owner:
+            raise ValueError("Messaging owner is not configured")
+        return self.create_message(self.owner, recipients, content, timestamp)
 
     def get_message(self, sender, recipients, timestamp):
         """Return a message selected by sender, recipients, and timestamp."""
@@ -163,12 +189,14 @@ class Messaging:
         self.store.save()
         return public(message)
 
-    def create_draft(self, sender, recipients, content, timestamp):
-        """Compose a draft inside an existing conversation."""
+    def create_draft(self, recipients, content, timestamp):
+        """Compose a draft as the configured owner in an existing conversation."""
+        if not self.owner:
+            raise ValueError("Messaging owner is not configured")
         recipients = list(dict.fromkeys(recipients))
-        conversation = self._conversation([sender, *recipients])
+        conversation = self._conversation([self.owner, *recipients])
         if any(
-            item["sender"] == sender
+            item["sender"] == self.owner
             and self._same_people(item["recipients"], recipients)
             and item["timestamp"] == timestamp
             for item in self.drafts
@@ -179,7 +207,7 @@ class Messaging:
         draft = {
             "draft_id": next_id(self.drafts, "draft_id", "draft"),
             "conversation_id": conversation["conversation_id"],
-            "sender": sender,
+            "sender": self.owner,
             "recipients": recipients,
             "content": content,
             "timestamp": timestamp,
@@ -212,9 +240,11 @@ class Messaging:
             ]
         )
 
-    def update_draft(self, sender, recipients, timestamp, content):
-        """Replace the content of a selected message draft."""
-        draft = self._draft(sender, recipients, timestamp)
+    def update_draft(self, recipients, timestamp, content):
+        """Replace the configured owner's selected message draft content."""
+        if not self.owner:
+            raise ValueError("Messaging owner is not configured")
+        draft = self._draft(self.owner, recipients, timestamp)
         draft["content"] = content
         self.store.save()
         return public(draft)

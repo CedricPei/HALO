@@ -1,0 +1,130 @@
+{
+  "scenario_description": "Objective: Keep a touring youth matinee load-in on schedule despite uncertain venue access.\nEmerging Need: An unsettled vehicle size and a powered-gate fault may invalidate the north-dock route, creating a time-sensitive exposure before the truck arrives.\nDecision Context: Assignment records identify the responsible coordinator, while the production handoff defines vehicle thresholds, a nonbinding contingency option, its cutoff, and the later approval path.\nConsequence: If the viable alternative disappears after the route conflict becomes clear, the truck may arrive without an admissible unloading route, delaying setup and jeopardizing matinee readiness.",
+  "events": {
+    "event1": {
+      "time": "2026-02-02T08:15:00-05:00",
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "freight@brightwatertouring.example",
+        "recipients": [
+          "maren.quill@harborlight.org"
+        ],
+        "subject": "Preliminary vehicle allocation — Brightwater load-in",
+        "body": "The carrier currently expects to send a 16-foot panel van for Thursday's Harborlight load-in. Dispatch is still consolidating equipment, so the final vehicle allocation will not be locked until tomorrow morning.",
+        "timestamp": "2026-02-02T08:12:00-05:00"
+      }
+    },
+    "event2": {
+      "time": "2026-02-02T11:40:00-05:00",
+      "app": "calendar",
+      "function": "create_event",
+      "parameter": {
+        "title": "North dock powered-gate repair validation",
+        "start_time": "2026-02-04T15:00:00-05:00",
+        "end_time": "2026-02-04T16:00:00-05:00",
+        "description": "Facilities validation following intermittent slow-cycle observations. No dock outage has been declared.",
+        "location": "North loading dock",
+        "attendees": [
+          "maren.quill@harborlight.org",
+          "theo.park@harborlight.org"
+        ],
+        "organizer": "facilities@harborlight.org",
+        "status": "confirmed"
+      }
+    },
+    "event3": {
+      "time": "2026-02-03T08:10:00-05:00",
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "theo.park@harborlight.org",
+        "recipients": [
+          "maren.quill@harborlight.org"
+        ],
+        "content": "A spot check found an intermittent powered-gate control fault at the north dock. Manual release remains usable for vans, but Facilities cannot clear a box truck until the repair validation finishes Wednesday afternoon.",
+        "timestamp": "2026-02-03T08:08:00-05:00"
+      }
+    },
+    "event4": {
+      "time": "2026-02-03T10:20:00-05:00",
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "freight@brightwatertouring.example",
+        "recipients": [
+          "maren.quill@harborlight.org"
+        ],
+        "subject": "Final vehicle manifest — Brightwater load-in",
+        "body": "Dispatch has finalized a 24-foot box truck for the Thursday 06:30 Harborlight load-in because the scenery cases could not be split. The carrier has no smaller vehicle available for this run.",
+        "timestamp": "2026-02-03T10:17:00-05:00"
+      }
+    },
+    "event5": {
+      "time": "2026-02-03T15:10:00-05:00",
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "dispatch@railyardtraffic.example",
+        "recipients": [
+          "maren.quill@harborlight.org"
+        ],
+        "subject": "South Curb capacity update — February 5",
+        "body": "The February 5, 06:00–08:30 South Curb traffic-marshal slot is now allocated to another venue. The earliest remaining staffed arrival that morning is 08:30.",
+        "timestamp": "2026-02-03T15:06:00-05:00"
+      }
+    }
+  },
+  "ini_data_commands": [
+    {
+      "app": "database",
+      "function": "execute",
+      "parameter": {
+        "sql": "INSERT INTO event_calls (call_id, activity_name, call_type, scheduled_at, status) VALUES (?, ?, ?, ?, ?)",
+        "parameters": [
+          "CALL-BRIGHTWATER-20260205",
+          "Brightwater Youth Matinee load-in",
+          "touring load-in",
+          "2026-02-05T06:30:00-05:00",
+          "confirmed"
+        ]
+      }
+    },
+    {
+      "app": "database",
+      "function": "execute",
+      "parameter": {
+        "sql": "INSERT INTO duty_assignments (assignment_id, user_id, call_id, responsibility, assignment_status) VALUES (?, ?, ?, ?, ?)",
+        "parameters": [
+          "ASSIGN-BRIGHTWATER-ACCESS",
+          "maren.quill",
+          "CALL-BRIGHTWATER-20260205",
+          "Access-route contingency coordination",
+          "active"
+        ]
+      }
+    },
+    {
+      "app": "files",
+      "function": "replace_file",
+      "parameter": {
+        "name": "production_handoff.txt",
+        "content": "North dock contingency handoff — approved 2026-01-26\nThe powered gate is required for vehicles longer than 20 feet. Vehicles 20 feet or shorter may enter under manual release. If powered-gate clearance is uncertain for a confirmed vehicle over 20 feet, the only pre-load-in alternative is South Curb Bay with a traffic marshal.\nFor the Brightwater load-in on 2026-02-05, Railyard Traffic Services has offered Harborlight one nonbinding, no-cost provisional hold for 06:00–08:30. The assigned access-contingency coordinator may place it by emailing dispatch@railyardtraffic.example no later than 15:00 on 2026-02-03. Railyard sends capacity updates to that coordinator. The hold expires unless production manager Dana Sorrell, dana.sorrell@harborlight.org, approves conversion by 17:00; conversion costs $340. Do not request the provisional hold while vehicle length remains unconfirmed."
+      }
+    },
+    {
+      "app": "messaging",
+      "function": "create_conversation",
+      "parameter": {
+        "participants": [
+          "maren.quill@harborlight.org",
+          "theo.park@harborlight.org"
+        ],
+        "title": "North dock operations"
+      }
+    }
+  ],
+  "scenario_id": "risk_1",
+  "trigger_type": "risk",
+  "reference_time": "2026-02-02"
+}

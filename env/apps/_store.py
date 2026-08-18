@@ -74,3 +74,10 @@ def keyword_match(query, *values):
     for value in values:
         text.extend(value if isinstance(value, list) else [value or ""])
     return any(query in str(value).casefold() for value in text)
+
+
+def required_text(value, field):
+    """Validate and trim required user-visible text."""
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{field} must be a non-empty string")
+    return value.strip()

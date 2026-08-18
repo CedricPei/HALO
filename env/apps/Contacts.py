@@ -1,6 +1,6 @@
 """Contact storage and search."""
 
-from ._store import JsonStore, keyword_match, next_id, public
+from ._store import JsonStore, keyword_match, next_id, public, required_text
 
 
 class Contacts:
@@ -33,6 +33,7 @@ class Contacts:
         contact = {
             "contact_id": next_id(self.contacts, "contact_id", "contact"),
             "name": name,
+            "flagged": False,
         }
         optional = {
             "aliases": aliases,
@@ -51,9 +52,15 @@ class Contacts:
         """Return a contact selected by exact name."""
         return public(self._contact(name))
 
-    def list_contacts(self):
-        """Return every contact."""
-        return public(self.contacts)
+    def list_contacts(self, flagged=None):
+        """Return contacts, optionally filtered by attention flag."""
+        return public(
+            [
+                contact
+                for contact in self.contacts
+                if flagged is None or contact.get("flagged", False) == flagged
+            ]
+        )
 
     def search_contacts(self, query):
         """Search all user-visible contact fields."""
@@ -70,6 +77,7 @@ class Contacts:
                     contact.get("organization"),
                     contact.get("relationship"),
                     contact.get("notes"),
+                    contact.get("flag_comment"),
                 )
             ]
         )
@@ -82,6 +90,14 @@ class Contacts:
         if any(item is not contact and item["name"] == new_name for item in self.contacts):
             raise ValueError(f"Contact already exists: {new_name}")
         contact.update(changes)
+        self.store.save()
+        return public(contact)
+
+    def flag_contact(self, name, comment):
+        """Flag a contact for the Instance owner's attention."""
+        contact = self._contact(name)
+        contact["flagged"] = True
+        contact["flag_comment"] = required_text(comment, "comment")
         self.store.save()
         return public(contact)
 

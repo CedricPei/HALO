@@ -7,6 +7,5 @@ from .Email import Email
 from .Files import Files
 from .Messaging import Messaging
 from .Wallet import Wallet
-from .Web import Web
 
-__all__ = ["Email", "Calendar", "Messaging", "Contacts", "Wallet", "Database", "Files", "Web"]
+__all__ = ["Email", "Calendar", "Messaging", "Contacts", "Wallet", "Database", "Files"]

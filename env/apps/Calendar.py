@@ -7,15 +7,19 @@ from ._store import (
     next_id,
     parse_time,
     public,
+    required_text,
 )
 
 
 class Calendar:
-    """Store calendar events and reminders in a JSON file."""
+    """Store calendar events, event drafts, and reminders in a JSON file."""
 
     def __init__(self, state_path):
-        self.store = JsonStore(state_path, {"events": [], "reminders": []})
+        self.store = JsonStore(
+            state_path, {"events": [], "event_drafts": [], "reminders": []}
+        )
         self.events = self.store.data.setdefault("events", [])
+        self.event_drafts = self.store.data.setdefault("event_drafts", [])
         self.reminders = self.store.data.setdefault("reminders", [])
 
     @staticmethod
@@ -34,6 +38,13 @@ class Calendar:
             if event["title"] == title and event["start_time"] == start_time:
                 return event
         raise KeyError(f"Event not found: {title}, {start_time}")
+
+    def _event_draft(self, title, start_time):
+        """Find an event draft by title and start time."""
+        for draft in self.event_drafts:
+            if draft["title"] == title and draft["start_time"] == start_time:
+                return draft
+        raise KeyError(f"Event draft not found: {title}, {start_time}")
 
     def _reminder(self, title, remind_time):
         """Find a reminder by title and reminder time."""
@@ -115,6 +126,111 @@ class Calendar:
                 results.append(event)
         return public(results)
 
+    def create_event_draft(
+        self,
+        title,
+        start_time,
+        end_time,
+        description=None,
+        location=None,
+        attendees=None,
+        organizer=None,
+        status=None,
+    ):
+        """Prepare and save an event draft without creating an event."""
+        self._check_event(start_time, end_time)
+        if any(
+            item["title"] == title and item["start_time"] == start_time
+            for item in self.event_drafts
+        ):
+            raise ValueError(
+                "An event draft with the same title and start_time exists"
+            )
+        draft = {
+            "event_draft_id": next_id(
+                self.event_drafts, "event_draft_id", "event_draft"
+            ),
+            "title": title,
+            "start_time": start_time,
+            "end_time": end_time,
+        }
+        optional = {
+            "description": description,
+            "location": location,
+            "attendees": attendees,
+            "organizer": organizer,
+            "status": status,
+        }
+        draft.update(
+            {key: value for key, value in optional.items() if value is not None}
+        )
+        self.event_drafts.append(draft)
+        self.store.save()
+        return public(draft)
+
+    def get_event_draft(self, title, start_time):
+        """Return an event draft selected by title and start time."""
+        return public(self._event_draft(title, start_time))
+
+    def list_event_drafts(
+        self, query=None, start_time=None, end_time=None, attendee=None
+    ):
+        """Search and filter event drafts; time filters use interval overlap."""
+        return public(
+            [
+                draft
+                for draft in self.event_drafts
+                if (
+                    start_time is None
+                    or parse_time(draft["end_time"]) > parse_time(start_time)
+                )
+                and (
+                    end_time is None
+                    or parse_time(draft["start_time"]) < parse_time(end_time)
+                )
+                and (
+                    query is None
+                    or keyword_match(
+                        query,
+                        draft["title"],
+                        draft.get("description"),
+                        draft.get("location"),
+                        draft.get("organizer"),
+                        draft.get("attendees", []),
+                    )
+                )
+                and (
+                    attendee is None or attendee in draft.get("attendees", [])
+                )
+            ]
+        )
+
+    def update_event_draft(self, title, start_time, **changes):
+        """Update an event draft selected by title and start time."""
+        draft = self._event_draft(title, start_time)
+        changes.pop("event_draft_id", None)
+        updated = {**draft, **changes}
+        self._check_event(updated["start_time"], updated["end_time"])
+        if any(
+            item is not draft
+            and item["title"] == updated["title"]
+            and item["start_time"] == updated["start_time"]
+            for item in self.event_drafts
+        ):
+            raise ValueError(
+                "An event draft with the same title and start_time exists"
+            )
+        draft.update(changes)
+        self.store.save()
+        return public(draft)
+
+    def delete_event_draft(self, title, start_time):
+        """Delete an event draft without affecting calendar events."""
+        draft = self._event_draft(title, start_time)
+        self.event_drafts.remove(draft)
+        self.store.save()
+        return public(draft)
+
     def update_event(self, title, start_time, **changes):
         """Update an event selected by title and start time."""
         event = self._event(title, start_time)
@@ -156,9 +272,9 @@ class Calendar:
         self,
         title,
         remind_time,
-        completed=False,
-        description=None,
+        content,
         due_time=None,
+        completed=False,
     ):
         """Create and save a reminder."""
         self._check_reminder(remind_time, due_time)
@@ -171,10 +287,9 @@ class Calendar:
             "reminder_id": next_id(self.reminders, "reminder_id", "reminder"),
             "title": title,
             "remind_time": remind_time,
+            "content": required_text(content, "content"),
             "completed": completed,
         }
-        if description is not None:
-            reminder["description"] = description
         if due_time is not None:
             reminder["due_time"] = due_time
         self.reminders.append(reminder)
@@ -198,7 +313,7 @@ class Calendar:
                 and (
                     query is None
                     or keyword_match(
-                        query, reminder["title"], reminder.get("description")
+                        query, reminder["title"], reminder["content"]
                     )
                 )
             ]
