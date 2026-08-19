@@ -13,8 +13,10 @@ Trigger types are shuffled into a random eight-Scenario order at runtime. IDs
 come from each Trigger's occurrence number (`risk_1`, `risk_2`, and so on), and
 dates are chosen randomly but increase with construction order inside each
 Instance so accumulated initialization state always predates the next Scenario.
-Both IDs and dates remain stable across that Scenario's retries. Instances—
-including Instances in the same Domain—are independent parallel jobs.
+Both IDs and dates remain stable across that Scenario's retries. Construction
+processes selected Instances serially. Within each Instance, its eight Scenarios
+also run serially because every accepted Scenario updates the shared initial
+state and the context used for later date selection and duplicate avoidance.
 
 Construction uses four LLM roles—Instance Creator, combined Scenario Creator,
 Reviewer, and one final Noise Creator—plus one deterministic Validator. Each
@@ -99,9 +101,10 @@ conda run -n proact python -B -m evaluation.runner \
 ```
 
 The default model is `gpt-5.6-sol`. `--model` and `--instance` may both be
-repeated, and `--workers` controls parallel Scenario runs. Model names beginning
-with `gemini` use the official Gemini `generateContent` HTTP endpoint; other
-names use the configured OpenAI-compatible Responses endpoint.
+repeated. Evaluation runs model/Scenario pairs in parallel, with `--workers 8`
+as the default; checkpoints inside one Scenario remain serial. Model names
+beginning with `gemini` use the official Gemini `generateContent` HTTP endpoint;
+other names use the configured OpenAI-compatible Responses endpoint.
 
 ## Human review
 

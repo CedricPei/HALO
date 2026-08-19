@@ -496,13 +496,11 @@ def build_benchmark(
         raise ValueError(f"unknown Domain ids: {sorted(unknown_domains)}")
     _prepare_domains(selected_domains)
 
-    jobs = []
-    known_instances = set()
-    for domain_spec in selected_domains:
-        for instance_spec in instance_schedule(plan, domain_spec):
-            known_instances.add(instance_spec["instance_id"])
-            if instance_ids is None or instance_spec["instance_id"] in instance_ids:
-                jobs.append((domain_spec, instance_spec))
+    known_instances = {
+        instance_spec["instance_id"]
+        for domain_spec in selected_domains
+        for instance_spec in instance_schedule(plan, domain_spec)
+    }
     unknown_instances = set(instance_ids or []) - known_instances
     if unknown_instances:
         raise ValueError(f"unknown Instance ids: {sorted(unknown_instances)}")
@@ -511,27 +509,37 @@ def build_benchmark(
     started = time.monotonic()
     results, failures = [], []
     stop_event = Event()
-    for domain_spec, instance_spec in jobs:
-        domain_id = domain_spec["domain_id"]
-        instance_id = instance_spec["instance_id"]
-        try:
-            results.append(
-                _build_one_instance(plan, domain_spec, instance_spec, stop_event)
-            )
-        except CancelledError:
-            continue
-        except LLMTransportError:
-            stop_event.set()
-            LOGGER.info("LLM requests exhausted; aborting the entire build")
-            raise
-        except Exception as error:
-            failure = {
-                "domain_id": domain_id,
-                "instance_id": instance_id,
-                "error": f"{type(error).__name__}: {error}",
-            }
-            failures.append(failure)
-            LOGGER.info(f"[{domain_id}/{instance_id}] BUILD FAILED: {failure['error']}")
+    selected_instance_count = 0
+    for domain_spec in selected_domains:
+        for instance_spec in instance_schedule(plan, domain_spec):
+            instance_id = instance_spec["instance_id"]
+            if instance_ids is not None and instance_id not in instance_ids:
+                continue
+            selected_instance_count += 1
+            domain_id = domain_spec["domain_id"]
+            try:
+                results.append(
+                    _build_one_instance(
+                        plan, domain_spec, instance_spec, stop_event
+                    )
+                )
+            except CancelledError:
+                continue
+            except LLMTransportError:
+                stop_event.set()
+                LOGGER.info("LLM requests exhausted; aborting the entire build")
+                raise
+            except Exception as error:
+                failure = {
+                    "domain_id": domain_id,
+                    "instance_id": instance_id,
+                    "error": f"{type(error).__name__}: {error}",
+                }
+                failures.append(failure)
+                LOGGER.info(
+                    f"[{domain_id}/{instance_id}] BUILD FAILED: "
+                    f"{failure['error']}"
+                )
 
     run_elapsed = round(time.monotonic() - started, 2)
     report = {
@@ -541,7 +549,7 @@ def build_benchmark(
         "construction_elapsed_seconds": sum(
             item["elapsed_seconds"] for item in results
         ),
-        "selected_instance_count": len(jobs),
+        "selected_instance_count": selected_instance_count,
         "results": sorted(results, key=lambda item: item["instance_id"]),
         "failures": sorted(failures, key=lambda item: item["instance_id"]),
     }

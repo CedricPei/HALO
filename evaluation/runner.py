@@ -428,7 +428,7 @@ def main():
     parser.add_argument("--model", action="append", dest="models")
     parser.add_argument("--instance", action="append", dest="instances")
     parser.add_argument("--scenario")
-    parser.add_argument("--workers", type=int, default=4)
+    parser.add_argument("--workers", type=int, default=8)
     args = parser.parse_args()
     logging.basicConfig(
         level=logging.INFO,
