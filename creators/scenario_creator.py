@@ -42,17 +42,20 @@ def get_instance_dir(domain_id, instance_id):
     return DOMAINS_DIR / domain_id / "instances" / instance_id
 
 
-def load_instance_context(instance_dir, instance_id):
-    """Read shared database, Files, descriptions, and Wallet state."""
+def load_instance_profile(instance_dir):
+    return json.loads(
+        (Path(instance_dir) / "profile.json").read_text(encoding="utf-8")
+    )
+
+
+def load_instance_state(instance_dir, instance_id):
+    """Read shared database, Files, and native App state."""
     instance_dir = Path(instance_dir)
     database = Database(instance_dir / "data" / f"{instance_id}.sqlite")
     tables = database.execute(
         "SELECT name, sql FROM sqlite_master WHERE type='table' "
         "AND name NOT LIKE 'sqlite_%' ORDER BY name"
     )["rows"]
-    description = json.loads(
-        (instance_dir / "profile.json").read_text(encoding="utf-8")
-    )
     instance_output = json.loads(
         (instance_dir / "outputs" / "instance.json").read_text(encoding="utf-8")
     )
@@ -67,7 +70,6 @@ def load_instance_context(instance_dir, instance_id):
         for path in sorted((instance_dir / "app").glob("*.json"))
     }
     return {
-        "description": description["instance_description"],
         "database_schema": [sql for _, sql in tables],
         "database_rows": {
             name: database.execute(f'SELECT * FROM "{name}"') for name, _ in tables
@@ -85,12 +87,6 @@ def load_instance_context(instance_dir, instance_id):
         ],
         "apps": apps,
     }
-
-
-def load_personal_description(instance_dir):
-    return json.loads(
-        (Path(instance_dir) / "profile.json").read_text(encoding="utf-8")
-    )["personal_description"]
 
 
 def load_accepted_scenarios(instance_dir):
@@ -160,12 +156,16 @@ class ScenarioCreator:
         retry_feedback,
     ):
         instance_dir = get_instance_dir(domain_id, instance_id)
+        profile = load_instance_profile(instance_dir)
         accepted = load_domain_scenario_context_summaries(DOMAINS_DIR / domain_id)
         prompt = build_scenario_creator_prompt(
             trigger_type=trigger_type,
             scenario_id=scenario_id,
-            instance_context=load_instance_context(instance_dir, instance_id),
-            personal_description=load_personal_description(instance_dir),
+            instance_context={
+                "overview": profile["instance_description"],
+                **load_instance_state(instance_dir, instance_id),
+            },
+            personal_description=profile["personal_description"],
             same_trigger_scenarios=[
                 item for item in accepted if item["trigger_type"] == trigger_type
             ],

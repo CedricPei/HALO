@@ -23,8 +23,8 @@ from .prompt import (
 
 
 DEFAULT_MODELS = ("gpt-5.6-sol",)
-RESULTS_DIR = ROOT_DIR / "evaluation" / "results"
-PREFIX_METRICS_PATH = ROOT_DIR / "evaluation" / "prefix_action_metrics.json"
+RESULTS_DIR = ROOT_DIR / "eval_results"
+PREFIX_METRICS_PATH = RESULTS_DIR / "summary.json"
 LOG_PATH = ROOT_DIR / "evaluation" / "evaluation.log"
 LOGGER = logging.getLogger(__name__)
 AUTO_TIMESTAMP_ACTIONS = {
@@ -187,9 +187,9 @@ def _validate_response(response):
 
 def write_prefix_metrics():
     rows = []
-    for path in sorted(RESULTS_DIR.glob("*.json")):
+    for path in sorted(RESULTS_DIR.glob("*/*.json")):
         run = json.loads(path.read_text(encoding="utf-8"))
-        for checkpoint in run["checkpoints"]:
+        for prefix_length, checkpoint in enumerate(run["checkpoints"], start=1):
             if checkpoint["agent"].get("decision") == "error":
                 continue
             rows.append({
@@ -200,7 +200,7 @@ def write_prefix_metrics():
                 "scenario_id": run["scenario_id"],
                 "trigger_type": run["trigger_type"],
                 "event_id": checkpoint["event_id"],
-                "prefix_length": len(checkpoint["event_prefix"]),
+                "prefix_length": prefix_length,
                 "action_intensity": checkpoint["agent"].get("action_intensity"),
                 "metrics": {
                     key: checkpoint["metrics"][key]
@@ -220,9 +220,7 @@ def write_prefix_metrics():
             },
         }
 
-    summary = summarize(rows)
     report = {
-        **summary,
         "models": {
             model: summarize([row for row in rows if row["model"] == model])
             for model in sorted({row["model"] for row in rows})
@@ -236,6 +234,15 @@ def write_prefix_metrics():
     )
     temporary.replace(PREFIX_METRICS_PATH)
     return report
+
+
+def completed_jobs():
+    """Return model/Scenario pairs already written by an earlier run."""
+    jobs = set()
+    for path in RESULTS_DIR.glob("*/*.json"):
+        result = json.loads(path.read_text(encoding="utf-8"))
+        jobs.add((result["model"], result["source_path"]))
+    return jobs
 
 
 class EvaluationRunner:
@@ -382,8 +389,6 @@ class EvaluationRunner:
                 }
                 checkpoints.append({
                     "event_id": event_id,
-                    "event": events[checkpoint_index][1],
-                    "event_prefix": list(event_prefix),
                     "agent": agent,
                     "metrics": metrics,
                 })
@@ -407,8 +412,9 @@ class EvaluationRunner:
                 for key, value in totals.items()
             },
         }
-        RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-        output = RESULTS_DIR / f"{run_id}.json"
+        model_dir = RESULTS_DIR / _slug(model)
+        model_dir.mkdir(parents=True, exist_ok=True)
+        output = model_dir / f"{run_id}.json"
         temporary_output = output.with_suffix(".tmp")
         temporary_output.write_text(
             json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
@@ -440,7 +446,17 @@ def main():
         raise SystemExit("No matching accepted Scenarios")
     runner = EvaluationRunner()
     failures = 0
-    jobs = [(model, item) for model in args.models or DEFAULT_MODELS for item in items]
+    completed = completed_jobs()
+    jobs = [
+        (model, item)
+        for model in args.models or DEFAULT_MODELS
+        for item in items
+        if (model, item["path"]) not in completed
+    ]
+    if not jobs:
+        write_prefix_metrics()
+        print("All matching model/Scenario evaluations already exist.", flush=True)
+        return
     with ThreadPoolExecutor(max_workers=min(args.workers, len(jobs))) as executor:
         futures = {
             executor.submit(runner.run, item, model): (model, item)

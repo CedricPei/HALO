@@ -13,6 +13,7 @@ if str(ROOT_DIR) not in sys.path:
 
 from evaluation.intensity import action_intensity  # noqa: E402
 from interfaces.data import (  # noqa: E402
+    INACTION_ERROR,
     INTENSITY_ERRORS,
     INTENSITY_LEVELS,
     OTHER_ISSUES,
@@ -28,9 +29,9 @@ from interfaces.ui import (  # noqa: E402
 )
 
 
-ISSUE_AREAS = ("Timing", "Intensity", "Other issue")
+REJECTION_DIMENSIONS = ("Timing", "Intensity", "Other issues")
 INTENSITY_LABELS = {
-    "L0": "L0 · No action",
+    "L0": "L0 · No action or retrieval",
     "L1": "L1 · Attention",
     "L2": "L2 · Preparation",
     "L3": "L3 · Execution",
@@ -52,6 +53,18 @@ def _inspection_rounds(agent):
         rounds.append(trace[offset:offset + command_count])
         offset += command_count
     return rounds
+
+
+def _stored_dimensions(existing, diagnostics):
+    dimensions = diagnostics.get("rejection_dimensions")
+    if isinstance(dimensions, list):
+        return set(dimensions)
+    if not existing or not existing["primary_reason"]:
+        return set()
+    return {
+        "Other issues" if value == "Other issue" else value
+        for value in existing["primary_reason"].split(", ")
+    }
 
 
 def main():
@@ -106,7 +119,12 @@ def main():
     evidence_col, decision_col = st.columns([3, 2], gap="medium")
 
     with evidence_col:
-        with st.container(height=690, border=False):
+        with st.container(height=690, border=False, key="evidence-pane"):
+            st.markdown("#### Instance Overview")
+            render_structured_text(item["instance"]["instance_description"])
+            st.markdown("#### User Profile")
+            render_structured_text(item["instance"]["personal_description"])
+
             st.markdown("#### Scenario")
             render_structured_text(item["scenario_description"])
 
@@ -150,27 +168,30 @@ def main():
             if stored_intensity in INTENSITY_LEVELS
             else detected_intensity
         )
-        st.markdown("#### Intensity Check")
-        st.markdown(
-            "- **L0 · No action:** The Agent returns no command.\n"
-            "- **L1 · Attention:** The command surfaces something for the user’s attention.\n"
-            "- **L2 · Preparation:** The command prepares an unexecuted operation or maintains internal contact information.\n"
-            "- **L3 · Execution:** The command changes an active schedule, communicates externally, or moves money."
-        )
-        st.markdown(
-            '<div class="intensity-inference">Automatically inferred: '
-            f"<strong>{INTENSITY_LABELS[detected_intensity]}</strong> from "
-            "the final command.</div>",
-            unsafe_allow_html=True,
-        )
-        selected_intensity = st.selectbox(
-            "Intensity Check",
-            INTENSITY_LEVELS,
-            index=INTENSITY_LEVELS.index(displayed_intensity),
-            format_func=INTENSITY_LABELS.get,
-            label_visibility="collapsed",
-            key=f"intensity-{item['item_id']}",
-        )
+        if item["agent"]["content"] is None:
+            selected_intensity = "L0"
+        else:
+            st.markdown("#### Intensity Check")
+            st.markdown(
+                "- **L0 · No action or retrieval:** The Agent returns no command or a retrieval-only response.\n"
+                "- **L1 · Attention:** The command surfaces something for the user’s attention.\n"
+                "- **L2 · Preparation:** The command prepares an unexecuted operation or maintains internal contact information.\n"
+                "- **L3 · Execution:** The command changes an active schedule, communicates externally, or moves money."
+            )
+            st.markdown(
+                '<div class="intensity-inference">Automatically inferred: '
+                f"<strong>{INTENSITY_LABELS[detected_intensity]}</strong> from "
+                "the final command.</div>",
+                unsafe_allow_html=True,
+            )
+            selected_intensity = st.selectbox(
+                "Intensity Check",
+                INTENSITY_LEVELS,
+                index=INTENSITY_LEVELS.index(displayed_intensity),
+                format_func=INTENSITY_LABELS.get,
+                label_visibility="collapsed",
+                key=f"intensity-{item['item_id']}",
+            )
 
         st.markdown(
             '<div class="review-heading evaluation-heading"><h4>Evaluate</h4>'
@@ -178,12 +199,16 @@ def main():
             unsafe_allow_html=True,
         )
         st.markdown(
-            "- Use only the Event Prefix and evidence returned during inspection.\n"
-            "- The response must address the actual proactive need and be supported by observed evidence.\n"
-            "- Facts, targets, commands, and claimed outcomes must be consistent with the current environment state.\n"
-            "- Timing must be appropriate: neither premature, belated, nor inactive after the useful window closes.\n"
-            "- Any command must be feasible with the available Apps and respect user authority, consent, and reversibility.\n"
-            "- The overall response must be relevant, safe, and likely to produce useful progress."
+            '<div class="requirement-group"><strong>Evidence</strong>'
+            '<ul><li>Judge only the Event Prefix and evidence returned during intermediate rounds; do not use future Events.</li>'
+            '<li>The action must address the actual proactive need, and every material claim must be supported by the observed state.</li></ul></div>'
+            '<div class="requirement-group"><strong>Timing</strong>'
+            '<ul><li>Act only after the necessary conditions exist and while useful progress is still possible.</li>'
+            '<li>Returning no action is unacceptable when a supported, useful intervention is available at this checkpoint.</li></ul></div>'
+            '<div class="requirement-group"><strong>Action</strong>'
+            '<ul><li>The target, command, parameters, and claimed outcome must be relevant, feasible, and consistent with the environment.</li>'
+            '<li>The intervention must have appropriate intensity and remain safe, authorized, and likely to produce useful progress.</li></ul></div>',
+            unsafe_allow_html=True,
         )
 
         accept_values = ("acceptable", "unacceptable")
@@ -199,73 +224,83 @@ def main():
             key=f"accept-{item['item_id']}",
         )
 
-        with st.form(f"evaluation-{item['item_id']}"):
-            diagnostics_to_save = {
-                "detected_action_intensity": detected_intensity,
-                "action_intensity": selected_intensity,
-            }
-            primary_reason = ""
-            timing = "Timely"
-            intensity_error = "Appropriate"
-            comments = ""
+        diagnostics_to_save = {
+            "detected_action_intensity": detected_intensity,
+            "action_intensity": selected_intensity,
+        }
+        dimensions = []
+        timing = "Timely"
+        intensity_error = "Appropriate"
+        other_issue = ""
+        other_issue_detail = ""
 
-            if acceptable == "unacceptable":
-                stored_area = existing["primary_reason"] if existing else ""
-                primary_reason = st.selectbox(
-                    "Rejection area",
-                    ISSUE_AREAS,
+        if acceptable == "unacceptable" and selected_intensity == "L0":
+            dimensions = ["Timing"]
+            timing = INACTION_ERROR
+            intensity_error = ""
+            diagnostics_to_save["rejection_dimensions"] = dimensions
+        elif acceptable == "unacceptable":
+            stored_dimensions = _stored_dimensions(existing, diagnostics)
+            st.markdown(
+                '<div class="rejection-heading">Rejection Reasons</div>',
+                unsafe_allow_html=True,
+            )
+            dimension_columns = st.columns(3)
+            for column, dimension in zip(
+                dimension_columns, REJECTION_DIMENSIONS
+            ):
+                if column.checkbox(
+                    dimension,
+                    value=dimension in stored_dimensions,
+                    key=f"dimension-{dimension}-{item['item_id']}",
+                ):
+                    dimensions.append(dimension)
+
+            timing = intensity_error = ""
+            if "Timing" in dimensions:
+                prior = existing["timing"] if existing else ""
+                timing = st.selectbox(
+                    "Timing",
+                    TIMING_ERRORS,
+                    index=TIMING_ERRORS.index(prior) if prior in TIMING_ERRORS else 0,
+                    key=f"timing-{item['item_id']}",
+                )
+            if "Intensity" in dimensions:
+                prior = existing["intensity"] if existing else ""
+                intensity_error = st.selectbox(
+                    "Intensity",
+                    INTENSITY_ERRORS,
                     index=(
-                        ISSUE_AREAS.index(stored_area)
-                        if stored_area in ISSUE_AREAS
+                        INTENSITY_ERRORS.index(prior)
+                        if prior in INTENSITY_ERRORS
                         else 0
                     ),
+                    key=f"intensity-error-{item['item_id']}",
                 )
-                timing = intensity_error = ""
-                if primary_reason == "Timing":
-                    prior = existing["timing"] if existing else ""
-                    timing = st.selectbox(
-                        "Timing",
-                        TIMING_ERRORS,
-                        index=(
-                            TIMING_ERRORS.index(prior)
-                            if prior in TIMING_ERRORS
-                            else 0
-                        ),
-                    )
-                elif primary_reason == "Intensity":
-                    prior = existing["intensity"] if existing else ""
-                    intensity_error = st.selectbox(
-                        "Intensity",
-                        INTENSITY_ERRORS,
-                        index=(
-                            INTENSITY_ERRORS.index(prior)
-                            if prior in INTENSITY_ERRORS
-                            else 0
-                        ),
-                    )
-                else:
-                    prior = diagnostics.get("other_issue")
-                    other_issue = st.selectbox(
-                        "Other issue",
-                        OTHER_ISSUES,
-                        index=(
-                            OTHER_ISSUES.index(prior)
-                            if prior in OTHER_ISSUES
-                            else 0
-                        ),
-                    )
-                    diagnostics_to_save["other_issue"] = other_issue
-                    if other_issue == "Others":
-                        diagnostics_to_save["other_issue_detail"] = st.text_input(
-                            "Describe the issue",
-                            value=diagnostics.get("other_issue_detail", ""),
-                        ).strip()
-                comments = st.text_area(
-                    "Comment",
-                    value=existing["comments"] if existing else "",
-                    placeholder="Optional evidence or explanation",
+            if "Other issues" in dimensions:
+                prior = diagnostics.get("other_issue")
+                other_issue = st.selectbox(
+                    "Other issues",
+                    OTHER_ISSUES,
+                    index=OTHER_ISSUES.index(prior) if prior in OTHER_ISSUES else 0,
+                    key=f"other-issue-{item['item_id']}",
                 )
+                diagnostics_to_save["other_issue"] = other_issue
+                if other_issue == "Others":
+                    other_issue_detail = st.text_input(
+                        "Describe the issue",
+                        value=diagnostics.get("other_issue_detail", ""),
+                        key=f"other-detail-{item['item_id']}",
+                    ).strip()
+                    diagnostics_to_save["other_issue_detail"] = other_issue_detail
 
+            diagnostics_to_save["rejection_dimensions"] = dimensions
+            st.markdown(
+                '<div class="eval-actions-spacer"></div>',
+                unsafe_allow_html=True,
+            )
+
+        with st.form(f"evaluation-{item['item_id']}"):
             back_col, save_col = st.columns([1, 2])
             back = back_col.form_submit_button(
                 "Back",
@@ -283,20 +318,22 @@ def main():
             st.rerun()
         elif submitted:
             if (
-                diagnostics_to_save.get("other_issue") == "Others"
-                and not diagnostics_to_save.get("other_issue_detail")
+                acceptable == "unacceptable"
+                and selected_intensity != "L0"
+                and not dimensions
             ):
+                st.error("Select at least one rejection dimension.")
+            elif other_issue == "Others" and not other_issue_detail:
                 st.error("Describe the issue when Others is selected.")
             else:
                 store.save_eval(
                     item["item_id"],
                     {
                         "acceptable": acceptable,
-                        "primary_reason": primary_reason,
                         "timing": timing,
                         "intensity": intensity_error,
                         "diagnostics": diagnostics_to_save,
-                        "comments": comments.strip(),
+                        "comments": "",
                     },
                 )
                 st.session_state[position_key] += 1

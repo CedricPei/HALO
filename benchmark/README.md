@@ -76,7 +76,9 @@ effective response. No intensity labels are exposed in its prompt or App
 surface.
 Database and Files expose retrieval only to the evaluated Agent. Calls use
 non-streaming HTTP(S), and results, model-request latency,
-intermediate rounds, and inspection traces are saved under `evaluation/results/`.
+intermediate rounds, and inspection traces are saved under
+`eval_results/<model>/`. Each model has its own result directory at the project
+root.
 Evaluated-Agent output receives lightweight JSON cleanup for wrappers and
 trailing commas before validation. Invalid output is regenerated at most three
 times with the same prompt and no error feedback. If a Final Action cannot be
@@ -87,8 +89,8 @@ it from human review.
 
 Token reporting separates input, visible completion, hidden reasoning, and
 provider-reported total tokens. Tokens and intermediate rounds are retained for
-every Prefix–Action checkpoint, then summarized with totals and per-checkpoint
-averages in `evaluation/prefix_action_metrics.json`. Model-call and inspection-
+every Prefix–Action checkpoint, then summarized by model with totals and
+per-checkpoint averages in `eval_results/summary.json`. Model-call and inspection-
 command counts are not reported metrics.
 
 ```bash

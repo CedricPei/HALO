@@ -254,7 +254,7 @@ A candidate is valid only when no material issue remains.
 
 Expected candidate trigger: <<EXPECTED_TRIGGER>>
 Domain: <<DOMAIN_SPEC>>
-Instance: <<INSTANCE_DESCRIPTION>>
+Instance: <<INSTANCE_PROFILE>>
 
 Accepted Scenarios:
 <<ACCEPTED_SCENARIOS>>
@@ -357,7 +357,7 @@ def build_scenario_creator_prompt(
 
 def build_reviewer_prompt(
     domain_spec,
-    instance_description,
+    instance_profile,
     base_state,
     accepted_scenarios,
     candidate_scenario,
@@ -368,7 +368,7 @@ def build_reviewer_prompt(
         {
             "<<EXPECTED_TRIGGER>>": expected_trigger_type,
             "<<DOMAIN_SPEC>>": domain_spec,
-            "<<INSTANCE_DESCRIPTION>>": instance_description,
+            "<<INSTANCE_PROFILE>>": instance_profile,
             "<<BASE_STATE>>": base_state,
             "<<ACCEPTED_SCENARIOS>>": accepted_scenarios,
             "<<CANDIDATE_SCENARIO>>": candidate_scenario,

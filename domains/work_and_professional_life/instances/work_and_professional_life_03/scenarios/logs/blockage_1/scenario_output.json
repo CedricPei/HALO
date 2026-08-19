@@ -1,0 +1,108 @@
+{
+  "scenario_description": "Objective: Complete Mara Chen's already-started supervised CNC setup practicum during the scheduled Saturday shift.\nEmerging Need: After tool inventory begins, the console rejects Mara because Bayline's current trainee-authorization roster omits her, and the floor lead stops the practicum.\nDecision Context: A same-morning correction remains possible only briefly; the case record and employer requirement identify the designated correction route and the details needed, while the floor lead is occupied.\nConsequence: Without timely help through the valid route, the console remains locked, Mara is released from the floor, and the practical cannot be recovered that day.",
+  "events": {
+    "event1": {
+      "time": "2026-04-11T08:34:00-07:00",
+      "app": "calendar",
+      "function": "create_event",
+      "parameter": {
+        "title": "CNC setup practicum - NVC-260411-07",
+        "start_time": "2026-04-11T08:30:00-07:00",
+        "end_time": "2026-04-11T11:30:00-07:00",
+        "description": "Floor lead update: Mara Chen checked in at Bay 4, began the supervised CNC setup practicum, completed tool inventory, and opened console sign-in.",
+        "location": "Bayline Fabrication, Bay 4",
+        "attendees": [
+          "Mara Chen",
+          "Elena Ruiz",
+          "Ilyana Voss"
+        ],
+        "organizer": "Elena Ruiz",
+        "status": "in_progress"
+      }
+    },
+    "event2": {
+      "time": "2026-04-11T08:41:00-07:00",
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "Mara Chen",
+        "recipients": [
+          "Ilyana Voss"
+        ],
+        "content": "The Bay 4 console says my trainee authorization is absent. Elena had me stop the setup practicum before powering the machine, and I am waiting off the floor while she starts an inspection.",
+        "timestamp": "2026-04-11T08:41:00-07:00"
+      }
+    },
+    "event3": {
+      "time": "2026-04-11T08:47:00-07:00",
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "access-control@bayline.example",
+        "recipients": [
+          "ilyana.voss@nvcc.example",
+          "elena.ruiz@bayline.example"
+        ],
+        "subject": "Denied console attempt for case NVC-260411-07",
+        "body": "The 08:40 Bay 4 console attempt was denied because the current trainee-authorization roster has no entry for Mara Chen. The same-shift correction window closes at 09:05. If no corrected roster is received by then, console access remains unavailable until the next scheduled practical shift.",
+        "timestamp": "2026-04-11T08:47:00-07:00"
+      }
+    },
+    "event4": {
+      "time": "2026-04-11T09:06:00-07:00",
+      "app": "calendar",
+      "function": "update_event",
+      "parameter": {
+        "title": "CNC setup practicum - NVC-260411-07",
+        "start_time": "2026-04-11T08:30:00-07:00",
+        "end_time": "2026-04-11T09:06:00-07:00",
+        "description": "Organizer update: Access remained locked when the correction window closed. Mara was released from Bay 4, and today's CNC setup practicum cannot resume.",
+        "status": "cancelled"
+      }
+    }
+  },
+  "ini_data_commands": [
+    {
+      "app": "database",
+      "function": "execute",
+      "parameter": {
+        "sql": "INSERT INTO apprenticeship_cases (case_id, trade, employer, stage, coordinator) VALUES (?, ?, ?, ?, ?)",
+        "parameters": [
+          "NVC-260411-07",
+          "CNC machining",
+          "Bayline Fabrication",
+          "active",
+          "Ilyana Maris Voss"
+        ]
+      }
+    },
+    {
+      "app": "database",
+      "function": "execute",
+      "parameter": {
+        "sql": "INSERT INTO site_requirements (requirement_id, employer, trade, requirement_type, due_rule) VALUES (?, ?, ?, ?, ?)",
+        "parameters": [
+          "BAY-CNC-AUTH-01",
+          "Bayline Fabrication",
+          "CNC machining",
+          "active_practicum_roster_correction",
+          "When an active supervised practicum is stopped by a trainee-authorization roster omission, email training-compliance@bayline.example before the access-control correction window closes; include the apprenticeship case ID, floor lead, and denial timestamp. General HR cannot process same-shift corrections."
+        ]
+      }
+    },
+    {
+      "app": "messaging",
+      "function": "create_conversation",
+      "parameter": {
+        "participants": [
+          "Ilyana Voss",
+          "Mara Chen"
+        ],
+        "title": "Case NVC-260411-07"
+      }
+    }
+  ],
+  "scenario_id": "blockage_1",
+  "trigger_type": "blockage",
+  "reference_time": "2026-04-11"
+}

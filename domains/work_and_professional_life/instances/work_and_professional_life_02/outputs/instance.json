@@ -1,0 +1,67 @@
+{
+  "instance_id": "work_and_professional_life_02",
+  "instance_description": "Setting: During 2026, a regional public transit agency operates recurring safety and qualification training for bus and light-rail employees across several depots.\nScope: The instance covers session planning, instructor and facility coordination, qualification tracking, attendance exceptions, material revisions, refresher assignments, audit preparation, and operational handoffs.\nResources: Empty SQLite tables can hold training sessions, employee qualifications, and coordinator activity; reusable TXT Files provide templates for session plans, field observations, and compliance summaries.\nExclusions: It excludes vehicle dispatch, payroll, disciplinary decisions, medical records, collective bargaining, and native App state; later Scenarios provide all employees, courses, dates, statuses, and File content.",
+  "personal_description": "Identity: Tamsin Elowen Varek is the workforce training coordinator for a regional public transit agency, working from its central operations office during 2026.\nResponsibilities: She schedules required courses, monitors qualification deadlines, coordinates instructors and facilities, resolves routine attendance issues, updates approved materials, and prepares evidence for internal reviews.\nAuthority: Tamsin may arrange sessions, send operational reminders, request corrections, document exceptions, and recommend refresher training; designated instructors and safety managers make certification decisions.\nRestrictions: She cannot certify employees, operate revenue vehicles, impose discipline, change labor agreements, approve unbudgeted purchases, access unrelated medical details, or waive regulatory training requirements.",
+  "commands": [
+    {
+      "app": "database",
+      "function": "execute",
+      "parameter": {
+        "sql": "CREATE TABLE training_sessions (session_id TEXT PRIMARY KEY, course_code TEXT NOT NULL, scheduled_at TEXT NOT NULL, location TEXT, status TEXT NOT NULL)"
+      },
+      "description": "Stores planned and completed transit workforce training sessions."
+    },
+    {
+      "app": "database",
+      "function": "execute",
+      "parameter": {
+        "sql": "CREATE TABLE qualification_records (employee_id TEXT NOT NULL, qualification_code TEXT NOT NULL, expires_on TEXT, status TEXT NOT NULL, PRIMARY KEY (employee_id, qualification_code))"
+      },
+      "description": "Tracks employee qualification status and expiration dates used for training coordination."
+    },
+    {
+      "app": "database",
+      "function": "execute",
+      "parameter": {
+        "sql": "CREATE TABLE coordination_log (log_id TEXT PRIMARY KEY, coordinator_name TEXT NOT NULL, activity_type TEXT NOT NULL, related_ref TEXT, logged_at TEXT NOT NULL)"
+      },
+      "description": "Stores dated coordination activities attributable to Tamsin or another authorized coordinator."
+    },
+    {
+      "app": "files",
+      "function": "create_file",
+      "parameter": {
+        "name": "training_session_plan.txt",
+        "content": ""
+      },
+      "description": "Reusable blank template for planning a workforce training session."
+    },
+    {
+      "app": "files",
+      "function": "create_file",
+      "parameter": {
+        "name": "field_observation_template.txt",
+        "content": ""
+      },
+      "description": "Reusable blank template for recording operational training observations."
+    },
+    {
+      "app": "files",
+      "function": "create_file",
+      "parameter": {
+        "name": "compliance_summary_template.txt",
+        "content": ""
+      },
+      "description": "Reusable blank template for summarizing qualification and training evidence."
+    },
+    {
+      "app": "wallet",
+      "function": "setup_wallet",
+      "parameter": {
+        "currency": "USD",
+        "balance": 0,
+        "account_type": "personal"
+      }
+    }
+  ]
+}

@@ -299,7 +299,7 @@ def audit_benchmark(domain_ids=None):
             "event_count": sum(
                 count * frequency for count, frequency in event_counts.items()
             ),
-            "scenario_success": {
+            "candidate_success": {
                 "generated": generated,
                 "accepted": len(all_records),
                 "validator_rejected": validator_rejected,

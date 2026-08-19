@@ -16,6 +16,14 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 DOMAINS_DIR = ROOT_DIR / "domains"
 
 
+def _protagonist_name(personal_description):
+    personal = personal_description.strip()
+    if personal.startswith("Identity:"):
+        personal = personal.removeprefix("Identity:").strip()
+    match = re.match(r"^(.+?)(?=,\s*age\b|\s+(?:is|was)\b)", personal)
+    return match.group(1).strip() if match else None
+
+
 def _database_sql(parameter):
     if isinstance(parameter, str):
         return parameter
@@ -157,9 +165,12 @@ class InstanceCreator:
         if instance_dir.exists():
             raise FileExistsError(f"Instance already exists: {instance_dir}")
 
-        existing = []
+        existing, names_in_existing = [], set()
         for path in sorted(instances_dir.glob("*/profile.json")):
             item = json.loads(path.read_text(encoding="utf-8"))
+            name = _protagonist_name(item["personal_description"])
+            if name:
+                names_in_existing.add(name)
             output = json.loads(
                 (path.parent / "outputs" / "instance.json").read_text(
                     encoding="utf-8"
@@ -190,11 +201,9 @@ class InstanceCreator:
             personal = json.loads(path.read_text(encoding="utf-8"))[
                 "personal_description"
             ]
-            if personal.startswith("Identity:"):
-                personal = personal.removeprefix("Identity:").strip()
-            match = re.match(r"^(.+?)\s+(?:is|was)\b", personal)
-            if match:
-                used_protagonist_names.append(match.group(1))
+            name = _protagonist_name(personal)
+            if name and name not in names_in_existing:
+                used_protagonist_names.append(name)
         prompt = build_instance_creator_prompt(
             domain_spec,
             instance_id,
@@ -238,14 +247,7 @@ class InstanceCreator:
                 if len(columns) > 5:
                     raise ValueError(f"table {table!r} exceeds 5 columns")
 
-            personal = instance["personal_description"].strip()
-            if personal.startswith("Identity:"):
-                personal = personal.removeprefix("Identity:").strip()
-            name_match = re.match(
-                r"^(.+?)(?=,\s*age\b|\s+(?:is|was)\b)",
-                personal,
-            )
-            if not name_match:
+            if not _protagonist_name(instance["personal_description"]):
                 raise ValueError(
                     "personal_description must begin with the protagonist's full name"
                 )

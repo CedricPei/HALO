@@ -10,7 +10,7 @@ from evaluation.intensity import INTENSITY_LEVELS
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 DOMAINS_DIR = ROOT_DIR / "domains"
-RESULTS_DIR = ROOT_DIR / "evaluation" / "results"
+RESULTS_DIR = ROOT_DIR / "eval_results"
 REVIEW_PATH = ROOT_DIR / "annotations" / "reviews.sqlite"
 REVIEWER = "default"
 REVIEW_TABLES = {
@@ -61,19 +61,16 @@ def _state_summary(instance_dir, instance_id):
 def load_construction_items():
     """Return every accepted Scenario with enough context for human audit."""
     items = []
-    state_cache = {}
+    profile_cache, state_cache = {}, {}
     for public_path in sorted(DOMAINS_DIR.glob("*/instances/*/scenarios/*/*.json")):
         instance_dir = public_path.parents[2]
         instance_id = instance_dir.name
         domain_dir = instance_dir.parents[1]
         trigger = public_path.parent.name
         scenario_id = public_path.stem
-        hidden_path = (
-            instance_dir / "scenarios" / "logs" / scenario_id
-            / "scenario_output.json"
-        )
         if instance_dir not in state_cache:
             state_cache[instance_dir] = _state_summary(instance_dir, instance_id)
+            profile_cache[instance_dir] = _json(instance_dir / "profile.json")
         items.append(
             {
                 "item_id": f"{domain_dir.name}/{instance_id}/{scenario_id}",
@@ -81,8 +78,8 @@ def load_construction_items():
                 "instance_id": instance_id,
                 "scenario_id": scenario_id,
                 "trigger_type": trigger,
-                "instance": _json(instance_dir / "profile.json"),
-                "scenario": _json(hidden_path),
+                "instance": profile_cache[instance_dir],
+                "scenario": _json(public_path),
                 "state": state_cache[instance_dir],
                 "path": str(public_path.relative_to(ROOT_DIR)),
             }
@@ -95,9 +92,21 @@ def load_evaluation_items():
     items = []
     if not RESULTS_DIR.exists():
         return items
-    for path in sorted(RESULTS_DIR.glob("*.json")):
+    profile_cache, scenario_cache = {}, {}
+    for path in sorted(RESULTS_DIR.glob("*/*.json")):
         run = _json(path)
-        scenario = _json(ROOT_DIR / run["source_path"])
+        scenario_path = ROOT_DIR / run["source_path"]
+        instance_dir = scenario_path.parents[2]
+        if scenario_path not in scenario_cache:
+            scenario_cache[scenario_path] = _json(scenario_path)
+        if instance_dir not in profile_cache:
+            profile_cache[instance_dir] = _json(instance_dir / "profile.json")
+        scenario = scenario_cache[scenario_path]
+        profile = profile_cache[instance_dir]
+        events = list(scenario["events"].items())
+        event_positions = {
+            event_id: index for index, (event_id, _) in enumerate(events)
+        }
         for checkpoint in run["checkpoints"]:
             if checkpoint["agent"]["decision"] == "error":
                 continue
@@ -108,15 +117,22 @@ def load_evaluation_items():
                     "model": run["model"],
                     "domain_id": run["domain_id"],
                     "trigger_type": run["trigger_type"],
+                    "instance": profile,
                     "scenario_description": scenario["scenario_description"],
-                    "event_prefix": checkpoint["event_prefix"],
+                    "event_prefix": [
+                        {"event_id": prefix_id, **event}
+                        for prefix_id, event in events[
+                            :event_positions[event_id] + 1
+                        ]
+                    ],
                     "agent": checkpoint["agent"],
                 }
             )
     return items
 
 
-TIMING_ERRORS = ("Premature", "Belated", "Inaction")
+TIMING_ERRORS = ("Premature", "Belated")
+INACTION_ERROR = "Inaction"
 INTENSITY_ERRORS = ("Insufficient", "Excessive")
 OTHER_ISSUES = (
     "Unsupported Evidence",
@@ -206,31 +222,48 @@ class ReviewStore:
 
     def save_eval(self, item_id, decision):
         acceptable = decision["acceptable"]
-        primary_reason = decision["primary_reason"]
         timing = decision["timing"]
         intensity = decision["intensity"]
         diagnostics = decision["diagnostics"]
         comments = decision["comments"]
         if acceptable not in {"acceptable", "unacceptable"}:
             raise ValueError("acceptable must be acceptable or unacceptable")
-        if diagnostics.get("action_intensity") not in INTENSITY_LEVELS:
+        action_intensity = diagnostics.get("action_intensity")
+        if action_intensity not in INTENSITY_LEVELS:
             raise ValueError("action_intensity must be one of L0, L1, L2, or L3")
         if acceptable == "acceptable":
-            primary_reason, timing, intensity = "", "Timely", "Appropriate"
-        elif primary_reason == "Timing" and timing not in TIMING_ERRORS:
-            raise ValueError("a Timing rejection requires a timing error")
-        elif primary_reason == "Intensity" and intensity not in INTENSITY_ERRORS:
+            dimensions = []
+            timing, intensity = "Timely", "Appropriate"
+        elif action_intensity == "L0":
+            dimensions = ["Timing"]
+            timing, intensity = INACTION_ERROR, ""
+            diagnostics["rejection_dimensions"] = dimensions
+        else:
+            dimensions = diagnostics.get("rejection_dimensions")
+            if not dimensions or any(
+                value not in {"Timing", "Intensity", "Other issues"}
+                for value in dimensions
+            ):
+                raise ValueError(
+                    "an unacceptable response requires rejection dimensions"
+                )
+        if "Timing" in dimensions:
+            allowed_timing = (
+                (INACTION_ERROR,) if action_intensity == "L0" else TIMING_ERRORS
+            )
+            if timing not in allowed_timing:
+                raise ValueError("a Timing rejection requires a timing error")
+        if "Intensity" in dimensions and intensity not in INTENSITY_ERRORS:
             raise ValueError("an Intensity rejection requires an intensity error")
-        elif primary_reason == "Other issue":
+        if "Other issues" in dimensions:
             other_issue = diagnostics.get("other_issue")
             if other_issue not in OTHER_ISSUES:
-                raise ValueError("an Other issue rejection requires a listed issue")
+                raise ValueError("an Other issues rejection requires a listed issue")
             if other_issue == "Others" and not str(
                 diagnostics.get("other_issue_detail", "")
             ).strip():
                 raise ValueError("Others requires a description")
-        elif primary_reason not in {"Timing", "Intensity", "Other issue"}:
-            raise ValueError("an unacceptable response requires a rejection area")
+        primary_reason = ", ".join(dimensions)
         now = datetime.now(timezone.utc).isoformat()
         with self._connect() as connection:
             connection.execute(

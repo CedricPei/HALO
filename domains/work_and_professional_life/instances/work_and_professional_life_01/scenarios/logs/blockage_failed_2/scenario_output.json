@@ -1,0 +1,132 @@
+{
+  "scenario_description": "Objective: Finish the already-started photometric commissioning of NR-11’s display lighting during the scheduled fixture-access session.\nEmerging Need: After one fixture bank is measured, controller LC-7 suffers a hardware fault, locks the next bank at zero, and the technician stops commissioning.\nDecision Context: A compatible preconfigured museum spare becomes briefly available before the access hatch closes; an object-specific registrar record governs the reversible substitution and identifies the authorized internal coordination route.\nConsequence: Timely coordination can resume the same calibration sequence without changing approved settings, while loss of hatch and photometer access releases the crew and makes completion that day impossible.",
+  "events": {
+    "event1": {
+      "time": "2026-11-25T08:00:00-05:00",
+      "app": "calendar",
+      "function": "create_event",
+      "parameter": {
+        "title": "NR-11 display-light commissioning",
+        "start_time": "2026-11-25T08:15:00-05:00",
+        "end_time": "2026-11-25T09:05:00-05:00",
+        "description": "Photometric commissioning of NR-11 display fixture banks. The fixture-access hatch must close at 09:05 for the scheduled fire-system test.",
+        "location": "Gallery E",
+        "attendees": [
+          "Jules Renner",
+          "Aron Bell"
+        ],
+        "organizer": "Harbor County Museum Exhibitions",
+        "status": "confirmed"
+      }
+    },
+    "event2": {
+      "time": "2026-11-25T08:24:00-05:00",
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "Jules Renner",
+        "recipients": [
+          "Mireya Solenne Armitage"
+        ],
+        "content": "NR-11 photometric commissioning is underway. Fixture Bank A responded normally and its baseline measurement is saved; we are advancing the same sequence to Bank B now.",
+        "timestamp": "2026-11-25T08:23:00-05:00"
+      }
+    },
+    "event3": {
+      "time": "2026-11-25T08:38:00-05:00",
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "Aron Bell",
+        "recipients": [
+          "Mireya Solenne Armitage"
+        ],
+        "subject": "NR-11 commissioning stopped at Bank B",
+        "body": "During the Bank B handshake, controller LC-7 suffered a power-board fault and locked output at zero. I have isolated LC-7. The photometer sequence is stopped and cannot continue with that controller; no fixture or wiring damage is visible.",
+        "timestamp": "2026-11-25T08:37:00-05:00"
+      }
+    },
+    "event4": {
+      "time": "2026-11-25T08:44:00-05:00",
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "Jules Renner",
+        "recipients": [
+          "Mireya Solenne Armitage"
+        ],
+        "content": "Prep inventory update: LC-9, the museum’s preconfigured spare for this fixture family, is unassigned and at the Gallery E service door. It remains available only until 08:55, when it returns to the teaching-lab allocation.",
+        "timestamp": "2026-11-25T08:43:00-05:00"
+      }
+    },
+    "event5": {
+      "time": "2026-11-25T09:06:00-05:00",
+      "app": "calendar",
+      "function": "update_event",
+      "parameter": {
+        "title": "NR-11 display-light commissioning",
+        "start_time": "2026-11-25T08:15:00-05:00",
+        "status": "cancelled",
+        "description": "Fixture-access hatch closed at 09:05 for the fire-system test and the photometer crew was released. NR-11 commissioning remains incomplete with no same-day access slot."
+      }
+    }
+  },
+  "ini_data_commands": [
+    {
+      "app": "database",
+      "function": "execute",
+      "parameter": {
+        "sql": "INSERT INTO exhibitions (exhibition_id, title, venue, opening_date, status) VALUES (?, ?, ?, ?, ?)",
+        "parameters": [
+          "EX-NIGHTSIGNALS-2026",
+          "Night Signals: Lighthouse Optics",
+          "Harbor County Museum Gallery E",
+          "2026-11-25",
+          "installation"
+        ]
+      }
+    },
+    {
+      "app": "database",
+      "function": "execute",
+      "parameter": {
+        "sql": "INSERT INTO object_movements (movement_id, object_id, exhibition_id, movement_type, status) VALUES (?, ?, ?, ?, ?)",
+        "parameters": [
+          "MOV-NR11-DISPLAY",
+          "NR-11",
+          "EX-NIGHTSIGNALS-2026",
+          "internal_display",
+          "installation_ready"
+        ]
+      }
+    },
+    {
+      "app": "database",
+      "function": "execute",
+      "parameter": {
+        "sql": "INSERT INTO registrar_activity (log_id, user_id, logged_on, activity, outcome) VALUES (?, ?, ?, ?, ?)",
+        "parameters": [
+          "ACT-NR11-LIGHT-001",
+          "Mireya Solenne Armitage",
+          "2026-11-20",
+          "approved_lighting_controller_contingency",
+          "For MOV-NR11-DISPLAY only, if photometric commissioning has begun and installed controller LC-7 suffers a confirmed hardware fault that stops the calibration sequence, Mireya may coordinate one no-cost, reversible same-session substitution of museum-owned preconfigured controller LC-9 through Jules Renner in the existing museum message thread before the fixture-access hatch closes. The electrician must first isolate LC-7, and the substitution must preserve the approved fixture settings. No rewiring, reprogramming, conservation treatment, exhibit alteration, or spending is authorized."
+        ]
+      }
+    },
+    {
+      "app": "messaging",
+      "function": "create_conversation",
+      "parameter": {
+        "participants": [
+          "Mireya Solenne Armitage",
+          "Jules Renner"
+        ],
+        "title": "NR-11 Gallery E lighting commissioning"
+      }
+    }
+  ],
+  "scenario_id": "blockage_failed_2",
+  "trigger_type": "blockage",
+  "reference_time": "2026-11-25"
+}

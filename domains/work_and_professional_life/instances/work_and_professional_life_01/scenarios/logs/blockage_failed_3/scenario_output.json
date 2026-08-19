@@ -1,0 +1,132 @@
+{
+  "scenario_description": "Objective: Complete CR-61's started incoming intake condition check and movement record while the lender crate remains in controlled receiving.\nEmerging Need: The crate has been opened and documentation begun, but the intake station rejects the temporary barcode and will not advance to identity verification.\nDecision Context: The dock, room, and station impose narrowing same-morning limits; a recorded recovery route can preserve the work without changing object identity or loan terms.\nConsequence: A timely, reversible verification step could let the same intake resume with an auditable discrepancy; after the carrier removes the crate, that intake opportunity is gone.",
+  "events": {
+    "event1": {
+      "time": "2026-11-25T08:10:00-05:00",
+      "app": "calendar",
+      "function": "create_event",
+      "parameter": {
+        "title": "CR-61 incoming intake condition check",
+        "start_time": "2026-11-26T09:00:00-05:00",
+        "end_time": "2026-11-26T11:30:00-05:00",
+        "description": "Incoming condition documentation and movement validation for CR-61.",
+        "location": "Conditioned Receiving Room 2",
+        "attendees": [
+          "Mireya Solenne Armitage",
+          "Anika Bell"
+        ],
+        "organizer": "Harbor County Museum",
+        "status": "confirmed"
+      }
+    },
+    "event2": {
+      "time": "2026-11-26T09:04:00-05:00",
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "Quayline Art Freight Dispatch",
+        "recipients": [
+          "Mireya Solenne Armitage"
+        ],
+        "subject": "CR-61 delivered to museum receiving",
+        "body": "CR-61 was delivered to Conditioned Receiving Room 2 at 09:02 with the shipping seal intact. The driver is scheduled to release the dock at 11:30 unless the receiving team reports a discrepancy before departure.",
+        "timestamp": "2026-11-26T09:03:00-05:00"
+      }
+    },
+    "event3": {
+      "time": "2026-11-26T09:18:00-05:00",
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "Anika Bell",
+        "recipients": [
+          "Mireya Solenne Armitage"
+        ],
+        "content": "We opened the crate and started the reference photographs and condition notes. The handheld intake scanner rejected the lender's temporary barcode, and the identity-verification screen will not advance, so the intake team has stopped with the object still in receiving.",
+        "timestamp": "2026-11-26T09:17:00-05:00"
+      }
+    },
+    "event4": {
+      "time": "2026-11-26T09:28:00-05:00",
+      "app": "calendar",
+      "function": "update_event",
+      "parameter": {
+        "title": "CR-61 incoming intake condition check",
+        "start_time": "2026-11-26T09:00:00-05:00",
+        "end_time": "2026-11-26T10:45:00-05:00",
+        "description": "Incoming condition documentation and movement validation for CR-61; receiving access now ends at 10:45."
+      }
+    },
+    "event5": {
+      "time": "2026-11-26T10:07:00-05:00",
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "Rowan Ives",
+        "recipients": [
+          "Mireya Solenne Armitage"
+        ],
+        "content": "Collections Systems has a maintenance gap from 10:05 to 10:25. The current intake record will lock at 10:35, and after that the station will require a new session rather than continuing this one.",
+        "timestamp": "2026-11-26T10:06:00-05:00"
+      }
+    },
+    "event6": {
+      "time": "2026-11-26T10:47:00-05:00",
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "Quayline Art Freight Dispatch",
+        "recipients": [
+          "Mireya Solenne Armitage"
+        ],
+        "subject": "CR-61 dock release completed",
+        "body": "The driver collected the sealed CR-61 crate at 10:46 and the dock release is complete. The receiving session closed without identity verification being recorded.",
+        "timestamp": "2026-11-26T10:46:00-05:00"
+      }
+    }
+  },
+  "ini_data_commands": [
+    {
+      "app": "database",
+      "function": "execute",
+      "parameter": {
+        "sql": "INSERT INTO object_movements (movement_id, object_id, exhibition_id, movement_type, status) VALUES (?, ?, ?, ?, ?)",
+        "parameters": [
+          "MOV-CR61-IN",
+          "CR-61",
+          "EX-HARBORWORKS-2026",
+          "incoming",
+          "scheduled"
+        ]
+      }
+    },
+    {
+      "app": "database",
+      "function": "execute",
+      "parameter": {
+        "sql": "INSERT INTO registrar_activity (log_id, user_id, logged_on, activity, outcome) VALUES (?, ?, ?, ?, ?)",
+        "parameters": [
+          "ACT-CR61-INTAKE-001",
+          "Mireya Solenne Armitage",
+          "2026-11-20",
+          "intake_identifier_exception_authorization",
+          "For MOV-CR61-IN only, if the intake scanner rejects the lender's temporary barcode after condition documentation has begun, Mireya may pause the scanner workflow and coordinate a two-person manual serial verification with Collections Systems through Rowan Ives at rowan.ives@harborcounty.example. The scanner error must be retained with the movement record. This does not authorize changing the object ID, collection ownership, lender information, loan terms, or accepting an unresolved discrepancy."
+        ]
+      }
+    },
+    {
+      "app": "messaging",
+      "function": "create_conversation",
+      "parameter": {
+        "participants": [
+          "Mireya Solenne Armitage",
+          "Rowan Ives"
+        ],
+        "title": "CR-61 intake systems coordination"
+      }
+    }
+  ],
+  "scenario_id": "blockage_failed_3",
+  "trigger_type": "blockage",
+  "reference_time": "2026-11-25"
+}

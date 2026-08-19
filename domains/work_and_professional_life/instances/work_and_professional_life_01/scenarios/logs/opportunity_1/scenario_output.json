@@ -1,0 +1,105 @@
+{
+  "scenario_description": "Objective: Capture an optional lender-verified baseline for HM-22 before its first installation in \"Working Coast: Instruments at Sea\".\nEmerging Need: Elena Voss will briefly be nearby with annotated reference materials, while a compatible imaging setup is available; the object is not yet ready when the opportunity first appears.\nDecision Context: The confirmed mount-fitting slot, delivery condition, and approved intake protocol determine whether coordination can still produce useful comparison evidence.\nConsequence: Working within the converging window could strengthen the condition record and lender relationship; ignoring it leaves the routine intake record intact but forfeits that added benefit.",
+  "events": {
+    "event1": {
+      "time": "2026-05-07T09:00:00-04:00",
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "Elena Voss",
+        "recipients": [
+          "Mireya Solenne Armitage"
+        ],
+        "subject": "Harbor County conference schedule",
+        "body": "I will be in Harbor County on Thursday, May 21, between 13:00 and 15:00 while attending an unrelated conference. I can stop by the museum during that window if it is useful for your records, but there is no need to arrange anything on my account.",
+        "timestamp": "2026-05-07T09:00:00-04:00"
+      }
+    },
+    "event2": {
+      "time": "2026-05-09T10:00:00-04:00",
+      "app": "calendar",
+      "function": "create_event",
+      "parameter": {
+        "title": "HM-22 mount fitting",
+        "start_time": "2026-05-22T09:00:00-04:00",
+        "end_time": "2026-05-22T12:00:00-04:00",
+        "description": "Confirmed installation preparation for HM-22 in the Working Coast gallery.",
+        "location": "Harbor County Museum, Gallery B",
+        "organizer": "Harbor County Museum",
+        "status": "confirmed"
+      }
+    },
+    "event3": {
+      "time": "2026-05-12T14:00:00-04:00",
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "Elena Voss",
+        "recipients": [
+          "Mireya Solenne Armitage"
+        ],
+        "content": "I located the lender's annotated reference images and prior condition notes for HM-22. I will have those materials with me during my May 21 conference window and can use them for an optional comparison if the object is ready.",
+        "timestamp": "2026-05-12T13:55:00-04:00"
+      }
+    },
+    "event4": {
+      "time": "2026-05-20T08:45:00-04:00",
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "Northstar Fine Art Logistics",
+        "recipients": [
+          "Mireya Solenne Armitage"
+        ],
+        "subject": "HM-22 delivery confirmation",
+        "body": "Shipment HM-22 was delivered to the museum's conditioned receiving room at 08:30 today. The shipping crate is intact and remains sealed.",
+        "timestamp": "2026-05-20T08:40:00-04:00"
+      }
+    },
+    "event5": {
+      "time": "2026-05-22T09:05:00-04:00",
+      "app": "calendar",
+      "function": "update_event",
+      "parameter": {
+        "title": "HM-22 mount fitting",
+        "start_time": "2026-05-22T09:00:00-04:00",
+        "description": "Mount fitting began at 09:00. HM-22 is no longer available for an intake comparison review.",
+        "status": "confirmed"
+      }
+    }
+  },
+  "ini_data_commands": [
+    {
+      "app": "files",
+      "function": "create_file",
+      "parameter": {
+        "name": "hm22_optional_review_protocol.txt",
+        "content": "HM-22 optional intake protocol: A joint condition review using the lender's reference materials may occur only after the crate has remained for 24 continuous hours in the museum's conditioned receiving room and before mount fitting begins. The review is optional; if it does not occur, the standard registrar condition report remains sufficient for loan intake. This protocol does not authorize conservation treatment or changes to loan terms."
+      }
+    },
+    {
+      "app": "database",
+      "function": "execute",
+      "parameter": {
+        "sql": "INSERT INTO exhibitions (exhibition_id, title, venue, opening_date, status) VALUES ('EX-COAST-2026', 'Working Coast: Instruments at Sea', 'Harbor County Museum Gallery B', '2026-06-01', 'confirmed')"
+      }
+    },
+    {
+      "app": "database",
+      "function": "execute",
+      "parameter": {
+        "sql": "INSERT INTO object_movements (movement_id, object_id, exhibition_id, movement_type, status) VALUES ('MOV-HM22-IN', 'HM-22', 'EX-COAST-2026', 'incoming', 'cleared_for_intake')"
+      }
+    },
+    {
+      "app": "database",
+      "function": "execute",
+      "parameter": {
+        "sql": "INSERT INTO registrar_activity (log_id, user_id, logged_on, activity, outcome) VALUES ('ACT-HM22-001', 'Mireya Solenne Armitage', '2026-05-06', 'optional_lender_review_authorization', 'Elena Voss is approved for one optional HM-22 intake review; routine scheduling may be coordinated without a director exception, and the standard condition report remains sufficient if no review occurs.')"
+      }
+    }
+  ],
+  "scenario_id": "opportunity_1",
+  "trigger_type": "opportunity",
+  "reference_time": "2026-05-07"
+}

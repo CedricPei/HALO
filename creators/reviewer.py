@@ -8,7 +8,8 @@ from .scenario_creator import (
     DOMAINS_DIR,
     get_instance_dir,
     load_domain_scenario_context_summaries,
-    load_instance_context,
+    load_instance_profile,
+    load_instance_state,
 )
 
 
@@ -34,9 +35,7 @@ class Reviewer:
         domain_spec = json.loads(
             (domain_dir / "domain.json").read_text(encoding="utf-8")
         )
-        description = json.loads(
-            (instance_dir / "profile.json").read_text(encoding="utf-8")
-        )
+        profile = load_instance_profile(instance_dir)
         accepted = [
             item
             for item in load_domain_scenario_context_summaries(domain_dir)
@@ -45,12 +44,10 @@ class Reviewer:
                 and item["scenario_id"] == candidate_scenario["scenario_id"]
             )
         ]
-        base_state = load_instance_context(instance_dir, instance_id)
-        del base_state["description"]
         prompt = build_reviewer_prompt(
             domain_spec=domain_spec,
-            instance_description=description,
-            base_state=base_state,
+            instance_profile=profile,
+            base_state=load_instance_state(instance_dir, instance_id),
             accepted_scenarios=accepted,
             candidate_scenario=candidate_scenario,
             expected_trigger_type=expected_trigger_type,

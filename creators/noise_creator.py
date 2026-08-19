@@ -11,8 +11,8 @@ from .prompt import build_noise_creator_prompt
 from .scenario_creator import (
     get_instance_dir,
     load_accepted_scenarios,
-    load_instance_context,
-    load_personal_description,
+    load_instance_profile,
+    load_instance_state,
 )
 from .validator import validate_noise
 
@@ -34,6 +34,20 @@ class NoiseCreator:
 
     def create_noise(self, domain_id, instance_id, stop_event):
         instance_dir = get_instance_dir(domain_id, instance_id)
+        profile = load_instance_profile(instance_dir)
+        instance_context = {
+            "overview": profile["instance_description"],
+            **load_instance_state(instance_dir, instance_id),
+        }
+        accepted_scenarios = [
+            {
+                "scenario_id": scenario["scenario_id"],
+                "trigger_type": scenario["trigger_type"],
+                "scenario_description": scenario["scenario_description"],
+                "events": scenario["events"],
+            }
+            for scenario in load_accepted_scenarios(instance_dir)
+        ]
         feedback = []
         for attempt in range(1, 6):
             if stop_event.is_set():
@@ -46,9 +60,9 @@ class NoiseCreator:
                 5,
             )
             prompt = build_noise_creator_prompt(
-                instance_context=load_instance_context(instance_dir, instance_id),
-                personal_description=load_personal_description(instance_dir),
-                accepted_scenarios=load_accepted_scenarios(instance_dir),
+                instance_context=instance_context,
+                personal_description=profile["personal_description"],
+                accepted_scenarios=accepted_scenarios,
                 retry_feedback=feedback,
             )
             try:

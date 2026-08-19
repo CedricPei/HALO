@@ -67,7 +67,7 @@ def main():
     evidence_col, decision_col = st.columns([3, 2], gap="medium")
 
     with evidence_col:
-        with st.container(height=690, border=False):
+        with st.container(height=690, border=False, key="evidence-pane"):
             st.markdown("#### Instance Overview")
             render_structured_text(item["instance"]["instance_description"])
             st.markdown("#### User Profile")
