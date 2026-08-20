@@ -173,6 +173,10 @@ class LLMClient:
         )
         self.temperature = temperature
         self.timeout = float(os.getenv("LLM_TIMEOUT", "300"))
+        self.construction_reasoning_effort = os.getenv(
+            "OPENAI_REASONING_EFFORT",
+            OPENAI_CONSTRUCTION_REASONING_EFFORT,
+        )
         self.thinking_level = os.getenv("GEMINI_THINKING_LEVEL", "high")
         self.gemini_transport = os.getenv(
             "EVALUATION_GEMINI_TRANSPORT", "developer"
@@ -184,6 +188,10 @@ class LLMClient:
 
         if self.gemini_transport not in {"developer", "openai-chat"}:
             raise ValueError("Gemini transport must be 'developer' or 'openai-chat'")
+        if self.construction_reasoning_effort not in {
+            "none", "low", "medium", "high", "xhigh", "max"
+        }:
+            raise ValueError("Invalid OpenAI construction reasoning effort")
         if self.thinking_level not in {"minimal", "low", "medium", "high"}:
             raise ValueError("Invalid Gemini thinking level")
         for url in filter(None, (self.openai_base_url, self.gemini_base_url)):
@@ -207,7 +215,7 @@ class LLMClient:
                 self.model,
                 prompt,
                 self.temperature,
-                reasoning_effort=OPENAI_CONSTRUCTION_REASONING_EFFORT,
+                reasoning_effort=self.construction_reasoning_effort,
             )
         call = self._retry(operation, request_label)
         return call["raw_text"]

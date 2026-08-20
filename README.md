@@ -88,12 +88,13 @@ For the official OpenAI API:
 CREATOR_LLM_PROVIDER=openai
 OPENAI_API_KEY=...
 OPENAI_BASE_URL=https://api.openai.com
+OPENAI_REASONING_EFFORT=...
 ```
 
-Benchmark construction uses `gpt-5.6-sol` with `xhigh` reasoning effort. This
-model and reasoning setting apply only to benchmark construction. Agent
-evaluation selects models separately with `--model` and does not inherit the
-construction reasoning setting.
+Benchmark construction uses `gpt-5.6-sol` with `OPENAI_REASONING_EFFORT` set
+to `xhigh`. This model and reasoning setting apply only to benchmark
+construction. Agent evaluation selects models separately with `--model` and
+does not inherit the construction reasoning setting.
 
 ### Gemini Developer API
 
