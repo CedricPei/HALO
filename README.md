@@ -88,13 +88,12 @@ For a provider that implements the OpenAI Responses API:
 CREATOR_LLM_PROVIDER=openai
 OPENAI_API_KEY=...
 OPENAI_BASE_URL=https://your-provider.example
-OPENAI_MODEL=<creator-model-id>
+OPENAI_MODEL=gpt-5.6-sol
 OPENAI_REASONING_EFFORT=high
 LLM_TIMEOUT=300
 ```
 
-Do not include `/v1` at the end of `OPENAI_BASE_URL`; the client adds
-`/v1/responses`.
+Use `gpt-5.6-sol` as the construction model when building the benchmark.
 
 ### Gemini Developer API
 
@@ -102,7 +101,7 @@ Do not include `/v1` at the end of `OPENAI_BASE_URL`; the client adds
 CREATOR_LLM_PROVIDER=gemini
 GEMINI_API_KEY=...
 GEMINI_BASE_URL=https://generativelanguage.googleapis.com/v1beta
-GEMINI_MODEL=gemini-2.5-flash
+GEMINI_MODEL=<creator-model-id>
 GEMINI_THINKING_LEVEL=high
 EVALUATION_GEMINI_TRANSPORT=developer
 LLM_TIMEOUT=300
