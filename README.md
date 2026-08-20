@@ -95,9 +95,10 @@ OPENAI_REASONING_EFFORT=...
 this URL exactly as configured and does not append a path.
 
 Benchmark construction uses `gpt-5.6-sol` with `OPENAI_REASONING_EFFORT` set
-to `xhigh`. This model and reasoning setting apply only to benchmark
-construction. Agent evaluation selects models separately with `--model` and
-does not inherit the construction reasoning setting.
+to `xhigh` (`max` may be used when latency and cost permit). This model and
+reasoning setting apply only to benchmark construction. Agent evaluation
+selects models separately with `--model` and does not inherit the construction
+reasoning setting.
 
 ### Gemini Developer API
 
