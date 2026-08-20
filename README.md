@@ -102,7 +102,7 @@ does not inherit the construction reasoning setting.
 CREATOR_LLM_PROVIDER=gemini
 GEMINI_API_KEY=...
 GEMINI_BASE_URL=https://generativelanguage.googleapis.com/v1beta
-GEMINI_MODEL=<creator-model-id>
+GEMINI_MODEL=...
 GEMINI_THINKING_LEVEL=high
 EVALUATION_GEMINI_TRANSPORT=developer
 ```
