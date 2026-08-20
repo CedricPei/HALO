@@ -1,13 +1,45 @@
 # ProActCal
 
-ProActCal is a benchmark for constructing and evaluating proactive-agent
-behavior across evolving application state. Each Instance defines one person's
-working context, eight Trigger-based Scenarios, and unrelated background Noise.
+ProActCal is a benchmark for testing whether an Agent can recognize when help
+is needed in an evolving application environment, gather the necessary
+evidence, and respond at the right time with an appropriate level of action.
 
-## Collaborator quick start
+## Benchmark structure
 
-If you were asked to help generate benchmark data, first clone the private
-repository and create a Python 3.11 environment:
+- A **Domain** defines a broad area of life, such as work and professional
+  activity.
+- An **Instance** represents one person and their initial state across Apps,
+  local files, and structured data.
+- A **Scenario** is a time-ordered Event sequence containing one of four
+  proactive Triggers: `blockage`, `dependency`, `opportunity`, or `risk`.
+- Each Instance contains two Scenarios for every Trigger type, for a total of
+  eight accepted Scenarios.
+- **Noise** adds unrelated background Events so the Agent must distinguish
+  genuine intervention opportunities from ordinary activity.
+- **Evaluation** replays Scenario prefixes in isolated copies of the Instance
+  and records the Agent's inspections and final response for later review.
+
+The repository contains three main workflows:
+
+1. Construct and validate benchmark Instances, Scenarios, and Noise.
+2. Audit constructed Scenarios through a Streamlit interface.
+3. Run Agents on accepted Scenarios and review their responses.
+
+## Repository layout
+
+- `benchmark_plan.json` defines the human-authored Domains and benchmark scale.
+- `domains/` contains generated Instances, Scenarios, and construction records.
+- `creators/` implements Instance, Scenario, Reviewer, Validator, and Noise
+  construction stages.
+- `evaluation/` runs evaluated Agents.
+- `eval_results/` stores Agent outputs and aggregate usage metrics.
+- `interfaces/` contains the construction-audit and evaluation-review apps.
+- `annotations/reviews.sqlite` stores review decisions.
+- `benchmark/` contains the audited manifest and benchmark artifacts.
+
+## Environment setup
+
+Clone the private repository and create a Python 3.11 environment:
 
 ```bash
 git clone https://github.com/CedricPei/ProActCal.git
@@ -18,38 +50,19 @@ python -m pip install -r requirements.txt
 cp .env.example .env
 ```
 
-On Windows PowerShell, activate the environment with
-`.venv\Scripts\Activate.ps1`. Edit `.env` with the Creator model credentials and
-endpoint. Never commit `.env`.
+On Windows PowerShell, activate it with
+`.venv\Scripts\Activate.ps1`. Keep `.env` local and never commit API keys.
 
-Run the Domain and Instance assigned to you:
+`llm_client.py` reads `.env` from the repository root. Existing shell
+environment variables take precedence. All model calls use non-streaming
+HTTP(S).
 
-```bash
-python -B build_benchmark.py \
-  --domain <domain-id> \
-  --instance <instance-id>
-```
+### OpenAI-compatible provider
 
-The target Instance must already be listed by `benchmark_plan.json`. To build
-every planned Instance in one Domain, omit `--instance`:
-
-```bash
-python -B build_benchmark.py --domain <domain-id>
-```
-
-Construction resumes from data already on disk: accepted Scenarios and final
-Noise are skipped. One complete Instance contains eight Scenarios and makes
-many paid model calls, so confirm the assigned IDs and Creator model before
-starting.
-
-### Model configuration
-
-`llm_client.py` reads `.env` from the repository root and uses non-streaming
-HTTP(S) requests. Shell environment variables override values in the file.
-
-For a model served through an OpenAI-compatible Responses API, set:
+For a provider that implements the OpenAI Responses API:
 
 ```dotenv
+CREATOR_LLM_PROVIDER=openai
 OPENAI_API_KEY=...
 OPENAI_BASE_URL=https://your-provider.example
 OPENAI_MODEL=<creator-model-id>
@@ -58,36 +71,36 @@ LLM_TIMEOUT=300
 ```
 
 Do not include `/v1` at the end of `OPENAI_BASE_URL`; the client adds
-`/v1/responses`. Set `CREATOR_LLM_PROVIDER=openai` to use this provider.
+`/v1/responses`.
 
-For the Gemini Developer API, set:
+### Gemini Developer API
 
 ```dotenv
+CREATOR_LLM_PROVIDER=gemini
 GEMINI_API_KEY=...
 GEMINI_BASE_URL=https://generativelanguage.googleapis.com/v1beta
 GEMINI_MODEL=gemini-2.5-flash
 GEMINI_THINKING_LEVEL=high
+EVALUATION_GEMINI_TRANSPORT=developer
 LLM_TIMEOUT=300
 ```
 
-Set `CREATOR_LLM_PROVIDER=gemini` to use this provider.
+`GEMINI_MODEL` selects the construction model. During Agent evaluation, any
+`--model` value beginning with `gemini` uses the Gemini Developer API when
+`EVALUATION_GEMINI_TRANSPORT=developer`.
 
-## Repository layout
+## Constructing the benchmark
 
-- `benchmark_plan.json` defines the human-authored Domains and benchmark scale.
-- `domains/` contains generated Instances, Scenarios, and their construction
-  records.
-- `creators/` implements Instance, Scenario, Reviewer, Validator, and Noise
-  construction stages.
-- `evaluation/` runs evaluated Agents and writes results to `eval_results/`.
-- `interfaces/` provides construction-audit and evaluation-review interfaces.
-- `benchmark/` contains the audited manifest and generated benchmark artifacts.
+The Domain and Instance must first be included in `benchmark_plan.json`. To
+construct or resume one Instance:
 
-## Construction
+```bash
+python -B build_benchmark.py \
+  --domain <domain-id> \
+  --instance <instance-id>
+```
 
-Construction is only for generating or completing benchmark Instances. It is
-Before constructing data, update `benchmark_plan.json` and configure the Creator
-provider in `.env`.
+For example:
 
 ```bash
 python -B build_benchmark.py \
@@ -95,22 +108,74 @@ python -B build_benchmark.py \
   --instance work_and_professional_life_01
 ```
 
-Construction is serial: selected Instances run one at a time, and each
-Instance's eight Scenarios run one at a time before final Noise generation.
-This preserves the shared initial state, increasing reference dates, and
-duplicate-avoidance feedback used by later Scenarios.
+To construct every planned Instance in a Domain, omit `--instance`:
 
-For every Instance, two copies of each of the four Trigger types are shuffled
-into an eight-Scenario order. Construction uses an Instance Creator, combined
-Scenario Creator, Reviewer, deterministic Validator, and final Noise Creator.
-A Scenario candidate is committed only after both validation and review pass.
-Public Instance metadata lives in `profile.json`; construction outputs live in
-`outputs/{instance,review,noise}.json`; accepted and rejected Scenario records
-live under `scenarios/logs/`.
+```bash
+python -B build_benchmark.py --domain work_and_professional_life
+```
 
-All model calls use non-streaming HTTP(S). A construction request receives up
-to five immediate network attempts, while Instance, Scenario, Noise, and
-malformed Reviewer outputs have separate content/output retry budgets. Five
-exhausted network attempts stop the build without treating the transport error
-as semantic feedback. Use `--audit-only` to validate existing data and rebuild
-`benchmark/manifest.json` without calling a model.
+Construction is resumable. Existing accepted Scenarios and final Noise are
+skipped, while missing stages continue. Construction runs Instances and their
+Scenarios serially because later Scenarios depend on the accepted shared state.
+
+To validate existing data and rebuild `benchmark/manifest.json` without calling
+a model:
+
+```bash
+python -B build_benchmark.py --audit-only
+```
+
+## Streamlit review interfaces
+
+After construction, open the Scenario audit interface:
+
+```bash
+python -B -m streamlit run interfaces/audit.py
+```
+
+This interface is used to review constructed Trigger validity and causal
+timing. Decisions are saved idempotently in `annotations/reviews.sqlite`.
+
+After Agent evaluation results exist, open the response-review interface:
+
+```bash
+python -B -m streamlit run interfaces/eval.py
+```
+
+This interface supports response correctness review together with timing and
+action-intensity judgments.
+
+## Agent evaluation
+
+For each accepted Scenario, evaluation creates one checkpoint after every
+Event. Each checkpoint starts from a fresh copy of the accepted Instance,
+replays only the Event prefix available at that moment, and lets the Agent
+inspect read-only App state before returning either no action or one final
+command. The final command is executed once in a disposable state copy.
+
+Independent `(model, Scenario)` jobs run in parallel; checkpoints within one
+Scenario remain serial. Start with one Scenario as a smoke test:
+
+```bash
+python -B -m evaluation.runner \
+  --model <model-id> \
+  --instance work_and_professional_life_01 \
+  --scenario dependency_1 \
+  --workers 1
+```
+
+After the smoke test succeeds, run the same model on every accepted Scenario:
+
+```bash
+python -B -m evaluation.runner --model <model-id> --workers 8
+```
+
+`--model` and `--instance` may be repeated. A model name beginning with
+`gemini` uses the configured Gemini transport; other model names use the
+OpenAI-compatible Responses endpoint. Existing `(model, Scenario)` results are
+skipped, so rerunning the command resumes unfinished jobs.
+
+Each run is written to `eval_results/<model>/`. After a successful command,
+`eval_results/summary.json` is regenerated with checkpoint-level token, latency,
+inspection-round, and action-intensity metrics. Use the evaluation Streamlit
+interface to review the resulting Event–Response pairs.
