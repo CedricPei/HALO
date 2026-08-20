@@ -90,7 +90,6 @@ OPENAI_API_KEY=...
 OPENAI_BASE_URL=https://your-provider.example
 OPENAI_MODEL=gpt-5.6-sol
 OPENAI_REASONING_EFFORT=high
-LLM_TIMEOUT=300
 ```
 
 Use `gpt-5.6-sol` as the construction model when building the benchmark.
@@ -104,7 +103,6 @@ GEMINI_BASE_URL=https://generativelanguage.googleapis.com/v1beta
 GEMINI_MODEL=<creator-model-id>
 GEMINI_THINKING_LEVEL=high
 EVALUATION_GEMINI_TRANSPORT=developer
-LLM_TIMEOUT=300
 ```
 
 `GEMINI_MODEL` selects the construction model. During Agent evaluation, any
