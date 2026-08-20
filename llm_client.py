@@ -15,6 +15,7 @@ ROOT_DIR = Path(__file__).resolve().parent
 ENV_PATH = ROOT_DIR / ".env"
 LOGGER = logging.getLogger(__name__)
 OPENAI_CONSTRUCTION_MODEL = "gpt-5.6-sol"
+OPENAI_CONSTRUCTION_REASONING_EFFORT = "xhigh"
 
 
 class LLMTransportError(RuntimeError):
@@ -172,7 +173,6 @@ class LLMClient:
         )
         self.temperature = temperature
         self.timeout = float(os.getenv("LLM_TIMEOUT", "300"))
-        self.reasoning_effort = os.getenv("OPENAI_REASONING_EFFORT", "high")
         self.thinking_level = os.getenv("GEMINI_THINKING_LEVEL", "high")
         self.gemini_transport = os.getenv(
             "EVALUATION_GEMINI_TRANSPORT", "developer"
@@ -184,10 +184,6 @@ class LLMClient:
 
         if self.gemini_transport not in {"developer", "openai-chat"}:
             raise ValueError("Gemini transport must be 'developer' or 'openai-chat'")
-        if self.reasoning_effort not in {
-            "none", "low", "medium", "high", "xhigh", "max"
-        }:
-            raise ValueError("Invalid OpenAI reasoning effort")
         if self.thinking_level not in {"minimal", "low", "medium", "high"}:
             raise ValueError("Invalid Gemini thinking level")
         for url in filter(None, (self.openai_base_url, self.gemini_base_url)):
@@ -208,7 +204,10 @@ class LLMClient:
             operation = lambda: self._gemini(self.model, prompt, temperature)
         else:
             operation = lambda: self._openai_responses(
-                self.model, prompt, self.temperature
+                self.model,
+                prompt,
+                self.temperature,
+                reasoning_effort=OPENAI_CONSTRUCTION_REASONING_EFFORT,
             )
         call = self._retry(operation, request_label)
         return call["raw_text"]
@@ -320,16 +319,19 @@ class LLMClient:
             "response_id": response_id,
         }
 
-    def _openai_responses(self, model, prompt, temperature):
+    def _openai_responses(
+        self, model, prompt, temperature, reasoning_effort=None
+    ):
         if not self.openai_api_key or not self.openai_base_url:
             raise ValueError("OPENAI_API_KEY and OPENAI_BASE_URL are required")
         payload = {
             "model": model,
             "input": prompt,
             "store": False,
-            "reasoning": {"effort": self.reasoning_effort},
             "text": {"format": {"type": "json_object"}},
         }
+        if reasoning_effort is not None:
+            payload["reasoning"] = {"effort": reasoning_effort}
         if temperature is not None:
             payload["temperature"] = temperature
         data, latency = self._post(
