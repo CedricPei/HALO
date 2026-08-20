@@ -26,16 +26,21 @@ pairs.
 
 The 10 fixed Domains are:
 
-1. Education and School Life
+1. Education and Learning
 2. Work and Professional Life
-3. Home and Household Life
+3. Home and Household Management
 4. Family and Caregiving Life
-5. Health, Fitness, and Wellbeing
+5. Health and Wellbeing
 6. Travel and Mobility
-7. Community and Civic Life
-8. Social and Cultural Life
-9. Recreation, Sports, and Hobbies
-10. Personal Projects and Life Planning
+7. Personal Finance and Consumer Life
+8. Community and Civic Life
+9. Social and Cultural Life
+10. Recreation, Sports, and Hobbies
+
+Domains are assigned by the person's **primary objective**, not by the App,
+record type, or resource involved. Cross-domain cases belong to the Domain that
+best describes the outcome being pursued; each Instance then defines a narrower
+setting and explicit exclusions inside that Domain.
 
 The repository contains three main workflows:
 
