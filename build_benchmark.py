@@ -574,18 +574,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--domain", action="append", dest="domain_ids")
     parser.add_argument("--instance", action="append", dest="instance_ids")
-    parser.add_argument(
-        "--audit-only",
-        action="store_true",
-        help="audit existing data without running construction",
-    )
     args = parser.parse_args()
-    if args.audit_only:
-        if args.instance_ids:
-            parser.error("--audit-only does not accept --instance")
-        raise SystemExit(
-            0 if audit_benchmark(domain_ids=args.domain_ids)["valid"] else 1
-        )
     report, audit = build_benchmark(
         domain_ids=args.domain_ids,
         instance_ids=args.instance_ids,

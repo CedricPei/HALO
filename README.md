@@ -147,13 +147,6 @@ Construction is resumable. Existing accepted Scenarios and final Noise are
 skipped, while missing stages continue. Construction runs Instances and their
 Scenarios serially because later Scenarios depend on the accepted shared state.
 
-To validate existing data and rebuild `benchmark/manifest.json` without calling
-a model:
-
-```bash
-python -B build_benchmark.py --audit-only
-```
-
 ## Streamlit review interfaces
 
 After construction, open the Scenario audit interface:
