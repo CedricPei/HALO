@@ -4,6 +4,11 @@ ProActCal is a benchmark for testing whether an Agent can recognize when help
 is needed in an evolving application environment, gather the necessary
 evidence, and respond at the right time with an appropriate level of action.
 
+The complete benchmark contains **10 Domains, 5 Instances per Domain, and 8
+Scenarios per Instance: 50 Instances and 400 Scenarios in total**. With roughly
+5 Events per Scenario, evaluating one model produces about 2,000 Event–Response
+pairs.
+
 ## Benchmark structure
 
 - A **Domain** defines a broad area of life, such as work and professional
@@ -18,6 +23,19 @@ evidence, and respond at the right time with an appropriate level of action.
   genuine intervention opportunities from ordinary activity.
 - **Evaluation** replays Scenario prefixes in isolated copies of the Instance
   and records the Agent's inspections and final response for later review.
+
+The 10 fixed Domains are:
+
+1. Education and School Life
+2. Work and Professional Life
+3. Home and Household Life
+4. Family and Caregiving Life
+5. Health, Fitness, and Wellbeing
+6. Travel and Mobility
+7. Community and Civic Life
+8. Social and Cultural Life
+9. Recreation, Sports, and Hobbies
+10. Personal Projects and Life Planning
 
 The repository contains three main workflows:
 
@@ -91,8 +109,17 @@ LLM_TIMEOUT=300
 
 ## Constructing the benchmark
 
-The Domain and Instance must first be included in `benchmark_plan.json`. To
-construct or resume one Instance:
+To construct or resume the complete planned benchmark with one command:
+
+```bash
+python -B build_benchmark.py
+```
+
+This command traverses all 10 Domains and all 50 planned Instances, constructs
+each Instance's eight Scenarios and final Noise, and runs the final benchmark
+audit. Existing completed stages are skipped when the same command is rerun.
+
+To construct or resume only one planned Instance:
 
 ```bash
 python -B build_benchmark.py \
@@ -169,6 +196,9 @@ After the smoke test succeeds, run the same model on every accepted Scenario:
 ```bash
 python -B -m evaluation.runner --model <model-id> --workers 8
 ```
+
+For a complete benchmark, this schedules 400 independent `(model, Scenario)`
+jobs per model.
 
 `--model` and `--instance` may be repeated. A model name beginning with
 `gemini` uses the configured Gemini transport; other model names use the
