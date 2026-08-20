@@ -91,6 +91,11 @@ OPENAI_BASE_URL=https://api.openai.com
 OPENAI_REASONING_EFFORT=...
 ```
 
+`OPENAI_BASE_URL` is the API origin, not a complete endpoint. The client
+appends the endpoint path for each request; OpenAI Responses requests append
+`/v1/responses`, so the value above resolves to
+`https://api.openai.com/v1/responses`.
+
 Benchmark construction uses `gpt-5.6-sol` with `OPENAI_REASONING_EFFORT` set
 to `xhigh`. This model and reasoning setting apply only to benchmark
 construction. Agent evaluation selects models separately with `--model` and
