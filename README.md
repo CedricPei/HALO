@@ -3,14 +3,11 @@
 ProActCal is a benchmark for constructing and evaluating proactive-agent
 behavior across evolving application state. Each Instance defines one person's
 working context, eight Trigger-based Scenarios, and unrelated background Noise.
-Evaluation replays every Event prefix in isolation and records the Agent's
-inspection and final-action decisions for human review.
 
 ## Collaborator quick start
 
-If you were asked to help **run the benchmark**, the normal task is Agent
-evaluation, not benchmark construction. First clone the private repository and
-create a Python 3.11 environment:
+If you were asked to help generate benchmark data, first clone the private
+repository and create a Python 3.11 environment:
 
 ```bash
 git clone https://github.com/CedricPei/ProActCal.git
@@ -22,32 +19,28 @@ cp .env.example .env
 ```
 
 On Windows PowerShell, activate the environment with
-`.venv\Scripts\Activate.ps1`. Edit `.env` with the credentials and endpoint for
-the model being evaluated. Never commit `.env`.
+`.venv\Scripts\Activate.ps1`. Edit `.env` with the Creator model credentials and
+endpoint. Never commit `.env`.
 
-Start with one Scenario as a smoke test:
-
-```bash
-python -B -m evaluation.runner \
-  --model <model-id> \
-  --instance work_and_professional_life_01 \
-  --scenario dependency_1 \
-  --workers 1
-```
-
-After that succeeds, evaluate the same model on every accepted Scenario:
+Run the Domain and Instance assigned to you:
 
 ```bash
-python -B -m evaluation.runner --model <model-id> --workers 8
+python -B build_benchmark.py \
+  --domain <domain-id> \
+  --instance <instance-id>
 ```
 
-The full command currently schedules 24 jobs: three accepted Instances times
-eight Scenarios. Results are written to `eval_results/<model>/`, and
-`eval_results/summary.json` is refreshed when the run finishes without job
-failures. Re-running the same command is safe: existing `(model, Scenario)`
-results are skipped, so an interrupted run resumes the remaining jobs. A full
-evaluation makes many paid model calls; confirm the model ID, credentials, and
-smoke-test output before starting it.
+The target Instance must already be listed by `benchmark_plan.json`. To build
+every planned Instance in one Domain, omit `--instance`:
+
+```bash
+python -B build_benchmark.py --domain <domain-id>
+```
+
+Construction resumes from data already on disk: accepted Scenarios and final
+Noise are skipped. One complete Instance contains eight Scenarios and makes
+many paid model calls, so confirm the assigned IDs and Creator model before
+starting.
 
 ### Model configuration
 
@@ -59,15 +52,13 @@ For a model served through an OpenAI-compatible Responses API, set:
 ```dotenv
 OPENAI_API_KEY=...
 OPENAI_BASE_URL=https://your-provider.example
-OPENAI_MODEL=<construction-model-id>
+OPENAI_MODEL=<creator-model-id>
 OPENAI_REASONING_EFFORT=high
 LLM_TIMEOUT=300
 ```
 
 Do not include `/v1` at the end of `OPENAI_BASE_URL`; the client adds
-`/v1/responses`. Evaluation uses this route whenever `--model` does not start
-with `gemini`. `OPENAI_MODEL` is required for construction but the evaluation
-model is taken directly from `--model`.
+`/v1/responses`. Set `CREATOR_LLM_PROVIDER=openai` to use this provider.
 
 For the Gemini Developer API, set:
 
@@ -76,14 +67,10 @@ GEMINI_API_KEY=...
 GEMINI_BASE_URL=https://generativelanguage.googleapis.com/v1beta
 GEMINI_MODEL=gemini-2.5-flash
 GEMINI_THINKING_LEVEL=high
-EVALUATION_GEMINI_TRANSPORT=developer
 LLM_TIMEOUT=300
 ```
 
-Evaluation uses this route whenever `--model` starts with `gemini`.
-`GEMINI_MODEL` is required only for construction. To construct benchmark data
-with Gemini, also set `CREATOR_LLM_PROVIDER=gemini`; otherwise construction
-defaults to the OpenAI-compatible provider.
+Set `CREATOR_LLM_PROVIDER=gemini` to use this provider.
 
 ## Repository layout
 
@@ -99,9 +86,8 @@ defaults to the OpenAI-compatible provider.
 ## Construction
 
 Construction is only for generating or completing benchmark Instances. It is
-not required to evaluate the accepted Scenarios already in the repository.
-Before constructing data, update `benchmark_plan.json` and configure the
-Creator provider in `.env`.
+Before constructing data, update `benchmark_plan.json` and configure the Creator
+provider in `.env`.
 
 ```bash
 python -B build_benchmark.py \
@@ -128,41 +114,3 @@ malformed Reviewer outputs have separate content/output retry budgets. Five
 exhausted network attempts stop the build without treating the transport error
 as semantic feedback. Use `--audit-only` to validate existing data and rebuild
 `benchmark/manifest.json` without calling a model.
-
-## Evaluation
-
-Evaluation parallelizes independent `(model, Scenario)` jobs. It uses eight
-workers by default; checkpoints within each Scenario remain serial.
-
-Every Event prefix is evaluated in a fresh copy of the accepted Instance, so
-behavior from an earlier checkpoint cannot affect a later one. Inspection calls
-may retrieve information before the Agent returns either no action or one final
-App command. Final commands execute once in a disposable state copy. Results,
-usage, latency, inspection traces, and intermediate rounds are written beneath
-`eval_results/<model>/` and summarized in `eval_results/summary.json`.
-
-```bash
-python -B -m evaluation.runner \
-  --instance work_and_professional_life_01 \
-  --scenario dependency_1 \
-  --workers 8
-```
-
-The default evaluated model is `gpt-5.6-sol`. `--model` and `--instance` may be
-repeated. Model names beginning with `gemini` use the official Gemini
-`generateContent` endpoint; other names use the configured OpenAI-compatible
-Responses endpoint.
-
-## Human review
-
-Construction and evaluation review decisions are stored idempotently in
-`annotations/reviews.sqlite`. Construction review covers Trigger validity and
-causal timing. Evaluation review checks whether an action is timely and has an
-appropriate L0–L3 intensity, with structured rejection reasons for timing,
-intensity, unsupported evidence, irrelevant action, and factual contradiction.
-
-```bash
-python -B build_benchmark.py --audit-only
-python -B -m streamlit run interfaces/audit.py
-python -B -m streamlit run interfaces/eval.py
-```
