@@ -161,7 +161,10 @@ class LLMClient:
 
         self.openai_api_key = os.getenv("OPENAI_API_KEY")
         self.gemini_api_key = os.getenv("GEMINI_API_KEY")
-        self.openai_base_url = os.getenv("OPENAI_BASE_URL", "").rstrip("/")
+        self.openai_responses_url = os.getenv("OPENAI_RESPONSES_URL", "")
+        self.openai_chat_completions_url = os.getenv(
+            "OPENAI_CHAT_COMPLETIONS_URL", ""
+        )
         self.gemini_base_url = os.getenv(
             "GEMINI_BASE_URL",
             "https://generativelanguage.googleapis.com/v1beta",
@@ -194,9 +197,16 @@ class LLMClient:
             raise ValueError("Invalid OpenAI construction reasoning effort")
         if self.thinking_level not in {"minimal", "low", "medium", "high"}:
             raise ValueError("Invalid Gemini thinking level")
-        for url in filter(None, (self.openai_base_url, self.gemini_base_url)):
+        for url in filter(
+            None,
+            (
+                self.openai_responses_url,
+                self.openai_chat_completions_url,
+                self.gemini_base_url,
+            ),
+        ):
             if urllib.parse.urlsplit(url).scheme.lower() not in {"http", "https"}:
-                raise ValueError("LLM base URLs must use HTTP or HTTPS")
+                raise ValueError("LLM URLs must use HTTP or HTTPS")
 
     def generate_text(self, prompt, request_label):
         """Return raw model text for a construction role."""
@@ -330,8 +340,10 @@ class LLMClient:
     def _openai_responses(
         self, model, prompt, temperature, reasoning_effort=None
     ):
-        if not self.openai_api_key or not self.openai_base_url:
-            raise ValueError("OPENAI_API_KEY and OPENAI_BASE_URL are required")
+        if not self.openai_api_key or not self.openai_responses_url:
+            raise ValueError(
+                "OPENAI_API_KEY and OPENAI_RESPONSES_URL are required"
+            )
         payload = {
             "model": model,
             "input": prompt,
@@ -343,7 +355,7 @@ class LLMClient:
         if temperature is not None:
             payload["temperature"] = temperature
         data, latency = self._post(
-            f"{self.openai_base_url}/v1/responses",
+            self.openai_responses_url,
             payload,
             {
                 "Authorization": f"Bearer {self.openai_api_key}",
@@ -363,10 +375,12 @@ class LLMClient:
         )
 
     def _openai_chat(self, model, prompt, temperature):
-        if not self.openai_api_key or not self.openai_base_url:
-            raise ValueError("OPENAI_API_KEY and OPENAI_BASE_URL are required")
+        if not self.openai_api_key or not self.openai_chat_completions_url:
+            raise ValueError(
+                "OPENAI_API_KEY and OPENAI_CHAT_COMPLETIONS_URL are required"
+            )
         data, latency = self._post(
-            f"{self.openai_base_url}/v1/chat/completions",
+            self.openai_chat_completions_url,
             {
                 "model": model,
                 "messages": [{"role": "user", "content": prompt}],

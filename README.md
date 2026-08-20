@@ -87,14 +87,12 @@ For the official OpenAI API:
 ```dotenv
 CREATOR_LLM_PROVIDER=openai
 OPENAI_API_KEY=...
-OPENAI_BASE_URL=https://api.openai.com
+OPENAI_RESPONSES_URL=https://api.openai.com/v1/responses
 OPENAI_REASONING_EFFORT=...
 ```
 
-`OPENAI_BASE_URL` is the API origin, not a complete endpoint. The client
-appends the endpoint path for each request; OpenAI Responses requests append
-`/v1/responses`, so the value above resolves to
-`https://api.openai.com/v1/responses`.
+`OPENAI_RESPONSES_URL` is the complete endpoint. The client sends requests to
+this URL exactly as configured and does not append a path.
 
 Benchmark construction uses `gpt-5.6-sol` with `OPENAI_REASONING_EFFORT` set
 to `xhigh`. This model and reasoning setting apply only to benchmark
