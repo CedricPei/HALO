@@ -80,19 +80,19 @@ Keep `.env` local and never commit API keys.
 environment variables take precedence. All model calls use non-streaming
 HTTP(S).
 
-### OpenAI-compatible provider
+### OpenAI API
 
-For a provider that implements the OpenAI Responses API:
+For the official OpenAI API:
 
 ```dotenv
 CREATOR_LLM_PROVIDER=openai
 OPENAI_API_KEY=...
-OPENAI_BASE_URL=https://your-provider.example
-OPENAI_MODEL=gpt-5.6-sol
+OPENAI_BASE_URL=https://api.openai.com
 OPENAI_REASONING_EFFORT=high
 ```
 
-Use `gpt-5.6-sol` as the construction model when building the benchmark.
+Benchmark construction uses `gpt-5.6-sol`. Agent evaluation selects models
+separately with `--model`, so it may evaluate different OpenAI models.
 
 ### Gemini Developer API
 

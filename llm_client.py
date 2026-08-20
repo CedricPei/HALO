@@ -14,6 +14,7 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).resolve().parent
 ENV_PATH = ROOT_DIR / ".env"
 LOGGER = logging.getLogger(__name__)
+OPENAI_CONSTRUCTION_MODEL = "gpt-5.6-sol"
 
 
 class LLMTransportError(RuntimeError):
@@ -164,9 +165,10 @@ class LLMClient:
             "GEMINI_BASE_URL",
             "https://generativelanguage.googleapis.com/v1beta",
         ).rstrip("/")
-        self.model = os.getenv(
-            "GEMINI_MODEL" if self.provider == "gemini" else "OPENAI_MODEL",
-            "gemini-2.5-flash" if self.provider == "gemini" else None,
+        self.model = (
+            os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+            if self.provider == "gemini"
+            else OPENAI_CONSTRUCTION_MODEL
         )
         self.temperature = temperature
         self.timeout = float(os.getenv("LLM_TIMEOUT", "300"))
