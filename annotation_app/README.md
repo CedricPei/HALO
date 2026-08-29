@@ -84,13 +84,12 @@ GitHub.
 
 ## 4. Create annotator access
 
-The Administration page supports two common starts:
-
-- **Current five packs:** creates `reviewer1` through `reviewer5` with the exact
-  assignments already packaged in `pilot/`.
-- **Balanced batch:** creates any chosen number of participant IDs and spreads
-  the current Audit/Eval work across them. Audit redundancy is configurable;
-  all Event Prefixes belonging to one Eval Scenario remain assigned together.
+In the Administration page, choose **Audit** or **Eval** and enter the number
+of annotators. The App creates sequential participant IDs and random access
+codes, then distributes that task type evenly across the batch. Each account
+receives only one task type, and all Event Prefixes belonging to one Eval
+Scenario remain assigned together. Audit Scenarios receive two independent
+reviews whenever the batch contains at least two annotators.
 
 Download the generated account CSV immediately. Only secure hashes of access
 codes are stored, so the original codes cannot be recovered later; an admin can

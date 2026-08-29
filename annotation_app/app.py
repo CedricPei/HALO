@@ -17,7 +17,6 @@ from annotation_app.admin_view import render_admin  # noqa: E402
 from annotation_app.catalog import (  # noqa: E402
     load_construction_items,
     load_evaluation_items,
-    load_pilot_assignment_packs,
 )
 from annotation_app.config import AppConfig  # noqa: E402
 from annotation_app.review_views import (  # noqa: E402
@@ -100,15 +99,12 @@ def _login(store: AnnotationStore, config: AppConfig) -> None:
     st.markdown("</div>", unsafe_allow_html=True)
 
 
-def _sidebar(user: dict, config: AppConfig) -> str:
+def _sidebar(user: dict, config: AppConfig, task_label: str = "") -> None:
     with st.sidebar:
         st.markdown("## ProAct Annotation")
         st.caption(f"{user['display_name']} · {user['role'].title()}")
-        if user["role"] == "admin":
-            options = ("Administration",)
-        else:
-            options = ("Home", "Benchmark Audit", "Agent Evaluation")
-        page = st.radio("Navigation", options, label_visibility="collapsed")
+        if task_label:
+            st.markdown(f"**Task: {task_label}**")
         st.divider()
         st.caption(config.backend_name)
         if st.button("Sign out", use_container_width=True):
@@ -116,7 +112,6 @@ def _sidebar(user: dict, config: AppConfig) -> str:
                 if key.startswith("cloud_") or key == "annotation_user":
                     del st.session_state[key]
             st.rerun()
-    return page
 
 
 def main() -> None:
@@ -145,21 +140,38 @@ def main() -> None:
     if not user:
         _login(store, config)
         return
-    page = _sidebar(user, config)
 
-    if page == "Home":
-        render_dashboard(store, user)
+    if user["role"] == "admin":
+        _sidebar(user, config, "Administration")
+        render_admin(store, config, _audit_items(), _eval_items())
         return
 
-    audit_items = _audit_items()
-    eval_items = _eval_items()
-    if page == "Benchmark Audit":
-        render_audit(store, user, audit_items)
-    elif page == "Agent Evaluation":
-        render_eval(store, user, eval_items)
+    progress = store.progress_for_user(user["user_id"])
+    assigned_types = [
+        review_type
+        for review_type in ("audit", "eval")
+        if progress[review_type]["assigned"]
+    ]
+    if not assigned_types:
+        _sidebar(user, config, "Awaiting assignment")
+        render_dashboard(store, user)
+        return
+    if len(assigned_types) > 1:
+        _sidebar(user, config, "Assignment issue")
+        st.title("Account assignment needs attention")
+        st.error(
+            "This account contains both Audit and Eval assignments. Ask the "
+            "administrator to issue a single-task account."
+        )
+        return
+
+    review_type = assigned_types[0]
+    if review_type == "audit":
+        _sidebar(user, config, "Benchmark Audit")
+        render_audit(store, user, _audit_items())
     else:
-        packs = load_pilot_assignment_packs(eval_items)
-        render_admin(store, config, audit_items, eval_items, packs)
+        _sidebar(user, config, "Agent Evaluation")
+        render_eval(store, user, _eval_items())
 
 
 if __name__ == "__main__":

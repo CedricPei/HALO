@@ -1,4 +1,4 @@
-"""Task assignment helpers for legacy packs and arbitrary annotator batches."""
+"""Task assignment helpers for balanced annotator batches."""
 
 from __future__ import annotations
 

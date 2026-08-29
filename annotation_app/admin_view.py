@@ -9,6 +9,7 @@ import json
 import streamlit as st
 
 from annotation_app.assignment import apply_assignment_plan, balanced_assignment_plan
+from annotation_app.catalog import evaluation_groups
 from annotation_app.storage import (
     AnnotationStore,
     generate_access_code,
@@ -20,7 +21,8 @@ def _credentials_csv(records: list[dict]) -> bytes:
     buffer = io.StringIO()
     writer = csv.DictWriter(
         buffer,
-        fieldnames=("user_id", "display_name", "role", "access_code"),
+        fieldnames=("user_id", "access_code"),
+        extrasaction="ignore",
     )
     writer.writeheader()
     writer.writerows(records)
@@ -71,7 +73,14 @@ def _show_new_credentials() -> None:
     st.success(
         "Accounts created. Download the codes now; only their secure hashes are stored."
     )
-    st.dataframe(records, use_container_width=True, hide_index=True)
+    st.dataframe(
+        [
+            {"user_id": row["user_id"], "access_code": row["access_code"]}
+            for row in records
+        ],
+        use_container_width=True,
+        hide_index=True,
+    )
     st.download_button(
         "Download account codes",
         data=_credentials_csv(records),
@@ -82,152 +91,85 @@ def _show_new_credentials() -> None:
     )
 
 
-def _create_legacy_accounts(store, packs: dict[str, dict]) -> list[dict]:
-    existing_ids = {row["user_id"] for row in store.list_users()}
-    created = []
-    for user_id, assignments in sorted(packs.items()):
-        if user_id in existing_ids:
-            continue
-        code = generate_access_code()
-        store.create_user(user_id, user_id.title(), "annotator", code)
-        store.assign_tasks(user_id, "audit", assignments["audit"])
-        store.assign_tasks(user_id, "eval", assignments["eval"])
-        created.append(
-            {
-                "user_id": user_id,
-                "display_name": user_id.title(),
-                "role": "annotator",
-                "access_code": code,
-            }
-        )
-    return created
-
-
 def _render_accounts(
     store: AnnotationStore,
     audit_items: list[dict],
     eval_items: list[dict],
-    packs: dict[str, dict],
 ) -> None:
     st.markdown("### Create accounts")
     st.caption(
-        "Annotators sign in with a user ID and random access code; no email list is required."
+        "Choose one task type and the number of annotators. Accounts, access codes, "
+        "and balanced assignments are generated automatically."
     )
     _show_new_credentials()
 
-    single_tab, batch_tab, legacy_tab = st.tabs(
-        ["One account", "Balanced batch", "Current five packs"]
-    )
-    with single_tab:
-        with st.form("create-single-account"):
-            user_id = st.text_input("User ID", placeholder="annotator001")
-            display_name = st.text_input("Display name", placeholder="Annotator 001")
-            role = st.selectbox("Role", ("annotator", "reviewer", "admin"))
-            pack_options = ["No assignment", *sorted(packs)]
-            pack_name = st.selectbox("Optional assignment pack", pack_options)
-            submitted = st.form_submit_button(
-                "Create account", type="primary", use_container_width=True
-            )
-        if submitted:
-            try:
-                code = generate_access_code()
-                account = store.create_user(user_id, display_name, role, code)
-                if pack_name != "No assignment":
-                    store.assign_tasks(
-                        account["user_id"], "audit", packs[pack_name]["audit"]
-                    )
-                    store.assign_tasks(
-                        account["user_id"], "eval", packs[pack_name]["eval"]
-                    )
-                record = {**account, "access_code": code}
-                st.session_state["new_annotation_credentials"] = [record]
-                store.log_admin_event(
-                    "admin",
-                    "create_user",
-                    {"user_id": account["user_id"], "pack": pack_name},
-                )
-                st.rerun()
-            except Exception as error:
-                st.error(f"Could not create account: {error}")
-
-    with batch_tab:
-        with st.form("create-account-batch"):
-            count = st.number_input(
-                "Number of annotators", min_value=2, max_value=500, value=10
-            )
-            prefix = st.text_input("User ID prefix", value="annotator")
-            audit_redundancy = st.number_input(
-                "Audit reviews per Scenario",
-                min_value=1,
-                max_value=min(int(count), 5),
-                value=min(2, int(count)),
-            )
-            st.caption(
-                "Audit tasks are repeated across different people; all Event Prefixes "
-                "from one Eval Scenario stay with the same person."
-            )
-            submitted = st.form_submit_button(
-                "Create and assign batch", type="primary", use_container_width=True
-            )
-        if submitted:
-            created = []
-            try:
-                existing_ids = {row["user_id"] for row in store.list_users()}
-                user_ids = _next_ids(prefix, int(count), existing_ids)
-                for index, new_user_id in enumerate(user_ids, start=1):
-                    code = generate_access_code()
-                    account = store.create_user(
-                        new_user_id,
-                        f"Annotator {index:03d}",
-                        "annotator",
-                        code,
-                    )
-                    created.append({**account, "access_code": code})
-                plan = balanced_assignment_plan(
-                    user_ids,
-                    audit_items,
-                    eval_items,
-                    audit_redundancy=int(audit_redundancy),
-                )
-                assignment_count = apply_assignment_plan(store, plan)
-                st.session_state["new_annotation_credentials"] = created
-                store.log_admin_event(
-                    "admin",
-                    "create_balanced_batch",
-                    {
-                        "users": user_ids,
-                        "audit_redundancy": int(audit_redundancy),
-                        "assignments": assignment_count,
-                    },
-                )
-                st.rerun()
-            except Exception as error:
-                st.error(
-                    f"Batch creation stopped after {len(created)} account(s): {error}"
-                )
-
-    with legacy_tab:
-        st.write(
-            "Create `reviewer1` through `reviewer5` with the exact assignments from "
-            "the existing local pilot. Existing accounts are left unchanged."
+    audit_units = len(audit_items)
+    eval_units = len(evaluation_groups(eval_items))
+    max_batch_size = max(1, min(audit_units, eval_units))
+    with st.form("create-account-batch"):
+        task_label = st.radio(
+            "Task type",
+            ("Audit", "Eval"),
+            horizontal=True,
         )
-        if st.button(
-            "Create current pilot accounts",
+        count = st.number_input(
+            "Number of annotators",
+            min_value=1,
+            max_value=max_batch_size,
+            value=min(5, max_batch_size),
+            step=1,
+        )
+        st.caption(
+            "Audit Scenarios go to two annotators when the batch has at least two "
+            "people. Eval checkpoints are assigned once, and checkpoints from the "
+            "same Scenario always stay with one annotator."
+        )
+        submitted = st.form_submit_button(
+            "Create accounts and assign tasks",
             type="primary",
             use_container_width=True,
-            disabled=not packs,
-        ):
-            try:
-                created = _create_legacy_accounts(store, packs)
-                st.session_state["new_annotation_credentials"] = created
-                store.log_admin_event(
-                    "admin",
-                    "create_legacy_accounts",
-                    {"users": [row["user_id"] for row in created]},
+        )
+
+    if submitted:
+        created = []
+        review_type = task_label.lower()
+        try:
+            existing_ids = {row["user_id"] for row in store.list_users()}
+            user_ids = _next_ids(review_type, int(count), existing_ids)
+            audit_redundancy = min(2, len(user_ids)) if review_type == "audit" else 1
+            plan = balanced_assignment_plan(
+                user_ids,
+                audit_items if review_type == "audit" else [],
+                eval_items if review_type == "eval" else [],
+                audit_redundancy=audit_redundancy,
+            )
+            for new_user_id in user_ids:
+                code = generate_access_code()
+                suffix = new_user_id.removeprefix(review_type)
+                account = store.create_user(
+                    new_user_id,
+                    f"{task_label} Annotator {suffix}",
+                    "annotator",
+                    code,
                 )
-                st.rerun()
-            except Exception as error:
-                st.error(f"Could not create the pilot accounts: {error}")
+                created.append({**account, "access_code": code})
+            assignment_count = apply_assignment_plan(store, plan)
+            st.session_state["new_annotation_credentials"] = created
+            store.log_admin_event(
+                "admin",
+                "create_single_type_batch",
+                {
+                    "review_type": review_type,
+                    "users": user_ids,
+                    "audit_redundancy": audit_redundancy,
+                    "assignments": assignment_count,
+                },
+            )
+            st.rerun()
+        except Exception as error:
+            st.error(
+                f"Batch creation stopped after {len(created)} account(s): {error}"
+            )
 
     st.markdown("### Manage accounts")
     users = store.list_users()
@@ -320,7 +262,6 @@ def render_admin(
     config,
     audit_items: list[dict],
     eval_items: list[dict],
-    packs: dict[str, dict],
 ) -> None:
     st.title("Administration")
     st.caption(
@@ -331,7 +272,7 @@ def render_admin(
         ["Accounts & assignments", "Progress", "Export"]
     )
     with account_tab:
-        _render_accounts(store, audit_items, eval_items, packs)
+        _render_accounts(store, audit_items, eval_items)
     with progress_tab:
         _render_progress(store)
     with export_tab:
