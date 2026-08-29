@@ -1,0 +1,86 @@
+{
+  "scenario_description": "Objective: Keep the upcoming CityLoop internet autopay from reaching its processing morning without enough bill-wallet balance.\nEmerging Need: The statement amount is known and an active obligation already defines the autopay cadence, but ordinary spending later leaves the stored wallet short before the funding cutoff.\nDecision Context: The calendar cutoff and Jules's delayed reimbursement narrow the available funding options; the database obligation distinguishes this as tomorrow's autopay rather than a bill to ignore or manually pay now.\nConsequence: Timely attention can preserve the scheduled utility payment; once same-day top-ups stop posting, the deficiency remains until after the autopay would need the funds.",
+  "events": {
+    "event1": {
+      "time": "2026-06-14T09:05:00-05:00",
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "statements@cityloop.example",
+        "recipients": [
+          "mina.faraday@example.com"
+        ],
+        "subject": "CityLoop June statement available",
+        "body": "June service statement for Mina apartment internet is available. Amount for the June cycle: $62.00. Current-speed plan remains 300 Mbps; no equipment changes are listed.",
+        "timestamp": "2026-06-14T09:03:00-05:00"
+      }
+    },
+    "event2": {
+      "time": "2026-06-15T12:10:00-05:00",
+      "app": "wallet",
+      "function": "pay",
+      "parameter": {
+        "merchant": "Madison Co-op Grocery",
+        "amount": 187.4,
+        "timestamp": "2026-06-15T12:08:00-05:00",
+        "status": "completed",
+        "category": "groceries",
+        "reference": "madison-coop-2026-06-15",
+        "description": "Weekly groceries and household staples"
+      }
+    },
+    "event3": {
+      "time": "2026-06-15T17:30:00-05:00",
+      "app": "calendar",
+      "function": "create_reminder",
+      "parameter": {
+        "title": "Bill-wallet same-day transfer cutoff",
+        "remind_time": "2026-06-16T15:30:00-05:00",
+        "content": "Same-day transfers for the bill wallet must be scheduled by 16:00 CT; overnight autopays use the prior-evening available balance.",
+        "due_time": "2026-06-16T16:00:00-05:00",
+        "completed": false
+      }
+    },
+    "event4": {
+      "time": "2026-06-16T10:05:00-05:00",
+      "app": "wallet",
+      "function": "pay",
+      "parameter": {
+        "merchant": "FreshMart",
+        "amount": 61.85,
+        "timestamp": "2026-06-16T10:02:00-05:00",
+        "status": "completed",
+        "category": "groceries",
+        "reference": "freshmart-2026-06-16",
+        "description": "Midweek groceries"
+      }
+    },
+    "event5": {
+      "time": "2026-06-16T13:40:00-05:00",
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "Jules Rivera",
+        "recipients": [
+          "Mina Solenne Faraday"
+        ],
+        "content": "About the $25 I owe you for picnic supplies: I can't send it until Wednesday morning, not before today's afternoon bank cutoff.",
+        "timestamp": "2026-06-16T13:38:00-05:00"
+      }
+    },
+    "event6": {
+      "time": "2026-06-16T16:03:00-05:00",
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "notifications@billwallet.example",
+        "recipients": [
+          "mina.faraday@example.com"
+        ],
+        "subject": "Same-day bill-wallet transfer window closed",
+        "body": "The 16:00 CT same-day transfer window has closed. New top-ups scheduled now will post on 2026-06-17 at 09:00 CT, and pending personal reimbursements are not counted in available balance.",
+        "timestamp": "2026-06-16T16:01:00-05:00"
+      }
+    }
+  }
+}

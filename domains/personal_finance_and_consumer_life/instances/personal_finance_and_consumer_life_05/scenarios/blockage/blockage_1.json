@@ -1,0 +1,72 @@
+{
+  "scenario_description": "Objective: Finish the paid Red Prairie Propane refill order before today’s manual dispatch window controls the Friday route.\nEmerging Need: The refill checkout begins with a card authorization, but that same order stops during route validation and self-service edits lock.\nDecision Context: Provider notices identify the stuck order, hold, and cutoff; the stored propane profile supplies the account, tank-location detail, dispatch route, and standard-route limit needed to distinguish continuation from a new paid service.\nConsequence: Timely documentation can preserve the existing refill order; after dispatch closes, the order remains on refund review and cannot reach Friday’s route.",
+  "events": {
+    "event1": {
+      "time": "2026-04-23T07:20:00-05:00",
+      "app": "calendar",
+      "function": "create_reminder",
+      "parameter": {
+        "title": "Check propane refill before Friday route",
+        "remind_time": "2026-04-23T08:00:00-05:00",
+        "content": "Use the regular Red Prairie Propane account if the tank refill order needs dispatch clearance before the afternoon route cutoff.",
+        "due_time": "2026-04-23T13:45:00-05:00",
+        "completed": false
+      }
+    },
+    "event2": {
+      "time": "2026-04-23T08:36:00-05:00",
+      "app": "wallet",
+      "function": "pay",
+      "parameter": {
+        "merchant": "Red Prairie Propane",
+        "amount": 96,
+        "timestamp": "2026-04-23T08:35:00-05:00",
+        "status": "completed",
+        "category": "utilities",
+        "reference": "RPP-5532-refill-authorization",
+        "description": "Card authorization for standard propane refill order RPP-5532"
+      }
+    },
+    "event3": {
+      "time": "2026-04-23T08:42:00-05:00",
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "orders@redprairiepropane.example",
+        "recipients": [
+          "Marina Pell"
+        ],
+        "subject": "Refill order RPP-5532 received — route validation pending",
+        "body": "Your standard refill order RPP-5532 has been received and the card authorization is attached. The order is waiting for route validation before it can be placed on Friday’s truck. Please do not start a duplicate paid order while validation is pending.",
+        "timestamp": "2026-04-23T08:41:00-05:00"
+      }
+    },
+    "event4": {
+      "time": "2026-04-23T09:18:00-05:00",
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "Red Prairie Propane Text Desk",
+        "recipients": [
+          "Marina Pell"
+        ],
+        "content": "Order RPP-5532 stopped during route validation: the tank location in the portal profile does not match the driver map. Self-service edits are locked on this paid order. Manual dispatch review must clear the location by 1:45 PM today for the Friday route.",
+        "timestamp": "2026-04-23T09:17:00-05:00"
+      }
+    },
+    "event5": {
+      "time": "2026-04-23T13:52:00-05:00",
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "dispatch@redprairiepropane.example",
+        "recipients": [
+          "Marina Pell"
+        ],
+        "subject": "RPP-5532 missed today’s manual dispatch review",
+        "body": "The manual review window for refill order RPP-5532 closed at 1:45 PM without location clearance. The paid order will not be loaded onto Friday’s route and remains in refund-review hold until the next business-day batch.",
+        "timestamp": "2026-04-23T13:51:00-05:00"
+      }
+    }
+  }
+}

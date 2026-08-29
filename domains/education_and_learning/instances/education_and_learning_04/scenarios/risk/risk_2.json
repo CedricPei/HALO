@@ -1,0 +1,96 @@
+{
+  "scenario_description": "Objective: Prevent a virtual-classroom display-name mismatch from causing completion-orientation attendance to be dropped from the first credential audit.\nEmerging Need: Early roster setup does not identify the attendance source; once the export will use an alias, leaving it unhandled creates a timed audit risk.\nDecision Context: Stored completion rules identify why this attendance feed matters and which identifiers are safe for a Records Desk exception, while live notices establish the verified channel, alias, token, and cutoff.\nConsequence: Timely handling preserves normal audit matching; after intake closes, the future badge batch will read the unmatched exported name as-is.",
+  "events": {
+    "event1": {
+      "time": "2026-08-03T09:10:00-04:00",
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "Continuing Ed Credential Office",
+        "recipients": [
+          "Rowan Celeste Ibarra"
+        ],
+        "subject": "ID-COMP completion-orientation roster setup",
+        "body": "The completion-orientation roster is being assembled this week. Attendance may be imported from either LMS sign-in records or virtual-classroom logs; the final identity source and any exception window will be announced after platform checks finish.",
+        "timestamp": "2026-08-03T09:08:00-04:00"
+      }
+    },
+    "event2": {
+      "time": "2026-08-03T09:45:00-04:00",
+      "app": "calendar",
+      "function": "create_event",
+      "parameter": {
+        "title": "ID-COMP completion orientation",
+        "start_time": "2026-08-07T11:00:00-04:00",
+        "end_time": "2026-08-07T12:00:00-04:00",
+        "description": "Credential closeout orientation; attendance import method pending per Credential Office notice.",
+        "location": "Virtual classroom",
+        "attendees": [
+          "Rowan Celeste Ibarra"
+        ],
+        "organizer": "Continuing Ed Credential Office",
+        "status": "confirmed"
+      }
+    },
+    "event3": {
+      "time": "2026-08-04T10:20:00-04:00",
+      "app": "contacts",
+      "function": "create_contact",
+      "parameter": {
+        "name": "Continuing Ed Records Desk",
+        "aliases": [
+          "Records Desk",
+          "Credential Records"
+        ],
+        "emails": [
+          "records-id@univ-conted.example"
+        ],
+        "phone_numbers": [],
+        "organization": "University Continuing Education",
+        "relationship": "Credential records support",
+        "notes": "Verified university directory contact for credential identity-mapping and completion-audit questions."
+      }
+    },
+    "event4": {
+      "time": "2026-08-05T13:15:00-04:00",
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "Virtual Classroom Profile Bot",
+        "recipients": [
+          "Rowan Celeste Ibarra"
+        ],
+        "content": "ID-COMP virtual-classroom profile preview for Friday orientation: display name on the attendance export is 'Rowan C. Ibarra - RC'. Self-service display edits close 2026-08-05 17:00 ET. Staff alias exceptions for this export can attach until 2026-08-06 16:00 ET. Roster token: VCP-IDCOMP-RCI-28.",
+        "timestamp": "2026-08-05T13:14:00-04:00"
+      }
+    },
+    "event5": {
+      "time": "2026-08-06T15:05:00-04:00",
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "Continuing Ed Records Desk",
+        "recipients": [
+          "Rowan Celeste Ibarra"
+        ],
+        "subject": "ID-COMP alias-exception intake still open",
+        "body": "For tomorrow's completion-orientation attendance feed, staff can still attach approved alias exceptions until 16:00 ET today. After intake closes, the virtual-classroom export names are frozen for the first completion-audit batch.",
+        "timestamp": "2026-08-06T15:02:00-04:00"
+      }
+    },
+    "event6": {
+      "time": "2026-08-06T16:07:00-04:00",
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "Continuing Ed Records Desk",
+        "recipients": [
+          "Rowan Celeste Ibarra"
+        ],
+        "subject": "ID-COMP alias-exception intake closed",
+        "body": "The 16:00 ET intake for tomorrow's completion-orientation attendance feed is closed. Virtual-classroom display names without a staff alias exception will enter the first completion-audit batch as exported; post-batch reviews start only after initial badge decisions are generated.",
+        "timestamp": "2026-08-06T16:05:00-04:00"
+      }
+    }
+  }
+}

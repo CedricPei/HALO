@@ -1,0 +1,71 @@
+{
+  "scenario_description": "Objective: Finish the active HarborMail forwarding checkout for the envelope selected for same-day scan-out.\nEmerging Need: The checkout opens and enters validation, then the same order locks on a destination mismatch and cannot generate a label through self-service.\nDecision Context: Observable notices show the order reference, lock state, and review cutoff; the saved forwarding profile holds the mailbox ID, verified locker alias, support route, and no-rush-upgrade preference.\nConsequence: Timely documentation can keep this order in today’s scan-out batch; after closure, the envelope waits for the next processing day.",
+  "events": {
+    "event1": {
+      "time": "2026-10-03T08:10:00-07:00",
+      "app": "calendar",
+      "function": "create_reminder",
+      "parameter": {
+        "title": "Finish HarborMail forwarding checkout",
+        "remind_time": "2026-10-03T08:10:00-07:00",
+        "content": "Complete the HarborMail forwarding checkout for the selected envelope before the same-day scan-out batch closes.",
+        "due_time": "2026-10-03T13:15:00-07:00",
+        "completed": false
+      }
+    },
+    "event2": {
+      "time": "2026-10-03T09:02:00-07:00",
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "no-reply@harbormailforwarding.example",
+        "recipients": [
+          "Talia Mireven Cross"
+        ],
+        "subject": "HarborMail checkout HM-FWD-8846 opened",
+        "body": "Forwarding checkout HM-FWD-8846 has been opened for one held envelope marked for standard same-day scan-out. Destination validation must finish before the 1:15 PM Tacoma batch for the label to print today.",
+        "timestamp": "2026-10-03T09:01:00-07:00"
+      }
+    },
+    "event3": {
+      "time": "2026-10-03T09:11:00-07:00",
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "HarborMail Tacoma Office",
+        "recipients": [
+          "Talia Mireven Cross"
+        ],
+        "content": "HarborMail status for HM-FWD-8846: destination validation is running. The order is reserved under this reference; duplicate same-day orders are not accepted while validation is pending.",
+        "timestamp": "2026-10-03T09:10:00-07:00"
+      }
+    },
+    "event4": {
+      "time": "2026-10-03T09:24:00-07:00",
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "no-reply@harbormailforwarding.example",
+        "recipients": [
+          "Talia Mireven Cross"
+        ],
+        "subject": "HarborMail checkout HM-FWD-8846 stopped at address validation",
+        "body": "Checkout HM-FWD-8846 is locked after a destination-alias mismatch. Self-service edits and label generation are disabled on this order. The locked-order screen shows staff-only review fields for mailbox ID and verified destination alias; reviews received before 1:15 PM can still clear into today's scan-out batch.",
+        "timestamp": "2026-10-03T09:23:00-07:00"
+      }
+    },
+    "event5": {
+      "time": "2026-10-03T13:18:00-07:00",
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "HarborMail Tacoma Office",
+        "recipients": [
+          "Talia Mireven Cross"
+        ],
+        "content": "HarborMail update for HM-FWD-8846: the 1:15 PM same-day scan-out batch has closed. Locked orders that were not cleared will remain at the Tacoma office for the next processing day.",
+        "timestamp": "2026-10-03T13:17:00-07:00"
+      }
+    }
+  }
+}

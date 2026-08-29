@@ -1,0 +1,86 @@
+{
+  "scenario_description": "Objective: Move remaining MetroRide stored value from a lost bus card onto a replacement card while the same-day transfer draft is still usable.\nEmerging Need: Mina begins the replacement-and-transfer flow, but online verification freezes the active transfer so it cannot be completed through the portal.\nDecision Context: Notices confirm the draft status and support cutoff; the stored monthly-spending note has the old card serial and intake details needed to prepare a manual continuation without choosing a new fare product.\nConsequence: Timely preparation can preserve Monday transit funds; once the draft voids, the balance is unavailable until an in-person counter reopens.",
+  "events": {
+    "event1": {
+      "time": "2026-04-19T08:10:00-05:00",
+      "app": "calendar",
+      "function": "create_reminder",
+      "parameter": {
+        "title": "MetroRide card replacement transfer",
+        "remind_time": "2026-04-19T08:15:00-05:00",
+        "content": "Replace lost MetroRide card and finish the stored-value transfer before today's temporary draft window closes.",
+        "due_time": "2026-04-19T14:00:00-05:00",
+        "completed": false
+      }
+    },
+    "event2": {
+      "time": "2026-04-19T09:04:00-05:00",
+      "app": "wallet",
+      "function": "pay",
+      "parameter": {
+        "merchant": "MetroRide Kiosk",
+        "amount": 5,
+        "timestamp": "2026-04-19T09:03:00-05:00",
+        "status": "completed",
+        "category": "transit",
+        "reference": "replacement-card-2026-04-19",
+        "description": "Replacement MetroRide card purchase at the library kiosk; receipt notes a stored-value transfer flow offered after activation."
+      }
+    },
+    "event3": {
+      "time": "2026-04-19T09:07:00-05:00",
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "no-reply@metroride.example",
+        "recipients": [
+          "Mina Solenne Faraday"
+        ],
+        "subject": "Stored-value transfer draft opened",
+        "body": "A same-day transfer draft was opened after replacement card activation. The draft is waiting for online verification before stored value can move to the replacement card. If verification is not finished during today's service window, the draft may expire.",
+        "timestamp": "2026-04-19T09:06:00-05:00"
+      }
+    },
+    "event4": {
+      "time": "2026-04-19T09:23:00-05:00",
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "Mina Solenne Faraday",
+        "recipients": [
+          "Jules Rivera"
+        ],
+        "content": "I got the replacement card, but the MetroRide transfer page just stopped on \"online verification suspended.\" It says this draft can't continue in the portal and has to be continued through manual support with the old card serial.",
+        "timestamp": "2026-04-19T09:22:00-05:00"
+      }
+    },
+    "event5": {
+      "time": "2026-04-19T10:05:00-05:00",
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "support@metroride.example",
+        "recipients": [
+          "Mina Solenne Faraday"
+        ],
+        "subject": "Manual handoff window for transfer draft",
+        "body": "MetroRide manual support can attach verification details to transfer drafts until 2:00 PM CT today. After that, today's kiosk draft will close automatically; do not buy another replacement card while this draft is open.",
+        "timestamp": "2026-04-19T10:04:00-05:00"
+      }
+    },
+    "event6": {
+      "time": "2026-04-19T14:06:00-05:00",
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "support@metroride.example",
+        "recipients": [
+          "Mina Solenne Faraday"
+        ],
+        "subject": "Transfer draft closed",
+        "body": "The same-day transfer draft from this morning closed at 2:00 PM CT without manual verification attached. Stored value from the lost card cannot be moved through this draft; in-person value review is next available when the customer counter reopens Tuesday.",
+        "timestamp": "2026-04-19T14:05:00-05:00"
+      }
+    }
+  }
+}

@@ -1,0 +1,73 @@
+{
+  "scenario_description": "Objective: Finish the same-day reimbursement transfer for June’s respite-ride receipt after the payment run has already been started.\nEmerging Need: The transfer is initiated from the wallet, then that same pending payment is paused because the saved recipient token is retired and the current handle is needed.\nDecision Context: The receipt, ledger window, and June’s brief availability make the reimbursement attempt worthwhile; a stored reimbursement boundary determines when a handle request is allowed and how little to disclose.\nConsequence: Timely coordination can restart the pending transfer before the batch closes; afterward the same attempt cannot settle in today’s family ledger.",
+  "events": {
+    "event1": {
+      "time": "2026-09-02T08:05:00-07:00",
+      "app": "calendar",
+      "function": "create_event",
+      "parameter": {
+        "title": "Close June respite-ride reimbursement",
+        "start_time": "2026-09-02T15:25:00-07:00",
+        "end_time": "2026-09-02T15:40:00-07:00",
+        "description": "Settle the $18.40 shared-ride receipt before today's family ledger batch closes.",
+        "status": "confirmed"
+      }
+    },
+    "event2": {
+      "time": "2026-09-02T10:20:00-07:00",
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "June Bexley",
+        "recipients": [
+          "Nora Celestine Bexley",
+          "Lina Bexley"
+        ],
+        "content": "I put the $18.40 rideshare receipt in the envelope for today's ledger. I can check messages until about 15:30, then I'm driving.",
+        "timestamp": "2026-09-02T10:19:40-07:00"
+      }
+    },
+    "event3": {
+      "time": "2026-09-02T14:51:00-07:00",
+      "app": "wallet",
+      "function": "pay",
+      "parameter": {
+        "merchant": "June Bexley Shared Rides",
+        "amount": 18.4,
+        "timestamp": "2026-09-02T14:50:30-07:00",
+        "status": "pending",
+        "category": "family reimbursement",
+        "reference": "R-814",
+        "description": "Initiated reimbursement transfer for June's shared-ride receipt with memo Sept 2 respite rides."
+      }
+    },
+    "event4": {
+      "time": "2026-09-02T14:54:00-07:00",
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "Cascadia Mutual Wallet Alerts <alerts@cascadiamutual.example>",
+        "recipients": [
+          "Nora Celestine Bexley"
+        ],
+        "subject": "Transfer R-814 paused: recipient confirmation needed",
+        "body": "The $18.40 reimbursement transfer to June Bexley Shared Rides opened but stopped because the saved recipient token is retired. Funds have not been sent. To resume this same transfer, provide June's current wallet handle before the 15:40 same-day batch closes; otherwise it will leave pending status unsettled.",
+        "timestamp": "2026-09-02T14:53:20-07:00"
+      }
+    },
+    "event5": {
+      "time": "2026-09-02T15:41:00-07:00",
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "Cascadia Mutual Wallet Alerts <alerts@cascadiamutual.example>",
+        "recipients": [
+          "Nora Celestine Bexley"
+        ],
+        "subject": "Transfer R-814 batch closed unsettled",
+        "body": "Transfer R-814 left pending status because the 15:40 same-day batch closed without recipient confirmation. This transfer cannot settle in today's family ledger; start a new transfer after recipient details are updated.",
+        "timestamp": "2026-09-02T15:40:25-07:00"
+      }
+    }
+  }
+}
