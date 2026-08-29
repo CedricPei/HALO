@@ -119,8 +119,9 @@ def _render_assignments(
         assignment_scope = st.radio(
             "Scope",
             ("Remaining", "All"),
+            horizontal=True,
         )
-        st.markdown(f"Existing accounts: **{len(existing_type_ids)}**")
+        st.caption(f"Existing accounts: {len(existing_type_ids)}")
         count = st.number_input(
             "New annotators",
             min_value=1,
@@ -173,9 +174,9 @@ def _render_assignments(
 
 
 def _render_manage(store: AnnotationStore) -> None:
-    deleted_id = st.session_state.pop("deleted_account_id", None)
-    if deleted_id:
-        st.success(f"Account {deleted_id} deleted.")
+    deleted_ids = st.session_state.pop("deleted_account_ids", [])
+    if deleted_ids:
+        st.success(f"Deleted {len(deleted_ids)} account(s).")
     _show_credentials(
         "reset_account_credentials",
         "Access code reset. Download the new code now.",
@@ -186,50 +187,65 @@ def _render_manage(store: AnnotationStore) -> None:
     if not users:
         st.info("No annotator accounts have been created.")
         return
-    st.dataframe(users, use_container_width=True, hide_index=True)
-    selected_id = st.selectbox(
-        "Account",
-        [row["user_id"] for row in users],
+    account_ids = [row["user_id"] for row in users]
+    reset_id = st.selectbox(
+        "Generate new code",
+        account_ids,
         index=None,
         placeholder="Select an account",
-        key="manage-account-selection",
+        key="manage-reset-selection",
     )
-    if selected_id is None:
-        return
     if st.button(
-        "Generate new access code",
+        "Generate code",
+        disabled=reset_id is None,
         use_container_width=True,
-        key=f"reset-code-{selected_id}",
+        key="reset-code",
     ):
         code = generate_access_code()
-        store.reset_access_code(selected_id, code)
+        store.reset_access_code(reset_id, code)
         st.session_state["reset_account_credentials"] = [
             {
-                "user_id": selected_id,
+                "user_id": reset_id,
                 "access_code": code,
             }
         ]
         st.rerun()
 
+    delete_ids = st.multiselect(
+        "Delete accounts",
+        account_ids,
+        placeholder="Select accounts",
+        key="manage-delete-selection",
+        on_change=lambda: st.session_state.update(
+            {"confirm-delete-accounts": False}
+        ),
+    )
     confirmed = st.checkbox(
-        f"Delete {selected_id}, including its assignments and annotations",
-        key=f"confirm-delete-{selected_id}",
+        "Also delete their assignments and annotations",
+        disabled=not delete_ids,
+        key="confirm-delete-accounts",
     )
     if st.button(
-        "Delete account",
-        disabled=not confirmed,
+        "Delete selected accounts",
+        disabled=not delete_ids or not confirmed,
         use_container_width=True,
-        key=f"delete-account-{selected_id}",
+        key="delete-accounts",
     ):
-        store.delete_user(selected_id)
+        store.delete_users(delete_ids)
+        deleted_set = set(delete_ids)
         for state_key in ("new_assignment_credentials", "reset_account_credentials"):
             st.session_state[state_key] = [
                 row
                 for row in st.session_state.get(state_key, [])
-                if row["user_id"] != selected_id
+                if row["user_id"] not in deleted_set
             ]
-        del st.session_state["manage-account-selection"]
-        st.session_state["deleted_account_id"] = selected_id
+        for state_key in (
+            "manage-reset-selection",
+            "manage-delete-selection",
+            "confirm-delete-accounts",
+        ):
+            st.session_state.pop(state_key, None)
+        st.session_state["deleted_account_ids"] = delete_ids
         st.rerun()
 
 

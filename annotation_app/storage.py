@@ -218,7 +218,13 @@ class AnnotationStore:
             )
 
     def delete_user(self, user_id: str) -> None:
-        user_id = normalize_user_id(user_id)
+        self.delete_users([user_id])
+
+    def delete_users(self, user_ids: Iterable[str]) -> None:
+        user_ids = list(dict.fromkeys(normalize_user_id(value) for value in user_ids))
+        if not user_ids:
+            return
+        placeholders = ", ".join("?" for _ in user_ids)
         with self._connect() as connection:
             for table in (
                 "annotations",
@@ -226,8 +232,10 @@ class AnnotationStore:
                 "annotation_users",
             ):
                 connection.execute(
-                    self._sql(f"DELETE FROM {table} WHERE user_id=?"),
-                    (user_id,),
+                    self._sql(
+                        f"DELETE FROM {table} WHERE user_id IN ({placeholders})"
+                    ),
+                    user_ids,
                 )
 
     def assign_tasks(
