@@ -1,4 +1,4 @@
-"""Import a legacy local reviews.sqlite file into the versioned app store."""
+"""Import a legacy local reviews.sqlite file into the central app store."""
 
 from __future__ import annotations
 
@@ -47,8 +47,8 @@ def import_reviews(source: Path, user_id: str, store: AnnotationStore) -> dict:
                     "diagnostics": json.loads(row.get("diagnostics_json") or "{}"),
                     "comments": row.get("comments", ""),
                 }
-            latest = store.latest_annotation(user_id, review_type, row["item_id"])
-            if latest and latest["payload"] == payload:
+            current = store.get_annotation(user_id, review_type, row["item_id"])
+            if current and current["payload"] == payload:
                 skipped += 1
                 continue
             store.save_annotation(user_id, review_type, row["item_id"], payload)

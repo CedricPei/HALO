@@ -32,7 +32,7 @@ def _credentials_csv(records: list[dict]) -> bytes:
 def _export_csv(records: list[dict]) -> bytes:
     buffer = io.StringIO()
     fieldnames = (
-        "revision_id",
+        "annotation_id",
         "user_id",
         "review_type",
         "item_id",
@@ -304,21 +304,16 @@ def _render_progress(store: AnnotationStore) -> None:
 
 def _render_export(store: AnnotationStore) -> None:
     st.markdown("### Export")
-    records = store.export_latest()
-    revision_count = store.revision_count()
-    metric_columns = st.columns(2)
-    metric_columns[0].metric("Latest annotations", len(records))
-    metric_columns[1].metric("Total saved versions", revision_count)
+    records = store.export_annotations()
+    st.metric("Current annotations", len(records))
     st.caption(
-        "Every save creates a new historical version instead of overwriting the "
-        "previous answer. For example, saving one answer three times creates three "
-        "saved versions but still counts as one latest annotation. The CSV below "
-        "contains only the latest answer for each annotator and item."
+        "Each annotator and item has one current answer. Saving an edited answer "
+        "overwrites the previous answer, and the CSV contains the current data."
     )
     st.download_button(
-        "Download latest annotations",
+        "Download annotations",
         data=_export_csv(records),
-        file_name="proact-anno-latest.csv",
+        file_name="proact-anno-annotations.csv",
         mime="text/csv",
         type="primary",
         use_container_width=True,

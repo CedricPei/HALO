@@ -1,4 +1,4 @@
-"""Portable SQLite/PostgreSQL storage with append-only annotation revisions."""
+"""Portable SQLite/PostgreSQL storage for current annotation answers."""
 
 from __future__ import annotations
 
@@ -96,6 +96,52 @@ class AnnotationStore:
                 if not self.postgres and statement.upper().startswith("ALTER TABLE"):
                     continue
                 connection.execute(statement)
+            self._migrate_legacy_revisions(connection)
+
+    def _migrate_legacy_revisions(self, connection) -> None:
+        """Keep the latest legacy answer per item, then remove its history table."""
+        if self.postgres:
+            exists = connection.execute(
+                "SELECT to_regclass('public.annotation_revisions') AS table_name"
+            ).fetchone()["table_name"]
+        else:
+            exists = connection.execute(
+                "SELECT name FROM sqlite_master "
+                "WHERE type='table' AND name='annotation_revisions'"
+            ).fetchone()
+        if not exists:
+            return
+
+        rows = connection.execute(
+            "SELECT revision_id, user_id, review_type, item_id, payload_json, "
+            "state, created_at FROM annotation_revisions "
+            "ORDER BY created_at, revision_id"
+        ).fetchall()
+        latest = {}
+        for row in rows:
+            latest[(row["user_id"], row["review_type"], row["item_id"])] = row
+        for row in latest.values():
+            connection.execute(
+                self._sql(
+                    "INSERT INTO annotations "
+                    "(annotation_id, user_id, review_type, item_id, payload_json, "
+                    "state, created_at) VALUES (?, ?, ?, ?, ?, ?, ?) "
+                    "ON CONFLICT(user_id, review_type, item_id) DO UPDATE SET "
+                    "annotation_id=excluded.annotation_id, "
+                    "payload_json=excluded.payload_json, state=excluded.state, "
+                    "created_at=excluded.created_at"
+                ),
+                (
+                    row["revision_id"],
+                    row["user_id"],
+                    row["review_type"],
+                    row["item_id"],
+                    row["payload_json"],
+                    row["state"],
+                    row["created_at"],
+                ),
+            )
+        connection.execute("DROP TABLE annotation_revisions")
 
     def _hash_code(self, access_code: str) -> str:
         if not self.config.auth_pepper:
@@ -270,34 +316,26 @@ class AnnotationStore:
             ).fetchall()
         return {row["item_id"] for row in rows}
 
-    def latest_annotation(
+    def get_annotation(
         self, user_id: str, review_type: str, item_id: str
     ) -> dict | None:
         with self._connect() as connection:
             row = connection.execute(
                 self._sql(
-                    "SELECT revision_id, payload_json, state, created_at "
-                    "FROM annotation_revisions "
+                    "SELECT annotation_id, payload_json, state, created_at "
+                    "FROM annotations "
                     "WHERE user_id=? AND review_type=? AND item_id=? "
-                    "ORDER BY created_at DESC, revision_id DESC LIMIT 1"
+                    "LIMIT 1"
                 ),
                 (user_id, review_type, item_id),
             ).fetchone()
             if not row:
                 return None
-            count_row = connection.execute(
-                self._sql(
-                    "SELECT COUNT(*) AS count FROM annotation_revisions "
-                    "WHERE user_id=? AND review_type=? AND item_id=?"
-                ),
-                (user_id, review_type, item_id),
-            ).fetchone()
         return {
-            "revision_id": row["revision_id"],
+            "annotation_id": row["annotation_id"],
             "payload": json.loads(row["payload_json"]),
             "state": row["state"],
             "created_at": row["created_at"],
-            "version": int(count_row["count"]),
         }
 
     def save_annotation(
@@ -311,8 +349,8 @@ class AnnotationStore:
         if review_type not in {"audit", "eval"}:
             raise ValueError("Invalid review type.")
         if state not in {"draft", "submitted"}:
-            raise ValueError("Invalid revision state.")
-        revision_id = str(uuid.uuid4())
+            raise ValueError("Invalid annotation state.")
+        annotation_id = str(uuid.uuid4())
         now = utc_now()
         with self._connect() as connection:
             assigned = connection.execute(
@@ -326,12 +364,16 @@ class AnnotationStore:
                 raise ValueError("This item is not assigned to the current user.")
             connection.execute(
                 self._sql(
-                    "INSERT INTO annotation_revisions "
-                    "(revision_id, user_id, review_type, item_id, payload_json, state, created_at) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?)"
+                    "INSERT INTO annotations "
+                    "(annotation_id, user_id, review_type, item_id, payload_json, "
+                    "state, created_at) VALUES (?, ?, ?, ?, ?, ?, ?) "
+                    "ON CONFLICT(user_id, review_type, item_id) DO UPDATE SET "
+                    "annotation_id=excluded.annotation_id, "
+                    "payload_json=excluded.payload_json, state=excluded.state, "
+                    "created_at=excluded.created_at"
                 ),
                 (
-                    revision_id,
+                    annotation_id,
                     user_id,
                     review_type,
                     item_id,
@@ -349,7 +391,7 @@ class AnnotationStore:
                     ),
                     (now, user_id, review_type, item_id),
                 )
-        return revision_id
+        return annotation_id
 
     def progress_for_user(self, user_id: str) -> dict[str, dict[str, int]]:
         progress = {
@@ -385,23 +427,16 @@ class AnnotationStore:
             ).fetchall()
         return [dict(row) for row in rows]
 
-    def export_latest(self) -> list[dict]:
+    def export_annotations(self) -> list[dict]:
         with self._connect() as connection:
             rows = connection.execute(
-                "SELECT revision_id, user_id, review_type, item_id, payload_json, "
-                "state, created_at FROM annotation_revisions "
-                "ORDER BY user_id, review_type, item_id, created_at, revision_id"
+                "SELECT annotation_id, user_id, review_type, item_id, payload_json, "
+                "state, created_at FROM annotations "
+                "ORDER BY user_id, review_type, item_id"
             ).fetchall()
-        latest: dict[tuple[str, str, str], dict] = {}
+        records = []
         for row in rows:
             record = dict(row)
             record["payload"] = json.loads(record.pop("payload_json"))
-            latest[(record["user_id"], record["review_type"], record["item_id"])] = record
-        return list(latest.values())
-
-    def revision_count(self) -> int:
-        with self._connect() as connection:
-            row = connection.execute(
-                "SELECT COUNT(*) AS count FROM annotation_revisions"
-            ).fetchone()
-        return int(row["count"])
+            records.append(record)
+        return records

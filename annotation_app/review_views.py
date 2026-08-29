@@ -117,7 +117,7 @@ def render_dashboard(store: AnnotationStore, user: dict) -> None:
     else:
         st.markdown(
             "Use the navigation on the left to continue your assigned work. "
-            "Every save creates a new revision; original benchmark data is read-only."
+            "Original benchmark data is read-only."
         )
 
 
@@ -159,12 +159,8 @@ def render_audit(
         return
 
     item = items[position]
-    latest = store.latest_annotation(user_id, "audit", item["item_id"])
-    existing = latest["payload"] if latest else {}
-    if latest:
-        st.caption(
-            f"Saved version {latest['version']} · Editing creates a new revision."
-        )
+    saved = store.get_annotation(user_id, "audit", item["item_id"])
+    existing = saved["payload"] if saved else {}
 
     metadata(
         Domain=item["domain_id"].replace("_", " ").title(),
@@ -330,13 +326,9 @@ def render_eval(
         return
 
     item = items[position]
-    latest = store.latest_annotation(user_id, "eval", item["item_id"])
-    existing = latest["payload"] if latest else {}
+    saved = store.get_annotation(user_id, "eval", item["item_id"])
+    existing = saved["payload"] if saved else {}
     diagnostics = existing.get("diagnostics", {})
-    if latest:
-        st.caption(
-            f"Saved version {latest['version']} · Editing creates a new revision."
-        )
 
     metadata(
         Domain=item["domain_id"].replace("_", " ").title(),
