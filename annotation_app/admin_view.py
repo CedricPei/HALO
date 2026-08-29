@@ -180,28 +180,23 @@ def _render_accounts(
         st.rerun()
 
 
+def _progress_metrics(assigned: int, submitted: int) -> None:
+    columns = st.columns(4)
+    columns[0].metric("Assigned", assigned)
+    columns[1].metric("Completed", submitted)
+    columns[2].metric("Remaining", max(assigned - submitted, 0))
+    columns[3].metric(
+        "Completion",
+        f"{(100 * submitted / assigned):.1f}%" if assigned else "—",
+    )
+
+
 def _render_progress(store: AnnotationStore) -> None:
     rows = store.progress_all_users()
     if not rows:
         st.info("No accounts or assignments yet.")
         return
 
-    total_assigned = sum(int(row.get("assigned") or 0) for row in rows)
-    total_submitted = sum(int(row.get("submitted") or 0) for row in rows)
-    total_remaining = max(total_assigned - total_submitted, 0)
-    total_completion = (
-        f"{(100 * total_submitted / total_assigned):.1f}%"
-        if total_assigned
-        else "—"
-    )
-    overall_columns = st.columns(4)
-    overall_columns[0].metric("Total assigned reviews", total_assigned)
-    overall_columns[1].metric("Completed", total_submitted)
-    overall_columns[2].metric("Remaining", total_remaining)
-    overall_columns[3].metric("Overall completion", total_completion)
-
-    st.markdown("#### By task type")
-    type_rows = []
     for review_type, label in (("audit", "Audit"), ("eval", "Eval")):
         assigned = sum(
             int(row.get("assigned") or 0)
@@ -213,22 +208,8 @@ def _render_progress(store: AnnotationStore) -> None:
             for row in rows
             if row.get("review_type") == review_type
         )
-        type_rows.append(
-            {
-                "task_type": label,
-                "assigned": assigned,
-                "completed": submitted,
-                "remaining": max(assigned - submitted, 0),
-                "completion": (
-                    f"{(100 * submitted / assigned):.1f}%" if assigned else "—"
-                ),
-            }
-        )
-    st.dataframe(type_rows, use_container_width=True, hide_index=True)
-    st.caption(
-        "Totals count assigned reviews. An Audit Scenario assigned for independent "
-        "double review contributes two assigned reviews."
-    )
+        st.markdown(f"#### {label}")
+        _progress_metrics(assigned, submitted)
 
     st.markdown("#### Annotator details")
     users = store.list_users()
@@ -239,14 +220,16 @@ def _render_progress(store: AnnotationStore) -> None:
         format_func=lambda user_id: (
             f"{user_id} · {users_by_id[user_id]['display_name']}"
         ),
+        index=None,
+        placeholder="Select an annotator",
         key="progress-annotator-id",
     )
+    if selected_id is None:
+        return
     selected = users_by_id[selected_id]
     selected_rows = [row for row in rows if row["user_id"] == selected_id]
     assigned = sum(int(row.get("assigned") or 0) for row in selected_rows)
     submitted = sum(int(row.get("submitted") or 0) for row in selected_rows)
-    remaining = max(assigned - submitted, 0)
-    completion = f"{(100 * submitted / assigned):.1f}%" if assigned else "—"
     task_types = ", ".join(
         sorted(
             {
@@ -261,11 +244,7 @@ def _render_progress(store: AnnotationStore) -> None:
     st.caption(
         f"{status} · Task: {task_types} · Last login: {last_login}"
     )
-    annotator_columns = st.columns(4)
-    annotator_columns[0].metric("Assigned", assigned)
-    annotator_columns[1].metric("Completed", submitted)
-    annotator_columns[2].metric("Remaining", remaining)
-    annotator_columns[3].metric("Completion", completion)
+    _progress_metrics(assigned, submitted)
 
 
 def _export_button(store: AnnotationStore) -> None:
