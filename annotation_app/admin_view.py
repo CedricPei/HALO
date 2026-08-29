@@ -219,32 +219,101 @@ def _render_progress(store: AnnotationStore) -> None:
     if not rows:
         st.info("No accounts or assignments yet.")
         return
-    display_rows = []
-    for row in rows:
-        assigned = int(row.get("assigned") or 0)
-        submitted = int(row.get("submitted") or 0)
-        display_rows.append(
+
+    total_assigned = sum(int(row.get("assigned") or 0) for row in rows)
+    total_submitted = sum(int(row.get("submitted") or 0) for row in rows)
+    total_remaining = max(total_assigned - total_submitted, 0)
+    total_completion = (
+        f"{(100 * total_submitted / total_assigned):.1f}%"
+        if total_assigned
+        else "—"
+    )
+    overall_columns = st.columns(4)
+    overall_columns[0].metric("Total assigned reviews", total_assigned)
+    overall_columns[1].metric("Completed", total_submitted)
+    overall_columns[2].metric("Remaining", total_remaining)
+    overall_columns[3].metric("Overall completion", total_completion)
+
+    st.markdown("#### By task type")
+    type_rows = []
+    for review_type, label in (("audit", "Audit"), ("eval", "Eval")):
+        assigned = sum(
+            int(row.get("assigned") or 0)
+            for row in rows
+            if row.get("review_type") == review_type
+        )
+        submitted = sum(
+            int(row.get("submitted") or 0)
+            for row in rows
+            if row.get("review_type") == review_type
+        )
+        type_rows.append(
             {
-                "user_id": row["user_id"],
-                "display_name": row["display_name"],
-                "role": row["role"],
-                "active": bool(int(row["active"])),
-                "review_type": row.get("review_type") or "—",
-                "submitted": submitted,
+                "task_type": label,
                 "assigned": assigned,
-                "completion": f"{(100 * submitted / assigned):.1f}%" if assigned else "—",
+                "completed": submitted,
+                "remaining": max(assigned - submitted, 0),
+                "completion": (
+                    f"{(100 * submitted / assigned):.1f}%" if assigned else "—"
+                ),
             }
         )
-    st.dataframe(display_rows, use_container_width=True, hide_index=True)
+    st.dataframe(type_rows, use_container_width=True, hide_index=True)
+    st.caption(
+        "Totals count assigned reviews. An Audit Scenario assigned for independent "
+        "double review contributes two assigned reviews."
+    )
+
+    st.markdown("#### Annotator details")
+    users = store.list_users()
+    users_by_id = {row["user_id"]: row for row in users}
+    selected_id = st.selectbox(
+        "Annotator",
+        [row["user_id"] for row in users],
+        format_func=lambda user_id: (
+            f"{user_id} · {users_by_id[user_id]['display_name']}"
+        ),
+        key="progress-annotator-id",
+    )
+    selected = users_by_id[selected_id]
+    selected_rows = [row for row in rows if row["user_id"] == selected_id]
+    assigned = sum(int(row.get("assigned") or 0) for row in selected_rows)
+    submitted = sum(int(row.get("submitted") or 0) for row in selected_rows)
+    remaining = max(assigned - submitted, 0)
+    completion = f"{(100 * submitted / assigned):.1f}%" if assigned else "—"
+    task_types = ", ".join(
+        sorted(
+            {
+                str(row["review_type"]).title()
+                for row in selected_rows
+                if row.get("review_type")
+            }
+        )
+    ) or "Unassigned"
+    status = "Active" if bool(int(selected["active"])) else "Disabled"
+    last_login = selected.get("last_login_at") or "Never"
+    st.caption(
+        f"{status} · Task: {task_types} · Last login: {last_login}"
+    )
+    annotator_columns = st.columns(4)
+    annotator_columns[0].metric("Assigned", assigned)
+    annotator_columns[1].metric("Completed", submitted)
+    annotator_columns[2].metric("Remaining", remaining)
+    annotator_columns[3].metric("Completion", completion)
 
 
 def _render_export(store: AnnotationStore) -> None:
     st.markdown("### Export")
     records = store.export_latest()
-    st.metric("Latest submitted/draft records", len(records))
+    revision_count = store.revision_count()
+    metric_columns = st.columns(2)
+    metric_columns[0].metric("Latest annotations", len(records))
+    metric_columns[1].metric("Total saved versions", revision_count)
     st.caption(
-        f"The database contains {store.revision_count()} immutable revision(s). "
-        "This export selects only the latest revision for each user and item."
+        "Every save creates a new historical version instead of overwriting the "
+        "previous answer. For example, saving one answer three times creates three "
+        "saved versions but still counts as one latest annotation. The CSV below "
+        "contains only the latest answer for each annotator and item."
     )
     st.download_button(
         "Download latest annotations",
