@@ -1,9 +1,6 @@
 CREATE TABLE IF NOT EXISTS annotation_users (
     user_id TEXT PRIMARY KEY,
-    display_name TEXT NOT NULL,
-    role TEXT NOT NULL CHECK (role IN ('annotator', 'reviewer', 'admin')),
     access_code_hash TEXT NOT NULL,
-    active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1)),
     created_at TEXT NOT NULL,
     last_login_at TEXT
 );
@@ -37,6 +34,10 @@ CREATE TABLE IF NOT EXISTS annotations (
 
 CREATE INDEX IF NOT EXISTS annotations_lookup
     ON annotations(user_id, review_type, item_id);
+
+ALTER TABLE annotation_users DROP COLUMN IF EXISTS display_name;
+ALTER TABLE annotation_users DROP COLUMN IF EXISTS role;
+ALTER TABLE annotation_users DROP COLUMN IF EXISTS active;
 
 ALTER TABLE annotation_users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE annotation_assignments ENABLE ROW LEVEL SECURITY;

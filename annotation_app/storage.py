@@ -164,13 +164,10 @@ class AnnotationStore:
             connection.execute(
                 self._sql(
                     "INSERT INTO annotation_users "
-                    "(user_id, display_name, role, access_code_hash, active, created_at) "
-                    "VALUES (?, ?, ?, ?, 1, ?)"
+                    "(user_id, access_code_hash, created_at) VALUES (?, ?, ?)"
                 ),
                 (
                     user_id,
-                    user_id,
-                    "annotator",
                     self._hash_code(access_code),
                     utc_now(),
                 ),
