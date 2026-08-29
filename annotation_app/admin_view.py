@@ -104,23 +104,25 @@ def _render_assignments(
     audit_units = len(audit_items)
     eval_units = len(evaluation_groups(eval_items))
     max_batch_size = max(1, min(audit_units, eval_units))
+    task_label = st.radio(
+        "Task type",
+        ("Audit", "Eval"),
+        horizontal=True,
+    )
+    review_type = task_label.lower()
+    existing_type_ids = {
+        row["user_id"]
+        for row in store.progress_all_users()
+        if row.get("review_type") == review_type
+    }
     with st.form("create-account-batch"):
-        task_label = st.radio(
-            "Task type",
-            ("Audit", "Eval"),
-            horizontal=True,
-        )
         assignment_scope = st.radio(
-            "Assignment scope",
-            ("remaining", "all"),
-            format_func=lambda value: (
-                "Remaining tasks · Existing and new accounts"
-                if value == "remaining"
-                else "All tasks · New accounts only"
-            ),
+            "Scope",
+            ("Remaining", "All"),
         )
+        st.markdown(f"Existing accounts: **{len(existing_type_ids)}**")
         count = st.number_input(
-            "Number of new annotators",
+            "New annotators",
             min_value=1,
             max_value=max_batch_size,
             value=min(5, max_batch_size),
@@ -134,18 +136,12 @@ def _render_assignments(
 
     if submitted:
         created = []
-        review_type = task_label.lower()
         try:
             users = store.list_users()
             existing_ids = {row["user_id"] for row in users}
             user_ids = _next_ids(review_type, int(count), existing_ids)
             items = audit_items if review_type == "audit" else eval_items
-            if assignment_scope == "remaining":
-                existing_type_ids = {
-                    row["user_id"]
-                    for row in store.progress_all_users()
-                    if row.get("review_type") == review_type
-                }
+            if assignment_scope == "Remaining":
                 assignment_users = [*sorted(existing_type_ids), *user_ids]
                 plan = remaining_assignment_plan(
                     assignment_users,
@@ -163,7 +159,7 @@ def _render_assignments(
                     code = generate_access_code()
                     store.create_user(new_user_id, code)
                     created.append({"user_id": new_user_id, "access_code": code})
-                if assignment_scope == "remaining":
+                if assignment_scope == "Remaining":
                     store.replace_pending_assignments(review_type, plan)
                 else:
                     for user_id, item_ids in plan.items():
