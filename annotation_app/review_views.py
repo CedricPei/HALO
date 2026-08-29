@@ -85,6 +85,15 @@ def _initial_position(items: list[dict], reviewed: set[str]) -> int:
     )
 
 
+def _progress_label(position: int, reviewed_count: int, total: int) -> str:
+    if position < total:
+        return (
+            f"Current item: {position + 1} / {total} · "
+            f"Reviewed: {reviewed_count} / {total}"
+        )
+    return f"All items reviewed: {reviewed_count} / {total}"
+
+
 def render_dashboard(store: AnnotationStore, user: dict) -> None:
     st.title("Annotation Workspace")
     st.caption(f"Signed in as {user['display_name']} · {user['user_id']}")
@@ -137,9 +146,10 @@ def render_audit(
         st.session_state[position_key] = _initial_position(items, reviewed)
     position = min(max(st.session_state[position_key], 0), len(items))
     st.session_state[position_key] = position
+    reviewed_count = min(len(reviewed), len(items))
     st.progress(
-        min(len(reviewed), len(items)) / len(items),
-        text=f"{min(len(reviewed), len(items))} / {len(items)} reviewed",
+        reviewed_count / len(items),
+        text=_progress_label(position, reviewed_count, len(items)),
     )
     if position == len(items):
         st.success("All assigned Scenarios have been reviewed.")
@@ -307,9 +317,10 @@ def render_eval(
         st.session_state[position_key] = _initial_position(items, reviewed)
     position = min(max(st.session_state[position_key], 0), len(items))
     st.session_state[position_key] = position
+    reviewed_count = min(len(reviewed), len(items))
     st.progress(
-        min(len(reviewed), len(items)) / len(items),
-        text=f"{min(len(reviewed), len(items))} / {len(items)} reviewed",
+        reviewed_count / len(items),
+        text=_progress_label(position, reviewed_count, len(items)),
     )
     if position == len(items):
         st.success("All assigned checkpoints have been reviewed.")
