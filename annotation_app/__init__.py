@@ -1,1 +1,1 @@
-"""Cloud-ready annotation application without changing the local pilot."""
+"""Proactive Agent Benchmark cloud annotation application."""

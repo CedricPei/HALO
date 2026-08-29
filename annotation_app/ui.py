@@ -1,4 +1,4 @@
-"""Minimal shared styling for the Streamlit review interfaces."""
+"""Styling and rendering helpers for the cloud annotation interface."""
 
 import html
 from datetime import datetime

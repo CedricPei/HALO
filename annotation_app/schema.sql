@@ -30,8 +30,6 @@ CREATE TABLE IF NOT EXISTS annotations (
     review_type TEXT NOT NULL CHECK (review_type IN ('audit', 'eval')),
     item_id TEXT NOT NULL,
     payload_json TEXT NOT NULL,
-    state TEXT NOT NULL DEFAULT 'submitted'
-        CHECK (state IN ('draft', 'submitted')),
     created_at TEXT NOT NULL,
     UNIQUE (user_id, review_type, item_id),
     FOREIGN KEY (user_id) REFERENCES annotation_users(user_id)
@@ -40,15 +38,6 @@ CREATE TABLE IF NOT EXISTS annotations (
 CREATE INDEX IF NOT EXISTS annotations_lookup
     ON annotations(user_id, review_type, item_id);
 
-CREATE TABLE IF NOT EXISTS annotation_admin_events (
-    event_id TEXT PRIMARY KEY,
-    actor_id TEXT NOT NULL,
-    event_type TEXT NOT NULL,
-    details_json TEXT NOT NULL,
-    created_at TEXT NOT NULL
-);
-
 ALTER TABLE annotation_users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE annotation_assignments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE annotations ENABLE ROW LEVEL SECURITY;
-ALTER TABLE annotation_admin_events ENABLE ROW LEVEL SECURITY;

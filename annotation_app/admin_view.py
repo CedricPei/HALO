@@ -8,12 +8,11 @@ import json
 
 import streamlit as st
 
-from annotation_app.assignment import apply_assignment_plan, balanced_assignment_plan
-from annotation_app.catalog import evaluation_groups
+from annotation_app.assignment import assignment_plan
+from benchmark_catalog import evaluation_groups
 from annotation_app.storage import (
     AnnotationStore,
     generate_access_code,
-    normalize_user_id,
 )
 
 
@@ -36,7 +35,6 @@ def _export_csv(records: list[dict]) -> bytes:
         "user_id",
         "review_type",
         "item_id",
-        "state",
         "created_at",
         "payload_json",
     )
@@ -55,7 +53,6 @@ def _export_csv(records: list[dict]) -> bytes:
 
 
 def _next_ids(prefix: str, count: int, existing_ids: set[str]) -> list[str]:
-    prefix = normalize_user_id(prefix)
     result = []
     number = 1
     while len(result) < count:
@@ -136,12 +133,10 @@ def _render_accounts(
         try:
             existing_ids = {row["user_id"] for row in store.list_users()}
             user_ids = _next_ids(review_type, int(count), existing_ids)
-            audit_redundancy = min(2, len(user_ids)) if review_type == "audit" else 1
-            plan = balanced_assignment_plan(
+            plan = assignment_plan(
                 user_ids,
-                audit_items if review_type == "audit" else [],
-                eval_items if review_type == "eval" else [],
-                audit_redundancy=audit_redundancy,
+                review_type,
+                audit_items if review_type == "audit" else eval_items,
             )
             for new_user_id in user_ids:
                 code = generate_access_code()
@@ -149,22 +144,12 @@ def _render_accounts(
                 account = store.create_user(
                     new_user_id,
                     f"{task_label} Annotator {suffix}",
-                    "annotator",
                     code,
                 )
                 created.append({**account, "access_code": code})
-            assignment_count = apply_assignment_plan(store, plan)
+            for user_id, item_ids in plan.items():
+                store.assign_tasks(user_id, review_type, item_ids)
             st.session_state["new_annotation_credentials"] = created
-            store.log_admin_event(
-                "admin",
-                "create_single_type_batch",
-                {
-                    "review_type": review_type,
-                    "users": user_ids,
-                    "audit_redundancy": audit_redundancy,
-                    "assignments": assignment_count,
-                },
-            )
             st.rerun()
         except Exception as error:
             st.error(
@@ -190,11 +175,6 @@ def _render_accounts(
         use_container_width=True,
     ):
         store.set_user_active(selected_id, desired_active)
-        store.log_admin_event(
-            "admin",
-            "set_user_active",
-            {"user_id": selected_id, "active": desired_active},
-        )
         st.rerun()
     if reset_col.button("Generate new access code", use_container_width=True):
         code = generate_access_code()
@@ -207,9 +187,6 @@ def _render_accounts(
                 "access_code": code,
             }
         ]
-        store.log_admin_event(
-            "admin", "reset_access_code", {"user_id": selected_id}
-        )
         st.rerun()
 
 
@@ -323,13 +300,12 @@ def _render_export(store: AnnotationStore) -> None:
 
 def render_admin(
     store: AnnotationStore,
-    config,
     audit_items: list[dict],
     eval_items: list[dict],
 ) -> None:
     st.title("Administration")
     st.caption(
-        f"Backend: {config.backend_name} · {len(audit_items)} Audit items · "
+        f"Backend: Supabase PostgreSQL · {len(audit_items)} Audit items · "
         f"{len(eval_items)} annotatable Eval checkpoints"
     )
     account_tab, progress_tab, export_tab = st.tabs(

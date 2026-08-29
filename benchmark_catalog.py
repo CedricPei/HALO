@@ -1,4 +1,4 @@
-"""Read-only loading of the existing benchmark and pilot assignments."""
+"""Read-only loading of benchmark items and evaluation checkpoints."""
 
 from __future__ import annotations
 
@@ -8,10 +8,9 @@ from collections import defaultdict
 from pathlib import Path
 
 
-ROOT_DIR = Path(__file__).resolve().parents[1]
+ROOT_DIR = Path(__file__).resolve().parent
 DOMAINS_DIR = ROOT_DIR / "domains"
 RESULTS_DIR = ROOT_DIR / "eval_results"
-PILOT_DIR = ROOT_DIR / "pilot"
 
 
 def _json(path: Path):
@@ -136,22 +135,3 @@ def evaluation_groups(items: list[dict]) -> list[list[str]]:
     for item in items:
         grouped[item["scenario_key"]].append(item["item_id"])
     return [grouped[key] for key in sorted(grouped)]
-
-
-def load_pilot_assignment_packs(eval_items: list[dict]) -> dict[str, dict]:
-    """Resolve the five existing reviewer manifests without copying their data."""
-    by_source: dict[str, list[str]] = defaultdict(list)
-    for item in eval_items:
-        by_source[item["source_path"]].append(item["item_id"])
-
-    packs = {}
-    for path in sorted(PILOT_DIR.glob("reviewer*/pilot_assignment.json")):
-        manifest = _json(path)
-        eval_ids = []
-        for source_path in manifest.get("eval_source_paths", []):
-            eval_ids.extend(by_source.get(source_path, []))
-        packs[manifest["reviewer"]] = {
-            "audit": list(manifest.get("audit_item_ids", [])),
-            "eval": eval_ids,
-        }
-    return packs

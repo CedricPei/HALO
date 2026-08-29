@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from command_parser import CommandParser
-from interfaces.data import ROOT_DIR, load_construction_items
+from benchmark_catalog import ROOT_DIR, load_construction_items
 from llm_client import LLMClient, LLMProtocolError, LLMTransportError
 
 from .intensity import action_intensity

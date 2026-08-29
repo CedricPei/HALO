@@ -34,10 +34,10 @@ def normalize_user_id(value: str) -> str:
     return normalized
 
 
-def generate_access_code(groups: int = 3, width: int = 4) -> str:
+def generate_access_code() -> str:
     return "-".join(
-        "".join(secrets.choice(ACCESS_CODE_ALPHABET) for _ in range(width))
-        for _ in range(groups)
+        "".join(secrets.choice(ACCESS_CODE_ALPHABET) for _ in range(4))
+        for _ in range(3)
     )
 
 
@@ -46,20 +46,21 @@ class AnnotationStore:
 
     def __init__(self, config: AppConfig):
         self.config = config
-        self.postgres = bool(config.database_url)
-        if not self.postgres:
-            config.sqlite_path.parent.mkdir(parents=True, exist_ok=True)
+        self.sqlite = config.database_url.startswith("sqlite:///")
+        if self.sqlite:
+            self.sqlite_path = Path(config.database_url.removeprefix("sqlite:///"))
+            self.sqlite_path.parent.mkdir(parents=True, exist_ok=True)
         self.ensure_schema()
 
     @contextmanager
     def _connect(self):
-        if self.postgres:
+        if not self.sqlite:
             try:
                 import psycopg
                 from psycopg.rows import dict_row
             except ImportError as error:
                 raise RuntimeError(
-                    "PostgreSQL mode requires psycopg; install annotation_app/requirements.txt."
+                    "PostgreSQL mode requires the psycopg package."
                 ) from error
             with psycopg.connect(
                 self.config.database_url,
@@ -69,7 +70,7 @@ class AnnotationStore:
                 yield connection
             return
 
-        connection = sqlite3.connect(self.config.sqlite_path)
+        connection = sqlite3.connect(self.sqlite_path)
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA foreign_keys = ON")
         try:
@@ -82,7 +83,7 @@ class AnnotationStore:
             connection.close()
 
     def _sql(self, statement: str) -> str:
-        return statement.replace("?", "%s") if self.postgres else statement
+        return statement if self.sqlite else statement.replace("?", "%s")
 
     def ensure_schema(self) -> None:
         schema_path = Path(__file__).with_name("schema.sql")
@@ -93,28 +94,28 @@ class AnnotationStore:
         ]
         with self._connect() as connection:
             for statement in statements:
-                if not self.postgres and statement.upper().startswith("ALTER TABLE"):
+                if self.sqlite and statement.upper().startswith("ALTER TABLE"):
                     continue
                 connection.execute(statement)
             self._migrate_legacy_revisions(connection)
 
     def _migrate_legacy_revisions(self, connection) -> None:
         """Keep the latest legacy answer per item, then remove its history table."""
-        if self.postgres:
-            exists = connection.execute(
-                "SELECT to_regclass('public.annotation_revisions') AS table_name"
-            ).fetchone()["table_name"]
-        else:
+        if self.sqlite:
             exists = connection.execute(
                 "SELECT name FROM sqlite_master "
                 "WHERE type='table' AND name='annotation_revisions'"
             ).fetchone()
+        else:
+            exists = connection.execute(
+                "SELECT to_regclass('public.annotation_revisions') AS table_name"
+            ).fetchone()["table_name"]
         if not exists:
             return
 
         rows = connection.execute(
             "SELECT revision_id, user_id, review_type, item_id, payload_json, "
-            "state, created_at FROM annotation_revisions "
+            "created_at FROM annotation_revisions "
             "ORDER BY created_at, revision_id"
         ).fetchall()
         latest = {}
@@ -125,10 +126,10 @@ class AnnotationStore:
                 self._sql(
                     "INSERT INTO annotations "
                     "(annotation_id, user_id, review_type, item_id, payload_json, "
-                    "state, created_at) VALUES (?, ?, ?, ?, ?, ?, ?) "
+                    "created_at) VALUES (?, ?, ?, ?, ?, ?) "
                     "ON CONFLICT(user_id, review_type, item_id) DO UPDATE SET "
                     "annotation_id=excluded.annotation_id, "
-                    "payload_json=excluded.payload_json, state=excluded.state, "
+                    "payload_json=excluded.payload_json, "
                     "created_at=excluded.created_at"
                 ),
                 (
@@ -137,7 +138,6 @@ class AnnotationStore:
                     row["review_type"],
                     row["item_id"],
                     row["payload_json"],
-                    row["state"],
                     row["created_at"],
                 ),
             )
@@ -152,28 +152,10 @@ class AnnotationStore:
             hashlib.sha256,
         ).hexdigest()
 
-    def log_admin_event(self, actor_id: str, event_type: str, details: dict) -> None:
-        with self._connect() as connection:
-            connection.execute(
-                self._sql(
-                    "INSERT INTO annotation_admin_events "
-                    "(event_id, actor_id, event_type, details_json, created_at) "
-                    "VALUES (?, ?, ?, ?, ?)"
-                ),
-                (
-                    str(uuid.uuid4()),
-                    actor_id,
-                    event_type,
-                    json.dumps(details, ensure_ascii=False, sort_keys=True),
-                    utc_now(),
-                ),
-            )
-
     def create_user(
         self,
         user_id: str,
         display_name: str,
-        role: str,
         access_code: str,
     ) -> dict:
         user_id = normalize_user_id(user_id)
@@ -182,8 +164,6 @@ class AnnotationStore:
         display_name = display_name.strip()
         if not display_name:
             raise ValueError("Display name is required.")
-        if role not in {"annotator", "reviewer", "admin"}:
-            raise ValueError("Invalid role.")
         with self._connect() as connection:
             connection.execute(
                 self._sql(
@@ -194,12 +174,16 @@ class AnnotationStore:
                 (
                     user_id,
                     display_name,
-                    role,
+                    "annotator",
                     self._hash_code(access_code),
                     utc_now(),
                 ),
             )
-        return {"user_id": user_id, "display_name": display_name, "role": role}
+        return {
+            "user_id": user_id,
+            "display_name": display_name,
+            "role": "annotator",
+        }
 
     def authenticate(self, user_id: str, access_code: str) -> dict | None:
         try:
@@ -261,38 +245,24 @@ class AnnotationStore:
         user_id: str,
         review_type: str,
         item_ids: Iterable[str],
-    ) -> int:
+    ) -> None:
         user_id = normalize_user_id(user_id)
         if review_type not in {"audit", "eval"}:
             raise ValueError("Invalid review type.")
         item_ids = list(dict.fromkeys(item_ids))
         if not item_ids:
-            return 0
+            return
         now = utc_now()
-        inserted = 0
         with self._connect() as connection:
-            row = connection.execute(
-                self._sql(
-                    "SELECT COALESCE(MAX(position), -1) AS maximum "
-                    "FROM annotation_assignments WHERE user_id=? AND review_type=?"
-                ),
-                (user_id, review_type),
-            ).fetchone()
-            next_position = int(row["maximum"]) + 1
-            for item_id in item_ids:
-                cursor = connection.execute(
+            for position, item_id in enumerate(item_ids):
+                connection.execute(
                     self._sql(
                         "INSERT INTO annotation_assignments "
                         "(user_id, review_type, item_id, position, status, assigned_at) "
-                        "VALUES (?, ?, ?, ?, 'assigned', ?) "
-                        "ON CONFLICT(user_id, review_type, item_id) DO NOTHING"
+                        "VALUES (?, ?, ?, ?, 'assigned', ?)"
                     ),
-                    (user_id, review_type, item_id, next_position, now),
+                    (user_id, review_type, item_id, position, now),
                 )
-                if cursor.rowcount:
-                    inserted += 1
-                    next_position += 1
-        return inserted
 
     def assignment_ids(self, user_id: str, review_type: str) -> list[str]:
         with self._connect() as connection:
@@ -322,7 +292,7 @@ class AnnotationStore:
         with self._connect() as connection:
             row = connection.execute(
                 self._sql(
-                    "SELECT annotation_id, payload_json, state, created_at "
+                    "SELECT annotation_id, payload_json, created_at "
                     "FROM annotations "
                     "WHERE user_id=? AND review_type=? AND item_id=? "
                     "LIMIT 1"
@@ -334,7 +304,6 @@ class AnnotationStore:
         return {
             "annotation_id": row["annotation_id"],
             "payload": json.loads(row["payload_json"]),
-            "state": row["state"],
             "created_at": row["created_at"],
         }
 
@@ -344,12 +313,9 @@ class AnnotationStore:
         review_type: str,
         item_id: str,
         payload: dict,
-        state: str = "submitted",
     ) -> str:
         if review_type not in {"audit", "eval"}:
             raise ValueError("Invalid review type.")
-        if state not in {"draft", "submitted"}:
-            raise ValueError("Invalid annotation state.")
         annotation_id = str(uuid.uuid4())
         now = utc_now()
         with self._connect() as connection:
@@ -366,10 +332,10 @@ class AnnotationStore:
                 self._sql(
                     "INSERT INTO annotations "
                     "(annotation_id, user_id, review_type, item_id, payload_json, "
-                    "state, created_at) VALUES (?, ?, ?, ?, ?, ?, ?) "
+                    "created_at) VALUES (?, ?, ?, ?, ?, ?) "
                     "ON CONFLICT(user_id, review_type, item_id) DO UPDATE SET "
                     "annotation_id=excluded.annotation_id, "
-                    "payload_json=excluded.payload_json, state=excluded.state, "
+                    "payload_json=excluded.payload_json, "
                     "created_at=excluded.created_at"
                 ),
                 (
@@ -378,19 +344,17 @@ class AnnotationStore:
                     review_type,
                     item_id,
                     json.dumps(payload, ensure_ascii=False, sort_keys=True),
-                    state,
                     now,
                 ),
             )
-            if state == "submitted":
-                connection.execute(
-                    self._sql(
-                        "UPDATE annotation_assignments "
-                        "SET status='submitted', submitted_at=? "
-                        "WHERE user_id=? AND review_type=? AND item_id=?"
-                    ),
-                    (now, user_id, review_type, item_id),
-                )
+            connection.execute(
+                self._sql(
+                    "UPDATE annotation_assignments "
+                    "SET status='submitted', submitted_at=? "
+                    "WHERE user_id=? AND review_type=? AND item_id=?"
+                ),
+                (now, user_id, review_type, item_id),
+            )
         return annotation_id
 
     def progress_for_user(self, user_id: str) -> dict[str, dict[str, int]]:
@@ -431,7 +395,7 @@ class AnnotationStore:
         with self._connect() as connection:
             rows = connection.execute(
                 "SELECT annotation_id, user_id, review_type, item_id, payload_json, "
-                "state, created_at FROM annotations "
+                "created_at FROM annotations "
                 "ORDER BY user_id, review_type, item_id"
             ).fetchall()
         records = []

@@ -7,7 +7,7 @@ import streamlit.components.v1 as components
 
 from annotation_app.storage import AnnotationStore
 from evaluation.intensity import INTENSITY_LEVELS, action_intensity
-from interfaces.ui import format_event_label, metadata, render_structured_text
+from annotation_app.ui import format_event_label, metadata, render_structured_text
 
 
 REJECTION_DIMENSIONS = ("Timing", "Intensity", "Other issues")
@@ -92,33 +92,6 @@ def _progress_label(position: int, reviewed_count: int, total: int) -> str:
             f"Reviewed: {reviewed_count} / {total}"
         )
     return f"All items reviewed: {reviewed_count} / {total}"
-
-
-def render_dashboard(store: AnnotationStore, user: dict) -> None:
-    st.title("Annotation Workspace")
-    st.caption(f"Signed in as {user['display_name']} · {user['user_id']}")
-    progress = store.progress_for_user(user["user_id"])
-    columns = st.columns(2)
-    for column, review_type, label in zip(
-        columns,
-        ("audit", "eval"),
-        ("Benchmark Audit", "Agent Evaluation"),
-    ):
-        values = progress[review_type]
-        assigned = values["assigned"]
-        submitted = values["submitted"]
-        percentage = int(100 * submitted / assigned) if assigned else 0
-        with column:
-            st.markdown(f"#### {label}")
-            st.metric("Completed", f"{submitted} / {assigned}")
-            st.progress(percentage / 100, text=f"{percentage}%")
-    if not any(values["assigned"] for values in progress.values()):
-        st.info("No tasks have been assigned to this account yet.")
-    else:
-        st.markdown(
-            "Use the navigation on the left to continue your assigned work. "
-            "Original benchmark data is read-only."
-        )
 
 
 def render_audit(

@@ -14,18 +14,17 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from annotation_app.admin_view import render_admin  # noqa: E402
-from annotation_app.catalog import (  # noqa: E402
+from benchmark_catalog import (  # noqa: E402
     load_construction_items,
     load_evaluation_items,
 )
 from annotation_app.config import AppConfig  # noqa: E402
 from annotation_app.review_views import (  # noqa: E402
     render_audit,
-    render_dashboard,
     render_eval,
 )
 from annotation_app.storage import AnnotationStore  # noqa: E402
-from interfaces.ui import apply_style  # noqa: E402
+from annotation_app.ui import apply_style  # noqa: E402
 
 
 st.set_page_config(
@@ -113,14 +112,13 @@ def _login(store: AnnotationStore, config: AppConfig) -> None:
     st.markdown("</div>", unsafe_allow_html=True)
 
 
-def _sidebar(user: dict, config: AppConfig, task_label: str = "") -> None:
+def _sidebar(user: dict, task_label: str) -> None:
     with st.sidebar:
         st.markdown("## Proactive Agent Benchmark Annotation Interface")
         st.caption(f"{user['display_name']} · {user['role'].title()}")
-        if task_label:
-            st.markdown(f"**Task: {task_label}**")
+        st.markdown(f"**Task: {task_label}**")
         st.divider()
-        st.caption(config.backend_name)
+        st.caption("Supabase PostgreSQL")
         if st.button("Sign out", use_container_width=True):
             for key in list(st.session_state):
                 if key.startswith("cloud_") or key == "annotation_user":
@@ -135,8 +133,8 @@ def main() -> None:
         st.title("Proactive Agent Benchmark Annotation Interface setup")
         st.error("Missing required secret(s): " + ", ".join(missing))
         st.markdown(
-            "Add them to environment variables for local use or to Streamlit "
-            "Community Cloud Secrets for deployment. Do not commit secret values to GitHub."
+            "Add them to Streamlit Community Cloud Secrets. "
+            "Do not commit secret values to GitHub."
         )
         return
     try:
@@ -156,35 +154,29 @@ def main() -> None:
         return
 
     if user["role"] == "admin":
-        _sidebar(user, config, "Administration")
-        render_admin(store, config, _audit_items(), _eval_items())
+        _sidebar(user, "Administration")
+        render_admin(store, _audit_items(), _eval_items())
         return
 
     progress = store.progress_for_user(user["user_id"])
-    assigned_types = [
-        review_type
-        for review_type in ("audit", "eval")
-        if progress[review_type]["assigned"]
-    ]
-    if not assigned_types:
-        _sidebar(user, config, "Awaiting assignment")
-        render_dashboard(store, user)
+    review_type = next(
+        (
+            name
+            for name in ("audit", "eval")
+            if progress[name]["assigned"]
+        ),
+        None,
+    )
+    if review_type is None:
+        _sidebar(user, "Awaiting assignment")
+        st.title("No task assigned")
+        st.info("Ask the administrator to assign an Audit or Eval task.")
         return
-    if len(assigned_types) > 1:
-        _sidebar(user, config, "Assignment issue")
-        st.title("Account assignment needs attention")
-        st.error(
-            "This account contains both Audit and Eval assignments. Ask the "
-            "administrator to issue a single-task account."
-        )
-        return
-
-    review_type = assigned_types[0]
     if review_type == "audit":
-        _sidebar(user, config, "Benchmark Audit")
+        _sidebar(user, "Benchmark Audit")
         render_audit(store, user, _audit_items())
     else:
-        _sidebar(user, config, "Agent Evaluation")
+        _sidebar(user, "Agent Evaluation")
         render_eval(store, user, _eval_items())
 
 
