@@ -37,14 +37,6 @@ apply_style()
 st.markdown(
     """
     <style>
-      .login-card {
-        background: white;
-        border: 1px solid #e1e6ee;
-        border-radius: 16px;
-        margin: 4rem auto 1rem;
-        max-width: 560px;
-        padding: 1.4rem 1.7rem .6rem;
-      }
       [data-testid="stSidebar"] [data-testid="stRadio"] label {
         padding-bottom: .2rem;
       }
@@ -84,9 +76,7 @@ def _eval_items() -> list[dict]:
 
 
 def _login(store: AnnotationStore, config: AppConfig) -> None:
-    st.markdown('<div class="login-card">', unsafe_allow_html=True)
     st.title("Proactive Agent Benchmark Annotation Interface")
-    st.write("Sign in with the participant ID and access code you received.")
     with st.form("annotation-login"):
         user_id = st.text_input("Participant ID")
         access_code = st.text_input("Access code", type="password")
@@ -109,7 +99,6 @@ def _login(store: AnnotationStore, config: AppConfig) -> None:
             st.session_state["annotation_user"] = user
             st.rerun()
         st.error("Invalid participant ID or access code.")
-    st.markdown("</div>", unsafe_allow_html=True)
 
 
 def _sidebar(user: dict, task_label: str) -> None:
