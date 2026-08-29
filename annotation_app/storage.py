@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
-import hmac
 import json
 import re
 import secrets
@@ -143,15 +141,6 @@ class AnnotationStore:
             )
         connection.execute("DROP TABLE annotation_revisions")
 
-    def _hash_code(self, access_code: str) -> str:
-        if not self.config.auth_pepper:
-            raise RuntimeError("AUTH_PEPPER must be configured before creating users.")
-        return hmac.new(
-            self.config.auth_pepper.encode("utf-8"),
-            access_code.strip().upper().encode("utf-8"),
-            hashlib.sha256,
-        ).hexdigest()
-
     def create_user(
         self,
         user_id: str,
@@ -164,11 +153,11 @@ class AnnotationStore:
             connection.execute(
                 self._sql(
                     "INSERT INTO annotation_users "
-                    "(user_id, access_code_hash, created_at) VALUES (?, ?, ?)"
+                    "(user_id, access_code, created_at) VALUES (?, ?, ?)"
                 ),
                 (
                     user_id,
-                    self._hash_code(access_code),
+                    access_code.strip().upper(),
                     utc_now(),
                 ),
             )
@@ -181,16 +170,14 @@ class AnnotationStore:
         with self._connect() as connection:
             row = connection.execute(
                 self._sql(
-                    "SELECT user_id, access_code_hash FROM annotation_users "
+                    "SELECT user_id, access_code FROM annotation_users "
                     "WHERE user_id=?"
                 ),
                 (user_id,),
             ).fetchone()
             if not row:
                 return None
-            if not hmac.compare_digest(
-                row["access_code_hash"], self._hash_code(access_code)
-            ):
+            if row["access_code"] != access_code.strip().upper():
                 return None
             connection.execute(
                 self._sql(
@@ -208,14 +195,13 @@ class AnnotationStore:
             ).fetchall()
         return [dict(row) for row in rows]
 
-    def reset_access_code(self, user_id: str, access_code: str) -> None:
+    def list_user_codes(self) -> list[dict]:
         with self._connect() as connection:
-            connection.execute(
-                self._sql(
-                    "UPDATE annotation_users SET access_code_hash=? WHERE user_id=?"
-                ),
-                (self._hash_code(access_code), normalize_user_id(user_id)),
-            )
+            rows = connection.execute(
+                "SELECT user_id, access_code FROM annotation_users "
+                "ORDER BY created_at, user_id"
+            ).fetchall()
+        return [dict(row) for row in rows]
 
     def delete_user(self, user_id: str) -> None:
         self.delete_users([user_id])

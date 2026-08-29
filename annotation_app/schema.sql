@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS annotation_users (
     user_id TEXT PRIMARY KEY,
-    access_code_hash TEXT NOT NULL,
+    access_code TEXT NOT NULL,
     created_at TEXT NOT NULL,
     last_login_at TEXT
 );
@@ -38,6 +38,9 @@ CREATE INDEX IF NOT EXISTS annotations_lookup
 ALTER TABLE annotation_users DROP COLUMN IF EXISTS display_name;
 ALTER TABLE annotation_users DROP COLUMN IF EXISTS role;
 ALTER TABLE annotation_users DROP COLUMN IF EXISTS active;
+ALTER TABLE annotation_users ADD COLUMN IF NOT EXISTS access_code TEXT NOT NULL DEFAULT '';
+ALTER TABLE annotation_users ALTER COLUMN access_code DROP DEFAULT;
+ALTER TABLE annotation_users DROP COLUMN IF EXISTS access_code_hash;
 
 ALTER TABLE annotation_users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE annotation_assignments ENABLE ROW LEVEL SECURITY;

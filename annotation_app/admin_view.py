@@ -177,40 +177,21 @@ def _render_manage(store: AnnotationStore) -> None:
     deleted_ids = st.session_state.pop("deleted_account_ids", [])
     if deleted_ids:
         st.success(f"Deleted {len(deleted_ids)} account(s).")
-    _show_credentials(
-        "reset_account_credentials",
-        "Access code reset. Download the new code now.",
-        "download-reset-code",
-    )
 
-    users = store.list_users()
-    if not users:
+    accounts = store.list_user_codes()
+    if not accounts:
         st.info("No annotator accounts have been created.")
         return
-    account_ids = [row["user_id"] for row in users]
-    reset_id = st.selectbox(
-        "Generate new code",
-        account_ids,
-        index=None,
-        placeholder="Select an account",
-        key="manage-reset-selection",
-    )
-    if st.button(
-        "Generate code",
-        disabled=reset_id is None,
+    st.download_button(
+        "Download codes",
+        data=_credentials_csv(accounts),
+        file_name="proact-anno-accounts.csv",
+        mime="text/csv",
+        type="primary",
         use_container_width=True,
-        key="reset-code",
-    ):
-        code = generate_access_code()
-        store.reset_access_code(reset_id, code)
-        st.session_state["reset_account_credentials"] = [
-            {
-                "user_id": reset_id,
-                "access_code": code,
-            }
-        ]
-        st.rerun()
+    )
 
+    account_ids = [row["user_id"] for row in accounts]
     delete_ids = st.multiselect(
         "Delete accounts",
         account_ids,
@@ -233,14 +214,12 @@ def _render_manage(store: AnnotationStore) -> None:
     ):
         store.delete_users(delete_ids)
         deleted_set = set(delete_ids)
-        for state_key in ("new_assignment_credentials", "reset_account_credentials"):
-            st.session_state[state_key] = [
-                row
-                for row in st.session_state.get(state_key, [])
-                if row["user_id"] not in deleted_set
-            ]
+        st.session_state["new_assignment_credentials"] = [
+            row
+            for row in st.session_state.get("new_assignment_credentials", [])
+            if row["user_id"] not in deleted_set
+        ]
         for state_key in (
-            "manage-reset-selection",
             "manage-delete-selection",
             "confirm-delete-accounts",
         ):
