@@ -292,9 +292,9 @@ def render_admin(
         f"Backend: Supabase PostgreSQL · {len(audit_items)} Audit items · "
         f"{len(eval_items)} annotatable Eval checkpoints"
     )
-    _export_button(store)
     account_tab, progress_tab = st.tabs(["Assignments", "Progress"])
     with account_tab:
         _render_accounts(store, audit_items, eval_items)
     with progress_tab:
         _render_progress(store)
+        _export_button(store)
