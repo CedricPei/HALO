@@ -66,13 +66,11 @@ def _next_ids(prefix: str, count: int, existing_ids: set[str]) -> list[str]:
     return result
 
 
-def _show_new_credentials() -> None:
-    records = st.session_state.get("new_annotation_credentials", [])
+def _show_credentials(state_key: str, message: str, button_key: str) -> None:
+    records = st.session_state.get(state_key, [])
     if not records:
         return
-    st.success(
-        "Accounts created. Download the codes now; only their secure hashes are stored."
-    )
+    st.success(message)
     st.dataframe(
         [
             {"user_id": row["user_id"], "access_code": row["access_code"]}
@@ -88,15 +86,20 @@ def _show_new_credentials() -> None:
         mime="text/csv",
         type="primary",
         use_container_width=True,
+        key=button_key,
     )
 
 
-def _render_accounts(
+def _render_assignments(
     store: AnnotationStore,
     audit_items: list[dict],
     eval_items: list[dict],
 ) -> None:
-    _show_new_credentials()
+    _show_credentials(
+        "new_assignment_credentials",
+        "Assignments created. Download the access codes now.",
+        "download-assignment-codes",
+    )
 
     audit_units = len(audit_items)
     eval_units = len(evaluation_groups(eval_items))
@@ -170,14 +173,24 @@ def _render_accounts(
                 else:
                     for user_id, item_ids in plan.items():
                         store.assign_tasks(user_id, review_type, item_ids)
-                st.session_state["new_annotation_credentials"] = created
+                st.session_state["new_assignment_credentials"] = created
                 st.rerun()
         except Exception as error:
             st.error(
                 f"Batch creation stopped after {len(created)} account(s): {error}"
             )
 
-    st.markdown("#### Manage accounts")
+
+def _render_manage(store: AnnotationStore) -> None:
+    deleted_id = st.session_state.pop("deleted_account_id", None)
+    if deleted_id:
+        st.success(f"Account {deleted_id} deleted.")
+    _show_credentials(
+        "reset_account_credentials",
+        "Access code reset. Download the new code now.",
+        "download-reset-code",
+    )
+
     users = store.list_users()
     if not users:
         st.info("No annotator accounts have been created.")
@@ -186,21 +199,21 @@ def _render_accounts(
     selected_id = st.selectbox(
         "Account",
         [row["user_id"] for row in users],
-        key="manage-account-id",
+        index=None,
+        placeholder="Select an account",
+        key="manage-account-selection",
     )
+    if selected_id is None:
+        return
     selected = next(row for row in users if row["user_id"] == selected_id)
-    action_col, reset_col = st.columns(2)
-    desired_active = not bool(int(selected["active"]))
-    if action_col.button(
-        "Enable account" if desired_active else "Disable account",
+    if st.button(
+        "Generate new access code",
         use_container_width=True,
+        key=f"reset-code-{selected_id}",
     ):
-        store.set_user_active(selected_id, desired_active)
-        st.rerun()
-    if reset_col.button("Generate new access code", use_container_width=True):
         code = generate_access_code()
         store.reset_access_code(selected_id, code)
-        st.session_state["new_annotation_credentials"] = [
+        st.session_state["reset_account_credentials"] = [
             {
                 "user_id": selected_id,
                 "display_name": selected["display_name"],
@@ -208,6 +221,27 @@ def _render_accounts(
                 "access_code": code,
             }
         ]
+        st.rerun()
+
+    confirmed = st.checkbox(
+        f"Delete {selected_id}, including its assignments and annotations",
+        key=f"confirm-delete-{selected_id}",
+    )
+    if st.button(
+        "Delete account",
+        disabled=not confirmed,
+        use_container_width=True,
+        key=f"delete-account-{selected_id}",
+    ):
+        store.delete_user(selected_id)
+        for state_key in ("new_assignment_credentials", "reset_account_credentials"):
+            st.session_state[state_key] = [
+                row
+                for row in st.session_state.get(state_key, [])
+                if row["user_id"] != selected_id
+            ]
+        del st.session_state["manage-account-selection"]
+        st.session_state["deleted_account_id"] = selected_id
         st.rerun()
 
 
@@ -300,9 +334,13 @@ def render_admin(
         f"Backend: Supabase PostgreSQL · {len(audit_items)} Audit items · "
         f"{len(eval_items)} annotatable Eval checkpoints"
     )
-    account_tab, progress_tab = st.tabs(["Assignments", "Progress"])
-    with account_tab:
-        _render_accounts(store, audit_items, eval_items)
+    assignment_tab, manage_tab, progress_tab = st.tabs(
+        ["Assignments", "Manage", "Progress"]
+    )
+    with assignment_tab:
+        _render_assignments(store, audit_items, eval_items)
+    with manage_tab:
+        _render_manage(store)
     with progress_tab:
         _render_progress(store)
         _export_button(store)

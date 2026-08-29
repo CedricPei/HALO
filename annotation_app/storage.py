@@ -224,13 +224,6 @@ class AnnotationStore:
             ).fetchall()
         return [dict(row) for row in rows]
 
-    def set_user_active(self, user_id: str, active: bool) -> None:
-        with self._connect() as connection:
-            connection.execute(
-                self._sql("UPDATE annotation_users SET active=? WHERE user_id=?"),
-                (1 if active else 0, normalize_user_id(user_id)),
-            )
-
     def reset_access_code(self, user_id: str, access_code: str) -> None:
         with self._connect() as connection:
             connection.execute(
@@ -239,6 +232,19 @@ class AnnotationStore:
                 ),
                 (self._hash_code(access_code), normalize_user_id(user_id)),
             )
+
+    def delete_user(self, user_id: str) -> None:
+        user_id = normalize_user_id(user_id)
+        with self._connect() as connection:
+            for table in (
+                "annotations",
+                "annotation_assignments",
+                "annotation_users",
+            ):
+                connection.execute(
+                    self._sql(f"DELETE FROM {table} WHERE user_id=?"),
+                    (user_id,),
+                )
 
     def assign_tasks(
         self,
