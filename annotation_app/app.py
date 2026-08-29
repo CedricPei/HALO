@@ -29,7 +29,7 @@ from interfaces.ui import apply_style  # noqa: E402
 
 
 st.set_page_config(
-    page_title="ProAct Annotation",
+    page_title="Proactive Agent Benchmark Annotation Interface",
     page_icon="✓",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -72,7 +72,7 @@ def _eval_items() -> list[dict]:
 
 def _login(store: AnnotationStore, config: AppConfig) -> None:
     st.markdown('<div class="login-card">', unsafe_allow_html=True)
-    st.title("ProAct Annotation")
+    st.title("Proactive Agent Benchmark Annotation Interface")
     st.write("Sign in with the participant ID and access code you received.")
     with st.form("annotation-login"):
         user_id = st.text_input("Participant ID")
@@ -101,7 +101,7 @@ def _login(store: AnnotationStore, config: AppConfig) -> None:
 
 def _sidebar(user: dict, config: AppConfig, task_label: str = "") -> None:
     with st.sidebar:
-        st.markdown("## ProAct Annotation")
+        st.markdown("## Proactive Agent Benchmark Annotation Interface")
         st.caption(f"{user['display_name']} · {user['role'].title()}")
         if task_label:
             st.markdown(f"**Task: {task_label}**")
@@ -118,7 +118,7 @@ def main() -> None:
     config = AppConfig.load()
     missing = config.missing_secrets()
     if missing:
-        st.title("ProAct Annotation setup")
+        st.title("Proactive Agent Benchmark Annotation Interface setup")
         st.error("Missing required secret(s): " + ", ".join(missing))
         st.markdown(
             "Add them to environment variables for local use or to Streamlit "

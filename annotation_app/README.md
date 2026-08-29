@@ -1,4 +1,4 @@
-# ProAct Annotation App
+# Proactive Agent Benchmark Annotation Interface
 
 This is the cloud-ready version of the existing local annotation pilot. It
 does not modify or replace `interfaces/`, the five `pilot/reviewer*` folders,
