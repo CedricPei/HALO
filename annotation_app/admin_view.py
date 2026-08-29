@@ -93,7 +93,6 @@ def _render_accounts(
     audit_items: list[dict],
     eval_items: list[dict],
 ) -> None:
-    st.markdown("### Create assignments")
     _show_new_credentials()
 
     audit_units = len(audit_items)
@@ -147,7 +146,7 @@ def _render_accounts(
                 f"Batch creation stopped after {len(created)} account(s): {error}"
             )
 
-    st.markdown("### Manage accounts")
+    st.markdown("#### Manage accounts")
     users = store.list_users()
     if not users:
         st.info("No annotator accounts have been created.")
@@ -182,7 +181,6 @@ def _render_accounts(
 
 
 def _render_progress(store: AnnotationStore) -> None:
-    st.markdown("### Progress")
     rows = store.progress_all_users()
     if not rows:
         st.info("No accounts or assignments yet.")
