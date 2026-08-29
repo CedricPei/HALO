@@ -95,6 +95,15 @@ Download the generated account CSV immediately. Only secure hashes of access
 codes are stored, so the original codes cannot be recovered later; an admin can
 generate a replacement code when needed.
 
+## 5. Production review safeguards
+
+New Audit and Eval items start without a selected verdict, and the reviewer
+cannot save or advance until selecting one. Annotator task pages also block
+ordinary text selection, copy/cut actions, dragging, and the context menu.
+These browser-side controls discourage casual transfer to external tools but
+cannot prevent screenshots, photographs, or deliberate extraction through
+developer tools.
+
 ## Import completed local annotations
 
 First create the corresponding participant and assignments in the App. Then,

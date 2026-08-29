@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 from annotation_app.storage import AnnotationStore
 from evaluation.intensity import INTENSITY_LEVELS, action_intensity
@@ -25,6 +26,40 @@ INTENSITY_LABELS = {
     "L2": "L2 · Preparation",
     "L3": "L3 · Execution",
 }
+
+
+def _enable_copy_protection() -> None:
+    """Disable ordinary selection/copy actions while an annotator reviews a task."""
+    st.markdown(
+        '<span class="copy-protection-marker" aria-hidden="true"></span>',
+        unsafe_allow_html=True,
+    )
+    components.html(
+        """
+        <script>
+          try {
+            const doc = window.parent.document;
+            const markerSelector = ".copy-protection-marker";
+            if (doc.documentElement.dataset.proactCopyGuard !== "enabled") {
+              const blockWhenReviewing = (event) => {
+                if (doc.querySelector(markerSelector)) {
+                  event.preventDefault();
+                }
+              };
+              doc.addEventListener("copy", blockWhenReviewing, true);
+              doc.addEventListener("cut", blockWhenReviewing, true);
+              doc.addEventListener("contextmenu", blockWhenReviewing, true);
+              doc.addEventListener("dragstart", blockWhenReviewing, true);
+              doc.documentElement.dataset.proactCopyGuard = "enabled";
+            }
+          } catch (_) {
+            // CSS selection blocking remains active if iframe access is restricted.
+          }
+        </script>
+        """,
+        height=0,
+        width=0,
+    )
 
 
 def _ordered_assigned_items(
@@ -82,6 +117,7 @@ def render_audit(
     user: dict,
     all_items: list[dict],
 ) -> None:
+    _enable_copy_protection()
     user_id = user["user_id"]
     items, missing_count = _ordered_assigned_items(
         store, user_id, "audit", all_items
@@ -168,17 +204,23 @@ def render_audit(
             unsafe_allow_html=True,
         )
         verdict_values = ("approve", "needs_revision", "reject")
-        stored_verdict = existing.get("verdict", "approve")
+        stored_verdict = existing.get("verdict")
         st.markdown("##### Verdict")
         verdict = st.radio(
             "Verdict",
             verdict_values,
-            index=verdict_values.index(stored_verdict),
+            index=(
+                verdict_values.index(stored_verdict)
+                if stored_verdict in verdict_values
+                else None
+            ),
             horizontal=True,
             format_func=lambda value: value.replace("_", " ").title(),
             label_visibility="collapsed",
             key=f"cloud-verdict-{user_id}-{item['item_id']}",
         )
+        if verdict is None:
+            st.caption("Select a verdict to enable Save and next.")
         with st.form(f"cloud-construction-{user_id}-{item['item_id']}"):
             if verdict == "needs_revision":
                 comment = st.text_area(
@@ -193,20 +235,26 @@ def render_audit(
                 "Back", disabled=position == 0, use_container_width=True
             )
             submitted = save_col.form_submit_button(
-                "Save and next", type="primary", use_container_width=True
+                "Save and next",
+                type="primary",
+                use_container_width=True,
+                disabled=verdict is None,
             )
         if back:
             st.session_state[position_key] -= 1
             st.rerun()
         elif submitted:
-            store.save_annotation(
-                user_id,
-                "audit",
-                item["item_id"],
-                {"verdict": verdict, "comment": comment.strip()},
-            )
-            st.session_state[position_key] += 1
-            st.rerun()
+            if verdict is None:
+                st.error("Select a verdict before continuing.")
+            else:
+                store.save_annotation(
+                    user_id,
+                    "audit",
+                    item["item_id"],
+                    {"verdict": verdict, "comment": comment.strip()},
+                )
+                st.session_state[position_key] += 1
+                st.rerun()
 
 
 def _inspection_rounds(agent: dict) -> list[list[dict]]:
@@ -241,6 +289,7 @@ def render_eval(
     user: dict,
     all_items: list[dict],
 ) -> None:
+    _enable_copy_protection()
     user_id = user["user_id"]
     items, missing_count = _ordered_assigned_items(store, user_id, "eval", all_items)
     st.title("Evaluation of Agent Action")
@@ -376,17 +425,23 @@ def render_eval(
         )
 
         accept_values = ("acceptable", "unacceptable")
-        stored_acceptability = existing.get("acceptable", "acceptable")
+        stored_acceptability = existing.get("acceptable")
         st.markdown("##### Verdict")
         acceptable = st.radio(
             "Verdict",
             accept_values,
-            index=accept_values.index(stored_acceptability),
+            index=(
+                accept_values.index(stored_acceptability)
+                if stored_acceptability in accept_values
+                else None
+            ),
             horizontal=True,
             format_func=str.title,
             label_visibility="collapsed",
             key=f"cloud-accept-{user_id}-{item['item_id']}",
         )
+        if acceptable is None:
+            st.caption("Select a verdict to enable Save and next.")
 
         diagnostics_to_save = {
             "detected_action_intensity": detected_intensity,
@@ -467,13 +522,18 @@ def render_eval(
                 "Back", disabled=position == 0, use_container_width=True
             )
             submitted = save_col.form_submit_button(
-                "Save and next", type="primary", use_container_width=True
+                "Save and next",
+                type="primary",
+                use_container_width=True,
+                disabled=acceptable is None,
             )
         if back:
             st.session_state[position_key] -= 1
             st.rerun()
         elif submitted:
-            if (
+            if acceptable is None:
+                st.error("Select a verdict before continuing.")
+            elif (
                 acceptable == "unacceptable"
                 and selected_intensity != "L0"
                 and not dimensions

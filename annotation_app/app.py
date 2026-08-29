@@ -49,6 +49,20 @@ st.markdown(
       [data-testid="stSidebar"] [data-testid="stRadio"] label {
         padding-bottom: .2rem;
       }
+      [data-testid="stAppViewContainer"]:has(.copy-protection-marker)
+        [data-testid="stMainBlockContainer"],
+      [data-testid="stAppViewContainer"]:has(.copy-protection-marker)
+        [data-testid="stSidebar"] {
+        -webkit-user-select: none;
+        user-select: none;
+      }
+      [data-testid="stAppViewContainer"]:has(.copy-protection-marker)
+        input,
+      [data-testid="stAppViewContainer"]:has(.copy-protection-marker)
+        textarea {
+        -webkit-user-select: text;
+        user-select: text;
+      }
     </style>
     """,
     unsafe_allow_html=True,
