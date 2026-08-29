@@ -93,11 +93,7 @@ def _render_accounts(
     audit_items: list[dict],
     eval_items: list[dict],
 ) -> None:
-    st.markdown("### Create accounts")
-    st.caption(
-        "Choose one task type and the number of annotators. Accounts, access codes, "
-        "and balanced assignments are generated automatically."
-    )
+    st.markdown("### Create assignments")
     _show_new_credentials()
 
     audit_units = len(audit_items)
@@ -116,13 +112,8 @@ def _render_accounts(
             value=min(5, max_batch_size),
             step=1,
         )
-        st.caption(
-            "Audit Scenarios go to two annotators when the batch has at least two "
-            "people. Eval checkpoints are assigned once, and checkpoints from the "
-            "same Scenario always stay with one annotator."
-        )
         submitted = st.form_submit_button(
-            "Create accounts and assign tasks",
+            "Create assignments",
             type="primary",
             use_container_width=True,
         )
@@ -279,21 +270,14 @@ def _render_progress(store: AnnotationStore) -> None:
     annotator_columns[3].metric("Completion", completion)
 
 
-def _render_export(store: AnnotationStore) -> None:
-    st.markdown("### Export")
+def _export_button(store: AnnotationStore) -> None:
     records = store.export_annotations()
-    st.metric("Current annotations", len(records))
-    st.caption(
-        "Each annotator and item has one current answer. Saving an edited answer "
-        "overwrites the previous answer, and the CSV contains the current data."
-    )
     st.download_button(
-        "Download annotations",
+        "Export annotations",
         data=_export_csv(records),
         file_name="proact-anno-annotations.csv",
         mime="text/csv",
         type="primary",
-        use_container_width=True,
         disabled=not records,
     )
 
@@ -308,12 +292,9 @@ def render_admin(
         f"Backend: Supabase PostgreSQL · {len(audit_items)} Audit items · "
         f"{len(eval_items)} annotatable Eval checkpoints"
     )
-    account_tab, progress_tab, export_tab = st.tabs(
-        ["Accounts & assignments", "Progress", "Export"]
-    )
+    _export_button(store)
+    account_tab, progress_tab = st.tabs(["Assignments", "Progress"])
     with account_tab:
         _render_accounts(store, audit_items, eval_items)
     with progress_tab:
         _render_progress(store)
-    with export_tab:
-        _render_export(store)
