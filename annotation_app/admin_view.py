@@ -8,7 +8,10 @@ import json
 
 import streamlit as st
 
-from annotation_app.assignment import assignment_plan
+from annotation_app.assignment import (
+    all_assignment_plan,
+    remaining_assignment_plan,
+)
 from benchmark_catalog import evaluation_groups
 from annotation_app.storage import (
     AnnotationStore,
@@ -104,8 +107,17 @@ def _render_accounts(
             ("Audit", "Eval"),
             horizontal=True,
         )
+        assignment_scope = st.radio(
+            "Assignment scope",
+            ("remaining", "all"),
+            format_func=lambda value: (
+                "Remaining tasks · Existing and new accounts"
+                if value == "remaining"
+                else "All tasks · New accounts only"
+            ),
+        )
         count = st.number_input(
-            "Number of annotators",
+            "Number of new annotators",
             min_value=1,
             max_value=max_batch_size,
             value=min(5, max_batch_size),
@@ -121,26 +133,45 @@ def _render_accounts(
         created = []
         review_type = task_label.lower()
         try:
-            existing_ids = {row["user_id"] for row in store.list_users()}
+            users = store.list_users()
+            existing_ids = {row["user_id"] for row in users}
             user_ids = _next_ids(review_type, int(count), existing_ids)
-            plan = assignment_plan(
-                user_ids,
-                review_type,
-                audit_items if review_type == "audit" else eval_items,
-            )
-            for new_user_id in user_ids:
-                code = generate_access_code()
-                suffix = new_user_id.removeprefix(review_type)
-                account = store.create_user(
-                    new_user_id,
-                    f"{task_label} Annotator {suffix}",
-                    code,
+            items = audit_items if review_type == "audit" else eval_items
+            if assignment_scope == "remaining":
+                existing_type_ids = {
+                    row["user_id"]
+                    for row in store.progress_all_users()
+                    if row.get("review_type") == review_type and int(row["active"])
+                }
+                assignment_users = [*sorted(existing_type_ids), *user_ids]
+                plan = remaining_assignment_plan(
+                    assignment_users,
+                    review_type,
+                    items,
+                    store.submitted_users_by_item(review_type),
                 )
-                created.append({**account, "access_code": code})
-            for user_id, item_ids in plan.items():
-                store.assign_tasks(user_id, review_type, item_ids)
-            st.session_state["new_annotation_credentials"] = created
-            st.rerun()
+            else:
+                plan = all_assignment_plan(user_ids, review_type, items)
+
+            if not any(plan.values()):
+                st.info(f"No remaining {task_label} tasks to assign.")
+            else:
+                for new_user_id in user_ids:
+                    code = generate_access_code()
+                    suffix = new_user_id.removeprefix(review_type)
+                    account = store.create_user(
+                        new_user_id,
+                        f"{task_label} Annotator {suffix}",
+                        code,
+                    )
+                    created.append({**account, "access_code": code})
+                if assignment_scope == "remaining":
+                    store.replace_pending_assignments(review_type, plan)
+                else:
+                    for user_id, item_ids in plan.items():
+                        store.assign_tasks(user_id, review_type, item_ids)
+                st.session_state["new_annotation_credentials"] = created
+                st.rerun()
         except Exception as error:
             st.error(
                 f"Batch creation stopped after {len(created)} account(s): {error}"
@@ -222,7 +253,7 @@ def _render_progress(store: AnnotationStore) -> None:
         ),
         index=None,
         placeholder="Select an annotator",
-        key="progress-annotator-id",
+        key="progress-annotator-selection",
     )
     if selected_id is None:
         return

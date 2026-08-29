@@ -286,6 +286,55 @@ class AnnotationStore:
             ).fetchall()
         return {row["item_id"] for row in rows}
 
+    def submitted_users_by_item(self, review_type: str) -> dict[str, set[str]]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                self._sql(
+                    "SELECT item_id, user_id FROM annotation_assignments "
+                    "WHERE review_type=? AND status='submitted'"
+                ),
+                (review_type,),
+            ).fetchall()
+        result: dict[str, set[str]] = {}
+        for row in rows:
+            result.setdefault(row["item_id"], set()).add(row["user_id"])
+        return result
+
+    def replace_pending_assignments(
+        self,
+        review_type: str,
+        plan: dict[str, list[str]],
+    ) -> None:
+        """Keep submitted work and atomically replace all unfinished assignments."""
+        now = utc_now()
+        with self._connect() as connection:
+            connection.execute(
+                self._sql(
+                    "DELETE FROM annotation_assignments "
+                    "WHERE review_type=? AND status='assigned'"
+                ),
+                (review_type,),
+            )
+            for user_id, item_ids in plan.items():
+                row = connection.execute(
+                    self._sql(
+                        "SELECT COALESCE(MAX(position), -1) AS maximum "
+                        "FROM annotation_assignments "
+                        "WHERE user_id=? AND review_type=?"
+                    ),
+                    (user_id, review_type),
+                ).fetchone()
+                start = int(row["maximum"]) + 1
+                for offset, item_id in enumerate(item_ids):
+                    connection.execute(
+                        self._sql(
+                            "INSERT INTO annotation_assignments "
+                            "(user_id, review_type, item_id, position, status, "
+                            "assigned_at) VALUES (?, ?, ?, ?, 'assigned', ?)"
+                        ),
+                        (user_id, review_type, item_id, start + offset, now),
+                    )
+
     def get_annotation(
         self, user_id: str, review_type: str, item_id: str
     ) -> dict | None:
