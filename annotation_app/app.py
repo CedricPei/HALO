@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import hmac
 import sys
 from pathlib import Path
@@ -60,8 +61,13 @@ st.markdown(
 )
 
 
+def _storage_cache_key() -> str:
+    source = Path(__file__).with_name("storage.py").read_bytes()
+    return hashlib.sha256(source).hexdigest()
+
+
 @st.cache_resource(show_spinner=False)
-def _store(config: AppConfig) -> AnnotationStore:
+def _store(config: AppConfig, storage_cache_key: str) -> AnnotationStore:
     return AnnotationStore(config)
 
 
@@ -126,7 +132,7 @@ def main() -> None:
         )
         return
     try:
-        store = _store(config)
+        store = _store(config, _storage_cache_key())
     except Exception as error:
         st.title("Database connection failed")
         st.error("The App could not connect to its annotation database.")
