@@ -144,7 +144,7 @@ def _render_assignments(
                 existing_type_ids = {
                     row["user_id"]
                     for row in store.progress_all_users()
-                    if row.get("review_type") == review_type and int(row["active"])
+                    if row.get("review_type") == review_type
                 }
                 assignment_users = [*sorted(existing_type_ids), *user_ids]
                 plan = remaining_assignment_plan(
@@ -161,13 +161,8 @@ def _render_assignments(
             else:
                 for new_user_id in user_ids:
                     code = generate_access_code()
-                    suffix = new_user_id.removeprefix(review_type)
-                    account = store.create_user(
-                        new_user_id,
-                        f"{task_label} Annotator {suffix}",
-                        code,
-                    )
-                    created.append({**account, "access_code": code})
+                    store.create_user(new_user_id, code)
+                    created.append({"user_id": new_user_id, "access_code": code})
                 if assignment_scope == "remaining":
                     store.replace_pending_assignments(review_type, plan)
                 else:
@@ -205,7 +200,6 @@ def _render_manage(store: AnnotationStore) -> None:
     )
     if selected_id is None:
         return
-    selected = next(row for row in users if row["user_id"] == selected_id)
     if st.button(
         "Generate new access code",
         use_container_width=True,
@@ -216,8 +210,6 @@ def _render_manage(store: AnnotationStore) -> None:
         st.session_state["reset_account_credentials"] = [
             {
                 "user_id": selected_id,
-                "display_name": selected["display_name"],
-                "role": selected["role"],
                 "access_code": code,
             }
         ]
@@ -282,9 +274,6 @@ def _render_progress(store: AnnotationStore) -> None:
     selected_id = st.selectbox(
         "Annotator",
         [row["user_id"] for row in users],
-        format_func=lambda user_id: (
-            f"{user_id} · {users_by_id[user_id]['display_name']}"
-        ),
         index=None,
         placeholder="Select an annotator",
         key="progress-annotator-selection",
@@ -304,11 +293,8 @@ def _render_progress(store: AnnotationStore) -> None:
             }
         )
     ) or "Unassigned"
-    status = "Active" if bool(int(selected["active"])) else "Disabled"
     last_login = selected.get("last_login_at") or "Never"
-    st.caption(
-        f"{status} · Task: {task_types} · Last login: {last_login}"
-    )
+    st.caption(f"Task: {task_types} · Last login: {last_login}")
     _progress_metrics(assigned, submitted)
 
 

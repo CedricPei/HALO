@@ -155,15 +155,11 @@ class AnnotationStore:
     def create_user(
         self,
         user_id: str,
-        display_name: str,
         access_code: str,
-    ) -> dict:
+    ) -> None:
         user_id = normalize_user_id(user_id)
         if user_id == self.config.admin_username.strip().lower():
             raise ValueError("This user ID is reserved for the bootstrap administrator.")
-        display_name = display_name.strip()
-        if not display_name:
-            raise ValueError("Display name is required.")
         with self._connect() as connection:
             connection.execute(
                 self._sql(
@@ -173,17 +169,12 @@ class AnnotationStore:
                 ),
                 (
                     user_id,
-                    display_name,
+                    user_id,
                     "annotator",
                     self._hash_code(access_code),
                     utc_now(),
                 ),
             )
-        return {
-            "user_id": user_id,
-            "display_name": display_name,
-            "role": "annotator",
-        }
 
     def authenticate(self, user_id: str, access_code: str) -> dict | None:
         try:
@@ -193,12 +184,12 @@ class AnnotationStore:
         with self._connect() as connection:
             row = connection.execute(
                 self._sql(
-                    "SELECT user_id, display_name, role, access_code_hash, active "
-                    "FROM annotation_users WHERE user_id=?"
+                    "SELECT user_id, access_code_hash FROM annotation_users "
+                    "WHERE user_id=?"
                 ),
                 (user_id,),
             ).fetchone()
-            if not row or not int(row["active"]):
+            if not row:
                 return None
             if not hmac.compare_digest(
                 row["access_code_hash"], self._hash_code(access_code)
@@ -210,16 +201,12 @@ class AnnotationStore:
                 ),
                 (utc_now(), user_id),
             )
-        return {
-            "user_id": row["user_id"],
-            "display_name": row["display_name"],
-            "role": row["role"],
-        }
+        return {"user_id": row["user_id"]}
 
     def list_users(self) -> list[dict]:
         with self._connect() as connection:
             rows = connection.execute(
-                "SELECT user_id, display_name, role, active, created_at, last_login_at "
+                "SELECT user_id, created_at, last_login_at "
                 "FROM annotation_users ORDER BY created_at, user_id"
             ).fetchall()
         return [dict(row) for row in rows]
@@ -436,12 +423,11 @@ class AnnotationStore:
     def progress_all_users(self) -> list[dict]:
         with self._connect() as connection:
             rows = connection.execute(
-                "SELECT u.user_id, u.display_name, u.role, u.active, "
-                "a.review_type, COUNT(a.item_id) AS assigned, "
+                "SELECT u.user_id, a.review_type, COUNT(a.item_id) AS assigned, "
                 "SUM(CASE WHEN a.status='submitted' THEN 1 ELSE 0 END) AS submitted "
                 "FROM annotation_users u "
                 "LEFT JOIN annotation_assignments a ON a.user_id=u.user_id "
-                "GROUP BY u.user_id, u.display_name, u.role, u.active, a.review_type "
+                "GROUP BY u.user_id, a.review_type "
                 "ORDER BY u.user_id, a.review_type"
             ).fetchall()
         return [dict(row) for row in rows]

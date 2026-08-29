@@ -89,9 +89,8 @@ def _login(store: AnnotationStore, config: AppConfig) -> None:
             and hmac.compare_digest(access_code, config.admin_password)
         ):
             user = {
-                "user_id": "admin",
-                "display_name": "Administrator",
-                "role": "admin",
+                "user_id": config.admin_username,
+                "is_admin": True,
             }
         else:
             user = store.authenticate(user_id, access_code)
@@ -104,7 +103,7 @@ def _login(store: AnnotationStore, config: AppConfig) -> None:
 def _sidebar(user: dict, task_label: str) -> None:
     with st.sidebar:
         st.markdown("## Proactive Agent Benchmark Annotation Interface")
-        st.caption(f"{user['display_name']} · {user['role'].title()}")
+        st.caption(user["user_id"])
         st.markdown(f"**Task: {task_label}**")
         st.divider()
         st.caption("Supabase PostgreSQL")
@@ -142,7 +141,7 @@ def main() -> None:
         _login(store, config)
         return
 
-    if user["role"] == "admin":
+    if user.get("is_admin"):
         _sidebar(user, "Administration")
         render_admin(store, _audit_items(), _eval_items())
         return
