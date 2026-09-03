@@ -230,6 +230,12 @@ STYLE = """
         box-sizing: border-box !important;
         overflow: hidden;
     }
+    [data-testid="stForm"]:has(.id-jump-marker)
+        [data-testid="stTextInput"],
+    [data-testid="stForm"]:has(.id-jump-marker)
+        [data-testid="stFormSubmitButton"] {
+        transform: translateY(.7rem);
+    }
     [data-testid="stForm"]:has(.id-jump-marker) [data-baseweb="input"],
     [data-testid="stForm"]:has(.id-jump-marker) [data-baseweb="base-input"],
     [data-testid="stForm"]:has(.id-jump-marker)
