@@ -225,15 +225,25 @@ STYLE = """
         [data-testid="stVerticalBlock"] {
         gap: 0;
     }
+    [data-testid="stForm"]:has(.id-jump-marker)
+        [data-testid="stTextInput"] {
+        box-sizing: border-box !important;
+        overflow: hidden;
+    }
     [data-testid="stForm"]:has(.id-jump-marker) [data-baseweb="input"],
     [data-testid="stForm"]:has(.id-jump-marker) [data-baseweb="base-input"],
     [data-testid="stForm"]:has(.id-jump-marker)
         [data-baseweb="input"] > div,
+    [data-testid="stForm"]:has(.id-jump-marker)
+        [data-testid="stTextInput"] > div,
+    [data-testid="stForm"]:has(.id-jump-marker)
+        [data-testid="stTextInput"] > div > div,
     [data-testid="stForm"]:has(.id-jump-marker) [data-testid="stTextInput"],
     [data-testid="stForm"]:has(.id-jump-marker) input {
-        height: .9rem !important;
-        max-height: .9rem !important;
-        min-height: .9rem !important;
+        box-sizing: border-box !important;
+        height: .8rem !important;
+        max-height: .8rem !important;
+        min-height: .8rem !important;
     }
     [data-testid="stForm"]:has(.id-jump-marker)
         [data-testid="stFormSubmitButton"],
@@ -253,12 +263,20 @@ STYLE = """
     }
     [data-testid="stForm"]:has(.id-jump-marker)
         [data-testid="stFormSubmitButton"] button {
+        align-items: center !important;
         border-radius: 3px !important;
+        display: flex !important;
         font-size: .72rem !important;
+        justify-content: center !important;
         line-height: .8rem !important;
         padding: 0 .2rem !important;
     }
-    .review-progress-gap {height: .18rem;}
+    [data-testid="stForm"]:has(.id-jump-marker)
+        [data-testid="stFormSubmitButton"] button p {
+        line-height: .8rem !important;
+        margin: 0 !important;
+    }
+    .review-progress-gap {height: .85rem;}
     .intensity-inference {
         color: #1d2939;
         font-size: .94rem;
