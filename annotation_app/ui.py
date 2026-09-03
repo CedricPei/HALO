@@ -218,7 +218,7 @@ STYLE = """
         font-weight: 700;
     }
     .id-jump-marker {
-        line-height: 1.05rem;
+        line-height: .9rem;
         text-align: right;
     }
     [data-testid="stForm"]:has(.id-jump-marker)
@@ -230,9 +230,13 @@ STYLE = """
     [data-testid="stForm"]:has(.id-jump-marker)
         [data-baseweb="input"] > div,
     [data-testid="stForm"]:has(.id-jump-marker) [data-testid="stTextInput"],
+    [data-testid="stForm"]:has(.id-jump-marker) input {
+        height: .9rem !important;
+        max-height: .9rem !important;
+        min-height: .9rem !important;
+    }
     [data-testid="stForm"]:has(.id-jump-marker)
         [data-testid="stFormSubmitButton"],
-    [data-testid="stForm"]:has(.id-jump-marker) input,
     [data-testid="stForm"]:has(.id-jump-marker)
         [data-testid="stFormSubmitButton"] button {
         height: 1.05rem !important;
@@ -244,8 +248,8 @@ STYLE = """
     }
     [data-testid="stForm"]:has(.id-jump-marker) input {
         font-size: .72rem !important;
-        line-height: .8rem !important;
-        padding: 0 .2rem !important;
+        line-height: .7rem !important;
+        padding: 0 .18rem !important;
     }
     [data-testid="stForm"]:has(.id-jump-marker)
         [data-testid="stFormSubmitButton"] button {
@@ -254,6 +258,7 @@ STYLE = """
         line-height: .8rem !important;
         padding: 0 .2rem !important;
     }
+    .review-progress-gap {height: .18rem;}
     .intensity-inference {
         color: #1d2939;
         font-size: .94rem;

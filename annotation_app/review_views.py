@@ -82,6 +82,10 @@ def _render_review_progress(
                 st.session_state[position_key] = positions[target_id]
                 st.rerun()
 
+    st.markdown(
+        '<div class="review-progress-gap" aria-hidden="true"></div>',
+        unsafe_allow_html=True,
+    )
     st.progress(reviewed_count / len(items))
 
 
