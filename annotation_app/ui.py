@@ -218,7 +218,7 @@ STYLE = """
         font-weight: 700;
     }
     .id-jump-marker {
-        line-height: 1.2rem;
+        line-height: 1.05rem;
         text-align: right;
     }
     [data-testid="stForm"]:has(.id-jump-marker)
@@ -235,24 +235,24 @@ STYLE = """
     [data-testid="stForm"]:has(.id-jump-marker) input,
     [data-testid="stForm"]:has(.id-jump-marker)
         [data-testid="stFormSubmitButton"] button {
-        height: 1.2rem !important;
-        max-height: 1.2rem !important;
-        min-height: 1.2rem !important;
+        height: 1.05rem !important;
+        max-height: 1.05rem !important;
+        min-height: 1.05rem !important;
     }
     [data-testid="stForm"]:has(.id-jump-marker) [data-baseweb="input"] {
-        border-radius: 4px !important;
+        border-radius: 3px !important;
     }
     [data-testid="stForm"]:has(.id-jump-marker) input {
         font-size: .72rem !important;
-        line-height: .9rem !important;
-        padding: 0 .25rem !important;
+        line-height: .8rem !important;
+        padding: 0 .2rem !important;
     }
     [data-testid="stForm"]:has(.id-jump-marker)
         [data-testid="stFormSubmitButton"] button {
-        border-radius: 4px !important;
+        border-radius: 3px !important;
         font-size: .72rem !important;
-        line-height: .9rem !important;
-        padding: 0 .25rem !important;
+        line-height: .8rem !important;
+        padding: 0 .2rem !important;
     }
     .intensity-inference {
         color: #1d2939;
