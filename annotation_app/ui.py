@@ -202,8 +202,8 @@ STYLE = """
         align-items: baseline;
         display: flex;
         gap: .45rem;
-        min-height: 2rem;
-        padding-bottom: .15rem;
+        min-height: 1.7rem;
+        padding-bottom: .1rem;
     }
     .review-stat span,
     .id-jump-marker {
@@ -214,11 +214,11 @@ STYLE = """
     }
     .review-stat strong {
         color: #1d2939;
-        font-size: 1rem;
+        font-size: .88rem;
         font-weight: 700;
     }
     .id-jump-marker {
-        line-height: 2rem;
+        line-height: 1.7rem;
         text-align: right;
     }
     [data-testid="stForm"]:has(.id-jump-marker)
@@ -229,16 +229,17 @@ STYLE = """
     [data-testid="stForm"]:has(.id-jump-marker) input,
     [data-testid="stForm"]:has(.id-jump-marker)
         [data-testid="stFormSubmitButton"] button {
-        height: 2rem;
-        min-height: 2rem;
+        height: 1.7rem !important;
+        min-height: 1.7rem !important;
     }
     [data-testid="stForm"]:has(.id-jump-marker) input {
-        font-size: .85rem;
-        padding: .2rem .5rem;
+        font-size: .78rem !important;
+        padding: .1rem .4rem !important;
     }
     [data-testid="stForm"]:has(.id-jump-marker)
         [data-testid="stFormSubmitButton"] button {
-        padding: 0 .55rem;
+        font-size: .78rem !important;
+        padding: 0 .4rem !important;
     }
     .intensity-inference {
         color: #1d2939;

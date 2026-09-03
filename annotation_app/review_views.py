@@ -37,13 +37,13 @@ def _render_review_progress(
     user_id: str,
 ) -> None:
     """Render compact review status, numeric navigation, and the progress bar."""
-    current_id = items[position]["display_id"] if position < len(items) else "—"
-    item_col, reviewed_col, jump_col = st.columns(
-        [1, 1.4, 2.6], gap="medium", vertical_alignment="bottom"
+    current_position = position + 1 if position < len(items) else "—"
+    current_col, reviewed_col, jump_col = st.columns(
+        [1.15, 1.15, 1.35], gap="medium", vertical_alignment="bottom"
     )
-    item_col.markdown(
-        '<div class="review-stat"><span>Item ID</span>'
-        f"<strong>{current_id}</strong></div>",
+    current_col.markdown(
+        '<div class="review-stat"><span>Current</span>'
+        f"<strong>{current_position} / {len(items)}</strong></div>",
         unsafe_allow_html=True,
     )
     reviewed_col.markdown(
@@ -54,10 +54,10 @@ def _render_review_progress(
     with jump_col:
         with st.form(f"cloud-{review_type}-id-jump-{user_id}", border=False):
             label_col, input_col, button_col = st.columns(
-                [1.25, 1, 0.8], gap="small", vertical_alignment="bottom"
+                [1, 0.7, 0.55], gap="small", vertical_alignment="bottom"
             )
             label_col.markdown(
-                '<div class="id-jump-marker">Go to Item ID</div>',
+                '<div class="id-jump-marker">Go to</div>',
                 unsafe_allow_html=True,
             )
             target_id = input_col.text_input(
@@ -191,6 +191,7 @@ def render_audit(
     existing = saved["payload"] if saved else {}
 
     metadata(
+        **{"Item ID": item["display_id"]},
         Domain=item["domain_id"].replace("_", " ").title(),
         **{"Trigger Type": item["trigger_type"].title()},
     )
@@ -363,6 +364,7 @@ def render_eval(
     diagnostics = existing.get("diagnostics", {})
 
     metadata(
+        **{"Item ID": item["display_id"]},
         Domain=item["domain_id"].replace("_", " ").title(),
         **{
             "Trigger Type": item["trigger_type"].title(),
