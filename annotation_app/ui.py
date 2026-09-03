@@ -197,6 +197,7 @@ STYLE = """
         margin: 0 0 1rem;
     }
     .review-meta strong {color: #475467; font-weight: 600;}
+    .review-meta span {overflow-wrap: anywhere;}
     .intensity-inference {
         color: #1d2939;
         font-size: .94rem;

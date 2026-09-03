@@ -26,6 +26,76 @@ INTENSITY_LABELS = {
     "L2": "L2 · Preparation",
     "L3": "L3 · Execution",
 }
+TRIGGER_DEFINITIONS = {
+    "Dependency": (
+        "A prerequisite for a future activity is still missing, although no "
+        "active attempt is blocked yet."
+    ),
+    "Blockage": (
+        "An activity is already underway, but the current attempt has stopped "
+        "and cannot continue without help."
+    ),
+    "Risk": (
+        "No loss has happened yet, but inaction could plausibly cause a future "
+        "negative outcome."
+    ),
+    "Opportunity": (
+        "Acting could create an optional benefit, while doing nothing would "
+        "cause no failure or loss."
+    ),
+}
+
+
+def _render_project_overview(review_type: str) -> None:
+    """Explain the benchmark and the current annotation workflow."""
+    workflow = (
+        "In **Audit**, you review whether a constructed Scenario is coherent, "
+        "evidence-grounded, and judgeable before it enters Agent evaluation."
+        if review_type == "audit"
+        else
+        "In **Eval**, you judge an Agent response at one Event checkpoint using "
+        "only the visible Event Prefix and evidence the Agent inspected."
+    )
+    with st.expander("Project overview & trigger types"):
+        st.markdown(
+            "**ProActCal** tests whether an Agent can notice when help is needed "
+            "in an evolving app environment, gather the necessary evidence, and "
+            "respond at the right time with an appropriate level of action. "
+            + workflow
+        )
+        st.markdown("**Trigger types**")
+        st.markdown(
+            "\n".join(
+                f"- **{name}:** {definition}"
+                for name, definition in TRIGGER_DEFINITIONS.items()
+            )
+        )
+
+
+def _render_id_jump(
+    items: list[dict],
+    position_key: str,
+    review_type: str,
+    user_id: str,
+) -> None:
+    """Let an annotator jump to any item assigned to the current account."""
+    with st.form(f"cloud-{review_type}-id-jump-{user_id}", border=False):
+        input_col, button_col = st.columns([4, 1], vertical_alignment="bottom")
+        target_id = input_col.text_input(
+            "Jump to item ID",
+            placeholder="Paste an assigned item ID",
+            key=f"cloud-{review_type}-jump-target-{user_id}",
+        )
+        jump = button_col.form_submit_button("Go", use_container_width=True)
+    if not jump:
+        return
+    target_id = target_id.strip()
+    positions = {item["item_id"]: index for index, item in enumerate(items)}
+    if target_id not in positions:
+        st.error("That item ID is not assigned to this account.")
+        return
+    st.session_state[position_key] = positions[target_id]
+    st.rerun()
 
 
 def _enable_copy_protection() -> None:
@@ -105,6 +175,7 @@ def render_audit(
         store, user_id, "audit", all_items
     )
     st.title("Benchmark Audit")
+    _render_project_overview("audit")
     if missing_count:
         st.warning(
             f"{missing_count} assigned item(s) are absent from this source version."
@@ -124,6 +195,7 @@ def render_audit(
         reviewed_count / len(items),
         text=_progress_label(position, reviewed_count, len(items)),
     )
+    _render_id_jump(items, position_key, "audit", user_id)
     if position == len(items):
         st.success("All assigned Scenarios have been reviewed.")
         if st.button("Back", use_container_width=True, key="audit-complete-back"):
@@ -136,6 +208,7 @@ def render_audit(
     existing = saved["payload"] if saved else {}
 
     metadata(
+        **{"Item ID": item["item_id"]},
         Domain=item["domain_id"].replace("_", " ").title(),
         **{"Trigger Type": item["trigger_type"].title()},
     )
@@ -201,14 +274,11 @@ def render_audit(
         if verdict is None:
             st.caption("Select a verdict to enable Save and next.")
         with st.form(f"cloud-construction-{user_id}-{item['item_id']}"):
-            if verdict == "needs_revision":
-                comment = st.text_area(
-                    "Comment",
-                    value=existing.get("comment", ""),
-                    placeholder="What should be revised?",
-                )
-            else:
-                comment = ""
+            comment = st.text_area(
+                "Comment (optional)",
+                value=existing.get("comment", ""),
+                placeholder="Add context that would help explain your judgment.",
+            )
             back_col, save_col = st.columns([1, 2])
             back = back_col.form_submit_button(
                 "Back", disabled=position == 0, use_container_width=True
@@ -230,7 +300,11 @@ def render_audit(
                     user_id,
                     "audit",
                     item["item_id"],
-                    {"verdict": verdict, "comment": comment.strip()},
+                    {
+                        **existing,
+                        "verdict": verdict,
+                        "comment": comment.strip(),
+                    },
                 )
                 st.session_state[position_key] += 1
                 st.rerun()
@@ -272,6 +346,7 @@ def render_eval(
     user_id = user["user_id"]
     items, missing_count = _ordered_assigned_items(store, user_id, "eval", all_items)
     st.title("Evaluation of Agent Action")
+    _render_project_overview("eval")
     if missing_count:
         st.warning(
             f"{missing_count} assigned item(s) are absent from this source version."
@@ -291,6 +366,7 @@ def render_eval(
         reviewed_count / len(items),
         text=_progress_label(position, reviewed_count, len(items)),
     )
+    _render_id_jump(items, position_key, "eval", user_id)
     if position == len(items):
         st.success("All assigned checkpoints have been reviewed.")
         if st.button("Back", use_container_width=True, key="eval-complete-back"):
@@ -304,6 +380,7 @@ def render_eval(
     diagnostics = existing.get("diagnostics", {})
 
     metadata(
+        **{"Item ID": item["item_id"]},
         Domain=item["domain_id"].replace("_", " ").title(),
         **{
             "Trigger Type": item["trigger_type"].title(),
@@ -493,6 +570,11 @@ def render_eval(
             )
 
         with st.form(f"cloud-evaluation-{user_id}-{item['item_id']}"):
+            comments = st.text_area(
+                "Comment (optional)",
+                value=existing.get("comments", ""),
+                placeholder="Add context that would help explain your judgment.",
+            )
             back_col, save_col = st.columns([1, 2])
             back = back_col.form_submit_button(
                 "Back", disabled=position == 0, use_container_width=True
@@ -524,12 +606,13 @@ def render_eval(
                     "eval",
                     item["item_id"],
                     {
+                        **existing,
                         "acceptable": acceptable,
                         "primary_reason": primary_reason,
                         "timing": timing,
                         "intensity": intensity_error,
                         "diagnostics": diagnostics_to_save,
-                        "comments": "",
+                        "comments": comments.strip(),
                     },
                 )
                 st.session_state[position_key] += 1
