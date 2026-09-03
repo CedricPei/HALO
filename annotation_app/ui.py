@@ -198,6 +198,48 @@ STYLE = """
     }
     .review-meta strong {color: #475467; font-weight: 600;}
     .review-meta span {overflow-wrap: anywhere;}
+    .review-stat {
+        align-items: baseline;
+        display: flex;
+        gap: .45rem;
+        min-height: 2rem;
+        padding-bottom: .15rem;
+    }
+    .review-stat span,
+    .id-jump-marker {
+        color: #667085;
+        font-size: .78rem;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+    .review-stat strong {
+        color: #1d2939;
+        font-size: 1rem;
+        font-weight: 700;
+    }
+    .id-jump-marker {
+        line-height: 2rem;
+        text-align: right;
+    }
+    [data-testid="stForm"]:has(.id-jump-marker)
+        [data-testid="stVerticalBlock"] {
+        gap: 0;
+    }
+    [data-testid="stForm"]:has(.id-jump-marker) [data-baseweb="input"],
+    [data-testid="stForm"]:has(.id-jump-marker) input,
+    [data-testid="stForm"]:has(.id-jump-marker)
+        [data-testid="stFormSubmitButton"] button {
+        height: 2rem;
+        min-height: 2rem;
+    }
+    [data-testid="stForm"]:has(.id-jump-marker) input {
+        font-size: .85rem;
+        padding: .2rem .5rem;
+    }
+    [data-testid="stForm"]:has(.id-jump-marker)
+        [data-testid="stFormSubmitButton"] button {
+        padding: 0 .55rem;
+    }
     .intensity-inference {
         color: #1d2939;
         font-size: .94rem;

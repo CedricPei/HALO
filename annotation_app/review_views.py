@@ -28,30 +28,61 @@ INTENSITY_LABELS = {
 }
 
 
-def _render_id_jump(
+def _render_review_progress(
     items: list[dict],
+    position: int,
+    reviewed_count: int,
     position_key: str,
     review_type: str,
     user_id: str,
 ) -> None:
-    """Let an annotator jump to any item assigned to the current account."""
-    with st.form(f"cloud-{review_type}-id-jump-{user_id}", border=False):
-        input_col, button_col = st.columns([4, 1], vertical_alignment="bottom")
-        target_id = input_col.text_input(
-            "Jump to item ID",
-            placeholder="Paste an assigned item ID",
-            key=f"cloud-{review_type}-jump-target-{user_id}",
-        )
-        jump = button_col.form_submit_button("Go", use_container_width=True)
-    if not jump:
-        return
-    target_id = target_id.strip()
-    positions = {item["item_id"]: index for index, item in enumerate(items)}
-    if target_id not in positions:
-        st.error("That item ID is not assigned to this account.")
-        return
-    st.session_state[position_key] = positions[target_id]
-    st.rerun()
+    """Render compact review status, numeric navigation, and the progress bar."""
+    current_id = items[position]["display_id"] if position < len(items) else "—"
+    item_col, reviewed_col, jump_col = st.columns(
+        [1, 1.4, 2.6], gap="medium", vertical_alignment="bottom"
+    )
+    item_col.markdown(
+        '<div class="review-stat"><span>Item ID</span>'
+        f"<strong>{current_id}</strong></div>",
+        unsafe_allow_html=True,
+    )
+    reviewed_col.markdown(
+        '<div class="review-stat"><span>Reviewed</span>'
+        f"<strong>{reviewed_count} / {len(items)}</strong></div>",
+        unsafe_allow_html=True,
+    )
+    with jump_col:
+        with st.form(f"cloud-{review_type}-id-jump-{user_id}", border=False):
+            label_col, input_col, button_col = st.columns(
+                [1.25, 1, 0.8], gap="small", vertical_alignment="bottom"
+            )
+            label_col.markdown(
+                '<div class="id-jump-marker">Go to Item ID</div>',
+                unsafe_allow_html=True,
+            )
+            target_id = input_col.text_input(
+                "Go to Item ID",
+                placeholder="ID",
+                label_visibility="collapsed",
+                key=f"cloud-{review_type}-jump-target-{user_id}",
+            )
+            jump = button_col.form_submit_button("Go", use_container_width=True)
+
+    if jump:
+        target_id = target_id.strip()
+        if not target_id.isdecimal():
+            st.error("Enter a numeric Item ID.")
+        else:
+            positions = {
+                str(item["display_id"]): index for index, item in enumerate(items)
+            }
+            if target_id not in positions:
+                st.error(f"Item ID {target_id} is not assigned to this account.")
+            else:
+                st.session_state[position_key] = positions[target_id]
+                st.rerun()
+
+    st.progress(reviewed_count / len(items))
 
 
 def _enable_copy_protection() -> None:
@@ -94,7 +125,10 @@ def _ordered_assigned_items(
     review_type: str,
     all_items: list[dict],
 ) -> tuple[list[dict], int]:
-    by_id = {item["item_id"]: item for item in all_items}
+    by_id = {
+        item["item_id"]: {**item, "display_id": display_id}
+        for display_id, item in enumerate(all_items, start=1)
+    }
     assigned_ids = store.assignment_ids(user_id, review_type)
     items = [by_id[item_id] for item_id in assigned_ids if item_id in by_id]
     return items, len(assigned_ids) - len(items)
@@ -109,15 +143,6 @@ def _initial_position(items: list[dict], reviewed: set[str]) -> int:
         ),
         len(items),
     )
-
-
-def _progress_label(position: int, reviewed_count: int, total: int) -> str:
-    if position < total:
-        return (
-            f"Current item: {position + 1} / {total} · "
-            f"Reviewed: {reviewed_count} / {total}"
-        )
-    return f"All items reviewed: {reviewed_count} / {total}"
 
 
 def render_audit(
@@ -146,11 +171,14 @@ def render_audit(
     position = min(max(st.session_state[position_key], 0), len(items))
     st.session_state[position_key] = position
     reviewed_count = min(len(reviewed), len(items))
-    st.progress(
-        reviewed_count / len(items),
-        text=_progress_label(position, reviewed_count, len(items)),
+    _render_review_progress(
+        items,
+        position,
+        reviewed_count,
+        position_key,
+        "audit",
+        user_id,
     )
-    _render_id_jump(items, position_key, "audit", user_id)
     if position == len(items):
         st.success("All assigned Scenarios have been reviewed.")
         if st.button("Back", use_container_width=True, key="audit-complete-back"):
@@ -163,7 +191,6 @@ def render_audit(
     existing = saved["payload"] if saved else {}
 
     metadata(
-        **{"Item ID": item["item_id"]},
         Domain=item["domain_id"].replace("_", " ").title(),
         **{"Trigger Type": item["trigger_type"].title()},
     )
@@ -315,11 +342,14 @@ def render_eval(
     position = min(max(st.session_state[position_key], 0), len(items))
     st.session_state[position_key] = position
     reviewed_count = min(len(reviewed), len(items))
-    st.progress(
-        reviewed_count / len(items),
-        text=_progress_label(position, reviewed_count, len(items)),
+    _render_review_progress(
+        items,
+        position,
+        reviewed_count,
+        position_key,
+        "eval",
+        user_id,
     )
-    _render_id_jump(items, position_key, "eval", user_id)
     if position == len(items):
         st.success("All assigned checkpoints have been reviewed.")
         if st.button("Back", use_container_width=True, key="eval-complete-back"):
@@ -333,7 +363,6 @@ def render_eval(
     diagnostics = existing.get("diagnostics", {})
 
     metadata(
-        **{"Item ID": item["item_id"]},
         Domain=item["domain_id"].replace("_", " ").title(),
         **{
             "Trigger Type": item["trigger_type"].title(),
