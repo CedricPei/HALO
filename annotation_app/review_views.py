@@ -39,7 +39,7 @@ def _render_review_progress(
     """Render compact review status, numeric navigation, and the progress bar."""
     current_position = position + 1 if position < len(items) else "—"
     current_col, reviewed_col, jump_col = st.columns(
-        [1.15, 1.15, 1.35], gap="medium", vertical_alignment="bottom"
+        [1.2, 1.2, 0.9], gap="medium", vertical_alignment="bottom"
     )
     current_col.markdown(
         '<div class="review-stat"><span>Current</span>'
@@ -54,7 +54,7 @@ def _render_review_progress(
     with jump_col:
         with st.form(f"cloud-{review_type}-id-jump-{user_id}", border=False):
             label_col, input_col, button_col = st.columns(
-                [1, 0.7, 0.55], gap="small", vertical_alignment="bottom"
+                [0.75, 0.45, 0.42], gap="small", vertical_alignment="bottom"
             )
             label_col.markdown(
                 '<div class="id-jump-marker">Go to</div>',

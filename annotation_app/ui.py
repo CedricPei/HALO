@@ -218,7 +218,7 @@ STYLE = """
         font-weight: 700;
     }
     .id-jump-marker {
-        line-height: 1.7rem;
+        line-height: 1.5rem;
         text-align: right;
     }
     [data-testid="stForm"]:has(.id-jump-marker)
@@ -226,20 +226,29 @@ STYLE = """
         gap: 0;
     }
     [data-testid="stForm"]:has(.id-jump-marker) [data-baseweb="input"],
+    [data-testid="stForm"]:has(.id-jump-marker) [data-baseweb="base-input"],
+    [data-testid="stForm"]:has(.id-jump-marker)
+        [data-baseweb="input"] > div,
     [data-testid="stForm"]:has(.id-jump-marker) input,
     [data-testid="stForm"]:has(.id-jump-marker)
         [data-testid="stFormSubmitButton"] button {
-        height: 1.7rem !important;
-        min-height: 1.7rem !important;
+        height: 1.5rem !important;
+        max-height: 1.5rem !important;
+        min-height: 1.5rem !important;
+    }
+    [data-testid="stForm"]:has(.id-jump-marker) [data-baseweb="input"] {
+        border-radius: 6px !important;
     }
     [data-testid="stForm"]:has(.id-jump-marker) input {
-        font-size: .78rem !important;
-        padding: .1rem .4rem !important;
+        font-size: .72rem !important;
+        line-height: 1rem !important;
+        padding: 0 .35rem !important;
     }
     [data-testid="stForm"]:has(.id-jump-marker)
         [data-testid="stFormSubmitButton"] button {
-        font-size: .78rem !important;
-        padding: 0 .4rem !important;
+        border-radius: 6px !important;
+        font-size: .72rem !important;
+        padding: 0 .3rem !important;
     }
     .intensity-inference {
         color: #1d2939;
