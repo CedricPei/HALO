@@ -106,11 +106,51 @@ def _login(store: AnnotationStore, config: AppConfig) -> None:
         st.error("Invalid participant ID or access code.")
 
 
+def _sidebar_overview(task_label: str) -> None:
+    task_overviews = {
+        "Benchmark Audit": (
+            "In Audit, assess whether the Scenario presents a plausible and "
+            "well-supported proactive need, with enough evidence and a meaningful "
+            "window in which assistance would be useful."
+        ),
+        "Agent Evaluation": (
+            "In Eval, assess whether the Agent's action—or decision not to "
+            "act—is justified by the information visible at this checkpoint, "
+            "timely, relevant, safe, and proportionate."
+        ),
+    }
+    task_overview = task_overviews.get(task_label)
+    if not task_overview:
+        return
+    st.markdown("### Project overview")
+    st.caption(
+        "This project studies whether an AI assistant can recognize when "
+        "proactive help would be useful, rather than only responding to an "
+        "explicit request. Each item follows a person's situation as new "
+        "information appears over time. The central question is whether the "
+        "Agent should intervene now, and at what level of action."
+    )
+    st.caption(task_overview)
+    st.markdown("**Trigger types**")
+    st.caption(
+        "- **Dependency:** A prerequisite for a future activity is missing, but "
+        "no active attempt is blocked yet.\n"
+        "- **Blockage:** An activity is already underway, but the current attempt "
+        "has stopped and cannot continue without help.\n"
+        "- **Risk:** No loss has happened yet, but inaction could plausibly lead "
+        "to a future negative outcome.\n"
+        "- **Opportunity:** Acting could create an optional benefit; doing nothing "
+        "would cause no failure or loss."
+    )
+
+
 def _sidebar(user: dict, task_label: str) -> None:
     with st.sidebar:
         st.markdown("## Proactive Agent Benchmark Annotation Interface")
         st.caption(user["user_id"])
         st.markdown(f"**Task: {task_label}**")
+        st.divider()
+        _sidebar_overview(task_label)
         st.divider()
         st.caption("Supabase PostgreSQL")
         if st.button("Sign out", use_container_width=True):

@@ -26,50 +26,6 @@ INTENSITY_LABELS = {
     "L2": "L2 · Preparation",
     "L3": "L3 · Execution",
 }
-TRIGGER_DEFINITIONS = {
-    "Dependency": (
-        "A prerequisite for a future activity is still missing, although no "
-        "active attempt is blocked yet."
-    ),
-    "Blockage": (
-        "An activity is already underway, but the current attempt has stopped "
-        "and cannot continue without help."
-    ),
-    "Risk": (
-        "No loss has happened yet, but inaction could plausibly cause a future "
-        "negative outcome."
-    ),
-    "Opportunity": (
-        "Acting could create an optional benefit, while doing nothing would "
-        "cause no failure or loss."
-    ),
-}
-
-
-def _render_project_overview(review_type: str) -> None:
-    """Explain the benchmark and the current annotation workflow."""
-    workflow = (
-        "In **Audit**, you review whether a constructed Scenario is coherent, "
-        "evidence-grounded, and judgeable before it enters Agent evaluation."
-        if review_type == "audit"
-        else
-        "In **Eval**, you judge an Agent response at one Event checkpoint using "
-        "only the visible Event Prefix and evidence the Agent inspected."
-    )
-    with st.expander("Project overview & trigger types"):
-        st.markdown(
-            "**ProActCal** tests whether an Agent can notice when help is needed "
-            "in an evolving app environment, gather the necessary evidence, and "
-            "respond at the right time with an appropriate level of action. "
-            + workflow
-        )
-        st.markdown("**Trigger types**")
-        st.markdown(
-            "\n".join(
-                f"- **{name}:** {definition}"
-                for name, definition in TRIGGER_DEFINITIONS.items()
-            )
-        )
 
 
 def _render_id_jump(
@@ -175,7 +131,6 @@ def render_audit(
         store, user_id, "audit", all_items
     )
     st.title("Benchmark Audit")
-    _render_project_overview("audit")
     if missing_count:
         st.warning(
             f"{missing_count} assigned item(s) are absent from this source version."
@@ -271,13 +226,12 @@ def render_audit(
             label_visibility="collapsed",
             key=f"cloud-verdict-{user_id}-{item['item_id']}",
         )
-        if verdict is None:
-            st.caption("Select a verdict to enable Save and next.")
         with st.form(f"cloud-construction-{user_id}-{item['item_id']}"):
             comment = st.text_area(
                 "Comment (optional)",
                 value=existing.get("comment", ""),
                 placeholder="Add context that would help explain your judgment.",
+                height=80,
             )
             back_col, save_col = st.columns([1, 2])
             back = back_col.form_submit_button(
@@ -346,7 +300,6 @@ def render_eval(
     user_id = user["user_id"]
     items, missing_count = _ordered_assigned_items(store, user_id, "eval", all_items)
     st.title("Evaluation of Agent Action")
-    _render_project_overview("eval")
     if missing_count:
         st.warning(
             f"{missing_count} assigned item(s) are absent from this source version."
@@ -493,9 +446,6 @@ def render_eval(
             label_visibility="collapsed",
             key=f"cloud-accept-{user_id}-{item['item_id']}",
         )
-        if acceptable is None:
-            st.caption("Select a verdict to enable Save and next.")
-
         diagnostics_to_save = {
             "detected_action_intensity": detected_intensity,
             "action_intensity": selected_intensity,
@@ -574,6 +524,7 @@ def render_eval(
                 "Comment (optional)",
                 value=existing.get("comments", ""),
                 placeholder="Add context that would help explain your judgment.",
+                height=80,
             )
             back_col, save_col = st.columns([1, 2])
             back = back_col.form_submit_button(
