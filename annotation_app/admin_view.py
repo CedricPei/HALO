@@ -289,16 +289,31 @@ def _render_progress(store: AnnotationStore) -> None:
     _progress_metrics(assigned, submitted)
 
 
-def _export_button(store: AnnotationStore) -> None:
+def _export_buttons(store: AnnotationStore) -> None:
     records = store.export_annotations()
-    st.download_button(
-        "Export annotations",
-        data=_export_csv(records),
-        file_name="proact-anno-annotations.csv",
-        mime="text/csv",
-        type="primary",
-        disabled=not records,
-    )
+    audit_records = [record for record in records if record["review_type"] == "audit"]
+    eval_records = [record for record in records if record["review_type"] == "eval"]
+    audit_col, eval_col = st.columns(2)
+    with audit_col:
+        st.download_button(
+            "Download Audit annotations",
+            data=_export_csv(audit_records),
+            file_name="proact-anno-audit-annotations.csv",
+            mime="text/csv",
+            type="primary",
+            disabled=not audit_records,
+            use_container_width=True,
+        )
+    with eval_col:
+        st.download_button(
+            "Download Eval annotations",
+            data=_export_csv(eval_records),
+            file_name="proact-anno-eval-annotations.csv",
+            mime="text/csv",
+            type="primary",
+            disabled=not eval_records,
+            use_container_width=True,
+        )
 
 
 def render_admin(
@@ -320,4 +335,4 @@ def render_admin(
         _render_manage(store)
     with progress_tab:
         _render_progress(store)
-        _export_button(store)
+        _export_buttons(store)
