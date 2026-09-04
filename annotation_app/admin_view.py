@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 import io
 import json
+import zipfile
 
 import streamlit as st
 
@@ -53,6 +54,20 @@ def _export_csv(records: list[dict]) -> bytes:
             }
         )
     return buffer.getvalue().encode("utf-8-sig")
+
+
+def _export_archive(records: list[dict]) -> bytes:
+    archive = io.BytesIO()
+    with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
+        for review_type in ("audit", "eval"):
+            matching_records = [
+                record for record in records if record["review_type"] == review_type
+            ]
+            bundle.writestr(
+                f"proact-anno-{review_type}-annotations.csv",
+                _export_csv(matching_records),
+            )
+    return archive.getvalue()
 
 
 def _next_ids(prefix: str, count: int, existing_ids: set[str]) -> list[str]:
@@ -289,31 +304,16 @@ def _render_progress(store: AnnotationStore) -> None:
     _progress_metrics(assigned, submitted)
 
 
-def _export_buttons(store: AnnotationStore) -> None:
+def _export_button(store: AnnotationStore) -> None:
     records = store.export_annotations()
-    audit_records = [record for record in records if record["review_type"] == "audit"]
-    eval_records = [record for record in records if record["review_type"] == "eval"]
-    audit_col, eval_col = st.columns(2)
-    with audit_col:
-        st.download_button(
-            "Download Audit annotations",
-            data=_export_csv(audit_records),
-            file_name="proact-anno-audit-annotations.csv",
-            mime="text/csv",
-            type="primary",
-            disabled=not audit_records,
-            use_container_width=True,
-        )
-    with eval_col:
-        st.download_button(
-            "Download Eval annotations",
-            data=_export_csv(eval_records),
-            file_name="proact-anno-eval-annotations.csv",
-            mime="text/csv",
-            type="primary",
-            disabled=not eval_records,
-            use_container_width=True,
-        )
+    st.download_button(
+        "Download annotations",
+        data=_export_archive(records),
+        file_name="proact-anno-annotations.zip",
+        mime="application/zip",
+        type="primary",
+        disabled=not records,
+    )
 
 
 def render_admin(
@@ -335,4 +335,4 @@ def render_admin(
         _render_manage(store)
     with progress_tab:
         _render_progress(store)
-        _export_buttons(store)
+        _export_button(store)
