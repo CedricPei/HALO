@@ -70,6 +70,19 @@ def _export_archive(records: list[dict]) -> bytes:
     return archive.getvalue()
 
 
+def _pass_rate(records: list[dict]) -> float | None:
+    if not records:
+        return None
+    passing = 0
+    for record in records:
+        payload = record.get("payload", {})
+        if record.get("review_type") == "audit":
+            passing += payload.get("verdict") == "approve"
+        elif record.get("review_type") == "eval":
+            passing += payload.get("acceptable") == "acceptable"
+    return passing / len(records)
+
+
 def _next_ids(prefix: str, count: int, existing_ids: set[str]) -> list[str]:
     result = []
     number = 1
@@ -243,8 +256,12 @@ def _render_manage(store: AnnotationStore) -> None:
         st.rerun()
 
 
-def _progress_metrics(assigned: int, submitted: int) -> None:
-    columns = st.columns(4)
+def _progress_metrics(
+    assigned: int,
+    submitted: int,
+    pass_rate: float | None,
+) -> None:
+    columns = st.columns(5)
     columns[0].metric("Assigned", assigned)
     columns[1].metric("Completed", submitted)
     columns[2].metric("Remaining", max(assigned - submitted, 0))
@@ -252,9 +269,14 @@ def _progress_metrics(assigned: int, submitted: int) -> None:
         "Completion",
         f"{(100 * submitted / assigned):.1f}%" if assigned else "—",
     )
+    columns[4].metric(
+        "Pass rate",
+        f"{(100 * pass_rate):.1f}%" if pass_rate is not None else "—",
+        help="Approve for Audit; Acceptable for Eval.",
+    )
 
 
-def _render_progress(store: AnnotationStore) -> None:
+def _render_progress(store: AnnotationStore, records: list[dict]) -> None:
     rows = store.progress_all_users()
     if not rows:
         st.info("No accounts or assignments yet.")
@@ -271,8 +293,11 @@ def _render_progress(store: AnnotationStore) -> None:
             for row in rows
             if row.get("review_type") == review_type
         )
+        review_records = [
+            record for record in records if record["review_type"] == review_type
+        ]
         st.markdown(f"#### {label}")
-        _progress_metrics(assigned, submitted)
+        _progress_metrics(assigned, submitted, _pass_rate(review_records))
 
     st.markdown("#### Annotator details")
     users = store.list_users()
@@ -301,11 +326,13 @@ def _render_progress(store: AnnotationStore) -> None:
     ) or "Unassigned"
     last_login = selected.get("last_login_at") or "Never"
     st.caption(f"Task: {task_types} · Last login: {last_login}")
-    _progress_metrics(assigned, submitted)
+    selected_records = [
+        record for record in records if record["user_id"] == selected_id
+    ]
+    _progress_metrics(assigned, submitted, _pass_rate(selected_records))
 
 
-def _export_button(store: AnnotationStore) -> None:
-    records = store.export_annotations()
+def _export_button(records: list[dict]) -> None:
     st.download_button(
         "Download annotations",
         data=_export_archive(records),
@@ -334,5 +361,6 @@ def render_admin(
     with manage_tab:
         _render_manage(store)
     with progress_tab:
-        _render_progress(store)
-        _export_button(store)
+        records = store.export_annotations()
+        _render_progress(store, records)
+        _export_button(records)
