@@ -24,7 +24,7 @@ EXPORT_BASE_FIELDS = ("annotation_id", "user_id", "item_id")
 EXPORT_PAYLOAD_FIELDS = {
     "audit": ("verdict", "comment"),
     "eval": (
-        "acceptable",
+        "verdict",
         "primary_reason",
         "timing",
         "intensity",
@@ -69,7 +69,12 @@ def _export_csv(records: list[dict], review_type: str) -> bytes:
     rows = []
     discovered_payload_fields = set()
     for record in records:
-        payload = _flatten_payload(record.get("payload", {}))
+        payload_source = dict(record.get("payload", {}))
+        if review_type == "eval":
+            if "verdict" not in payload_source and "acceptable" in payload_source:
+                payload_source["verdict"] = payload_source["acceptable"]
+            payload_source.pop("acceptable", None)
+        payload = _flatten_payload(payload_source)
         discovered_payload_fields.update(payload)
         rows.append(
             {
@@ -113,7 +118,8 @@ def _pass_rate(records: list[dict]) -> float | None:
         if record.get("review_type") == "audit":
             passing += payload.get("verdict") == "approve"
         elif record.get("review_type") == "eval":
-            passing += payload.get("acceptable") == "acceptable"
+            verdict = payload.get("verdict", payload.get("acceptable"))
+            passing += verdict == "acceptable"
     return passing / len(records)
 
 

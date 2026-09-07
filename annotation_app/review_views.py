@@ -465,15 +465,15 @@ def render_eval(
             unsafe_allow_html=True,
         )
 
-        accept_values = ("acceptable", "unacceptable")
-        stored_acceptability = existing.get("acceptable")
+        verdict_values = ("acceptable", "unacceptable")
+        stored_verdict = existing.get("verdict", existing.get("acceptable"))
         st.markdown("##### Verdict")
-        acceptable = st.radio(
+        verdict = st.radio(
             "Verdict",
-            accept_values,
+            verdict_values,
             index=(
-                accept_values.index(stored_acceptability)
-                if stored_acceptability in accept_values
+                verdict_values.index(stored_verdict)
+                if stored_verdict in verdict_values
                 else None
             ),
             horizontal=True,
@@ -490,12 +490,12 @@ def render_eval(
         intensity_error = "Appropriate"
         other_issue = ""
         other_issue_detail = ""
-        if acceptable == "unacceptable" and selected_intensity == "L0":
+        if verdict == "unacceptable" and selected_intensity == "L0":
             dimensions = ["Timing"]
             timing = INACTION_ERROR
             intensity_error = ""
             diagnostics_to_save["rejection_dimensions"] = dimensions
-        elif acceptable == "unacceptable":
+        elif verdict == "unacceptable":
             stored_dimensions = _stored_dimensions(existing, diagnostics)
             st.markdown(
                 '<div class="rejection-heading">Rejection Reasons</div>',
@@ -569,16 +569,16 @@ def render_eval(
                 "Save and next",
                 type="primary",
                 use_container_width=True,
-                disabled=acceptable is None,
+                disabled=verdict is None,
             )
         if back:
             st.session_state[position_key] -= 1
             st.rerun()
         elif submitted:
-            if acceptable is None:
+            if verdict is None:
                 st.error("Select a verdict before continuing.")
             elif (
-                acceptable == "unacceptable"
+                verdict == "unacceptable"
                 and selected_intensity != "L0"
                 and not dimensions
             ):
@@ -587,19 +587,21 @@ def render_eval(
                 st.error("Describe the issue when Others is selected.")
             else:
                 primary_reason = ", ".join(dimensions)
+                updated = {
+                    **existing,
+                    "verdict": verdict,
+                    "primary_reason": primary_reason,
+                    "timing": timing,
+                    "intensity": intensity_error,
+                    "diagnostics": diagnostics_to_save,
+                    "comments": comments.strip(),
+                }
+                updated.pop("acceptable", None)
                 store.save_annotation(
                     user_id,
                     "eval",
                     item["item_id"],
-                    {
-                        **existing,
-                        "acceptable": acceptable,
-                        "primary_reason": primary_reason,
-                        "timing": timing,
-                        "intensity": intensity_error,
-                        "diagnostics": diagnostics_to_save,
-                        "comments": comments.strip(),
-                    },
+                    updated,
                 )
                 st.session_state[position_key] += 1
                 st.rerun()
