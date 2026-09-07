@@ -20,6 +20,24 @@ from annotation_app.storage import (
 )
 
 
+EXPORT_BASE_FIELDS = ("annotation_id", "user_id", "item_id")
+EXPORT_PAYLOAD_FIELDS = {
+    "audit": ("verdict", "comment"),
+    "eval": (
+        "acceptable",
+        "primary_reason",
+        "timing",
+        "intensity",
+        "comments",
+        "diagnostics.detected_action_intensity",
+        "diagnostics.action_intensity",
+        "diagnostics.rejection_dimensions",
+        "diagnostics.other_issue",
+        "diagnostics.other_issue_detail",
+    ),
+}
+
+
 def _credentials_csv(records: list[dict]) -> bytes:
     buffer = io.StringIO()
     writer = csv.DictWriter(
@@ -32,27 +50,43 @@ def _credentials_csv(records: list[dict]) -> bytes:
     return buffer.getvalue().encode("utf-8-sig")
 
 
-def _export_csv(records: list[dict]) -> bytes:
+def _flatten_payload(value: object, prefix: str = "") -> dict[str, object]:
+    if isinstance(value, dict):
+        flattened = {}
+        for key, nested_value in value.items():
+            nested_prefix = f"{prefix}.{key}" if prefix else str(key)
+            flattened.update(_flatten_payload(nested_value, nested_prefix))
+        return flattened
+    if isinstance(value, list):
+        if all(not isinstance(item, (dict, list)) for item in value):
+            return {prefix: " | ".join(str(item) for item in value)}
+        return {prefix: json.dumps(value, ensure_ascii=False, sort_keys=True)}
+    return {prefix: "" if value is None else value}
+
+
+def _export_csv(records: list[dict], review_type: str) -> bytes:
     buffer = io.StringIO()
+    rows = []
+    discovered_payload_fields = set()
+    for record in records:
+        payload = _flatten_payload(record.get("payload", {}))
+        discovered_payload_fields.update(payload)
+        rows.append(
+            {
+                **{key: record.get(key, "") for key in EXPORT_BASE_FIELDS},
+                **payload,
+            }
+        )
+    preferred_fields = EXPORT_PAYLOAD_FIELDS[review_type]
+    extra_fields = sorted(discovered_payload_fields.difference(preferred_fields))
     fieldnames = (
-        "annotation_id",
-        "user_id",
-        "review_type",
-        "item_id",
-        "created_at",
-        "payload_json",
+        *EXPORT_BASE_FIELDS,
+        *preferred_fields,
+        *extra_fields,
     )
     writer = csv.DictWriter(buffer, fieldnames=fieldnames)
     writer.writeheader()
-    for record in records:
-        writer.writerow(
-            {
-                **{key: record.get(key, "") for key in fieldnames},
-                "payload_json": json.dumps(
-                    record["payload"], ensure_ascii=False, sort_keys=True
-                ),
-            }
-        )
+    writer.writerows(rows)
     return buffer.getvalue().encode("utf-8-sig")
 
 
@@ -65,7 +99,7 @@ def _export_archive(records: list[dict]) -> bytes:
             ]
             bundle.writestr(
                 f"proact-anno-{review_type}-annotations.csv",
-                _export_csv(matching_records),
+                _export_csv(matching_records, review_type),
             )
     return archive.getvalue()
 
@@ -272,7 +306,6 @@ def _progress_metrics(
     columns[4].metric(
         "Pass rate",
         f"{(100 * pass_rate):.1f}%" if pass_rate is not None else "—",
-        help="Approve for Audit; Acceptable for Eval.",
     )
 
 
