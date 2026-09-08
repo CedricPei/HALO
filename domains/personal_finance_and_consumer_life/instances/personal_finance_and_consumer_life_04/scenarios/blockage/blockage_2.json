@@ -1,0 +1,86 @@
+{
+  "scenario_description": "Objective: Finish the active SpinCycle laundry-card top-up so the washer load queued for the basement machines can run today.\nEmerging Need: The top-up begins with a wallet charge and pending card write, then that same transaction stops on a kiosk write error with self-service retry disabled.\nDecision Context: Observable records show the receipt, lock, queue cutoff, and short machine availability; the stored laundry-cost note supplies the card ID, intake route, and no auto-reload or replacement-fee preference.\nConsequence: Timely documentation can preserve today’s load; after the queue closes, the charge remains unresolved and the laundry cannot start today.",
+  "events": {
+    "event1": {
+      "time": "2026-11-25T07:50:00-06:00",
+      "app": "calendar",
+      "function": "create_reminder",
+      "parameter": {
+        "title": "Top up laundry card before basement washer slot",
+        "remind_time": "2026-11-25T11:50:00-06:00",
+        "content": "Add enough value to the laundry card before the midday basement-machine opening.",
+        "due_time": "2026-11-25T13:20:00-06:00",
+        "completed": false
+      }
+    },
+    "event2": {
+      "time": "2026-11-25T12:01:20-06:00",
+      "app": "wallet",
+      "function": "pay",
+      "parameter": {
+        "merchant": "SpinCycle Laundry",
+        "amount": 6.0,
+        "timestamp": "2026-11-25T12:01:00-06:00",
+        "status": "completed",
+        "category": "household",
+        "reference": "SC-LD-20261125-1184",
+        "description": "Laundry-card top-up initiated at the co-op basement kiosk; card credit not yet confirmed."
+      }
+    },
+    "event3": {
+      "time": "2026-11-25T12:02:10-06:00",
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "receipts@spincycle.example",
+        "recipients": [
+          "nicolette.quimby@example.net"
+        ],
+        "subject": "SpinCycle top-up SC-LD-20261125-1184 is writing to card",
+        "body": "Your $6.00 laundry-card top-up was accepted at the basement kiosk. Receipt SC-LD-20261125-1184 is writing the credit to the card; keep the same session open until the completion notice appears.",
+        "timestamp": "2026-11-25T12:01:45-06:00"
+      }
+    },
+    "event4": {
+      "time": "2026-11-25T12:08:30-06:00",
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "Mara Dinh",
+        "recipients": [
+          "Nicolette Aster Quimby"
+        ],
+        "content": "South washer just opened. I can keep the shelf clear for your basket until about 1:20, then I need to move my things back.",
+        "timestamp": "2026-11-25T12:08:00-06:00"
+      }
+    },
+    "event5": {
+      "time": "2026-11-25T12:16:40-06:00",
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "alerts@spincycle.example",
+        "recipients": [
+          "nicolette.quimby@example.net"
+        ],
+        "subject": "Action stopped for top-up SC-LD-20261125-1184",
+        "body": "Top-up SC-LD-20261125-1184 hit a kiosk card-write error after payment capture. The credit is not on the laundry card, and self-service retry is disabled while locked ticket LQ-5826 is in review. Same-day manual release remains available only for documented account and card details received before the 1:05 PM support queue cutoff.",
+        "timestamp": "2026-11-25T12:16:10-06:00"
+      }
+    },
+    "event6": {
+      "time": "2026-11-25T13:07:20-06:00",
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "alerts@spincycle.example",
+        "recipients": [
+          "nicolette.quimby@example.net"
+        ],
+        "subject": "Top-up SC-LD-20261125-1184 rolled to next service day",
+        "body": "Locked ticket LQ-5826 did not receive same-day manual-release documentation before the 1:05 PM queue cutoff. The $6.00 charge remains under review, no credit has been written to the laundry card, and the next release batch is scheduled for Thursday morning.",
+        "timestamp": "2026-11-25T13:06:45-06:00"
+      }
+    }
+  }
+}

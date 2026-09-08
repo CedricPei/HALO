@@ -1,0 +1,76 @@
+{
+  "scenario_description": "Objective: Seal and release the LM-4627 Spanish/Tagalog delivery pouch for today’s front-desk courier scan.\nEmerging Need: The pouching job opens and begins heat-sealing, then that same pouch is trapped mid-cycle with its barcode still live.\nDecision Context: Calendar, pack-station, and team records separate ordinary sealing progress from a stopped physical counter job; the authorized reset custodian is only in internal contact records.\nConsequence: Without a custodian reset while the barcode remains recoverable, the sealed packet misses today’s courier batch and the delivery handoff cannot complete as planned.",
+  "events": {
+    "event1": {
+      "time": "2026-12-17T09:10:00-08:00",
+      "app": "calendar",
+      "function": "create_event",
+      "parameter": {
+        "title": "LM-4627 courier pouch scan window",
+        "start_time": "2026-12-17T14:45:00-08:00",
+        "end_time": "2026-12-17T15:15:00-08:00",
+        "description": "Front desk courier batch for sealed Spanish/Tagalog delivery pouch; barcode must scan before the counter closes.",
+        "location": "Seattle office front desk",
+        "attendees": [
+          "tessa.elian@luminara.example",
+          "marisol.vera@luminara.example"
+        ],
+        "organizer": "marisol.vera@luminara.example",
+        "status": "confirmed"
+      }
+    },
+    "event2": {
+      "time": "2026-12-17T14:43:00-08:00",
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "packstation@luminara.example",
+        "recipients": [
+          "tessa.elian@luminara.example"
+        ],
+        "subject": "PackStation started LM-4627 pouch TS-8814",
+        "body": "Pouch TS-8814 is open under Tessa Elian for LM-4627. Spanish/Tagalog delivery readme, query appendix, and checklist cover sheet have been scanned into the pouch log. Heat-strip step is in progress; expected courier-ready time is 14:55 Pacific.",
+        "timestamp": "2026-12-17T14:42:30-08:00"
+      }
+    },
+    "event3": {
+      "time": "2026-12-17T14:52:00-08:00",
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "marisol.vera@luminara.example",
+        "recipients": [
+          "tessa.elian@luminara.example"
+        ],
+        "content": "Front desk note on the board: your LM-4627 pouch TS-8814 is clamped halfway through the seal cycle. The service cover is key-locked, the courier label will not print while the clamp fault is active, and the station screen says the barcode stays recoverable only until 15:05.",
+        "timestamp": "2026-12-17T14:51:40-08:00"
+      }
+    },
+    "event4": {
+      "time": "2026-12-17T15:00:00-08:00",
+      "app": "calendar",
+      "function": "create_reminder",
+      "parameter": {
+        "title": "LM-4627 pouch barcode closeout",
+        "remind_time": "2026-12-17T15:00:00-08:00",
+        "content": "Courier counter closes the live TS-8814 pouch barcode at 15:05 if it has not released from the sealer and scanned.",
+        "due_time": "2026-12-17T15:05:00-08:00",
+        "completed": false
+      }
+    },
+    "event5": {
+      "time": "2026-12-17T15:07:00-08:00",
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "packstation@luminara.example",
+        "recipients": [
+          "tessa.elian@luminara.example"
+        ],
+        "subject": "LM-4627 pouch TS-8814 voided after clamp hold",
+        "body": "The recovery hold for pouch TS-8814 expired at 15:05 Pacific. The partial seal barcode has been voided, the courier label did not release, and the 15:05 courier batch closed without the LM-4627 pouch.",
+        "timestamp": "2026-12-17T15:06:30-08:00"
+      }
+    }
+  }
+}

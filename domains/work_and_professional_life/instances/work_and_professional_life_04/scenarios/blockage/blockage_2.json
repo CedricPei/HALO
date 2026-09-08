@@ -1,0 +1,77 @@
+{
+  "scenario_description": "Objective: Complete the same-day courier release of Midway Metro’s tablet loaner kit after the handoff has already started at the dock desk.\nEmerging Need: The courier scan and security release are underway, but the active ticket stops because a required recipient dock access code is blank.\nDecision Context: Calendar, courier, and desk updates separate ordinary pickup progress from a live hold; the authorized code source is only in internal account/contact records.\nConsequence: If the hold is not cleared while the release ticket remains live, the driver leaves and the training kit misses today’s pickup.",
+  "events": {
+    "event1": {
+      "time": "2026-06-17T09:08:00-05:00",
+      "app": "calendar",
+      "function": "create_event",
+      "parameter": {
+        "title": "Midway Metro tablet kit courier release",
+        "start_time": "2026-06-17T15:15:00-05:00",
+        "end_time": "2026-06-17T15:45:00-05:00",
+        "description": "Release sealed loaner tablet kit MM-117 at the dock desk for the supervisor lab shipment; unclaimed live courier tickets close at 15:45.",
+        "location": "Chicago office dock desk",
+        "attendees": [
+          "Ines Valora Keene",
+          "BrightGate Front Desk"
+        ],
+        "organizer": "CS Ops Training Prep",
+        "status": "confirmed"
+      }
+    },
+    "event2": {
+      "time": "2026-06-17T15:17:00-05:00",
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "Ines Valora Keene",
+        "recipients": [
+          "CS Ops Training Prep"
+        ],
+        "content": "Handoff started: sealed kit MM-117 is at the dock desk, the courier badge is scanned, and the driver is verifying the package label now.",
+        "timestamp": "2026-06-17T15:17:00-05:00"
+      }
+    },
+    "event3": {
+      "time": "2026-06-17T15:22:00-05:00",
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "noreply@loopdashcourier.example",
+        "recipients": [
+          "ines.keene@brightgate.example"
+        ],
+        "subject": "Pickup hold for ticket LD-8841 / kit MM-117",
+        "body": "Driver check-in is paused at BrightGate dock security. The destination access-code field is blank, so kit MM-117 cannot leave the security hold. Ticket LD-8841 remains in the live release queue until 15:40; after that, this driver cannot accept the package under today's booking.",
+        "timestamp": "2026-06-17T15:22:00-05:00"
+      }
+    },
+    "event4": {
+      "time": "2026-06-17T15:31:00-05:00",
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "BrightGate Front Desk",
+        "recipients": [
+          "Ines Valora Keene"
+        ],
+        "content": "For tracking: the LoopDash driver is still waiting. Dock security confirms the label and seal are fine; this is a recipient-facility code hold, not a courier reprint or BrightGate desk override issue.",
+        "timestamp": "2026-06-17T15:31:00-05:00"
+      }
+    },
+    "event5": {
+      "time": "2026-06-17T15:43:00-05:00",
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "noreply@loopdashcourier.example",
+        "recipients": [
+          "ines.keene@brightgate.example"
+        ],
+        "subject": "Pickup ticket LD-8841 closed / driver departed",
+        "body": "The live release queue for ticket LD-8841 has closed and the driver has departed BrightGate without kit MM-117. Packages requiring a new ticket are eligible for next-business-day pickup only.",
+        "timestamp": "2026-06-17T15:43:00-05:00"
+      }
+    }
+  }
+}
