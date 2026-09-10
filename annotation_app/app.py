@@ -11,7 +11,7 @@ import streamlit as st
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
-CATALOG_VERSION = "2026-09-10-complete-400"
+CATALOG_VERSION = "2026-09-10-complete-400-eval-purged"
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
@@ -181,6 +181,10 @@ def main() -> None:
             "complete-400-benchmark-2026-09-10-v2",
             _audit_items(CATALOG_VERSION),
             _eval_items(CATALOG_VERSION),
+        )
+        store.apply_review_type_purge(
+            "purge-all-eval-data-2026-09-10",
+            "eval",
         )
     except Exception as error:
         st.title("Database connection failed")

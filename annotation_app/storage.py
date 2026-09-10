@@ -391,6 +391,37 @@ class AnnotationStore:
                 )
         return True
 
+    def apply_review_type_purge(
+        self,
+        migration_id: str,
+        review_type: str,
+    ) -> bool:
+        """Delete one review type's answers and assignments exactly once."""
+        if review_type not in {"audit", "eval"}:
+            raise ValueError("Invalid review type.")
+        with self._connect() as connection:
+            claimed = connection.execute(
+                self._sql(
+                    "INSERT INTO annotation_migrations (migration_id, applied_at) "
+                    "VALUES (?, ?) ON CONFLICT(migration_id) DO NOTHING "
+                    "RETURNING migration_id"
+                ),
+                (migration_id, utc_now()),
+            ).fetchone()
+            if not claimed:
+                return False
+            connection.execute(
+                self._sql("DELETE FROM annotations WHERE review_type=?"),
+                (review_type,),
+            )
+            connection.execute(
+                self._sql(
+                    "DELETE FROM annotation_assignments WHERE review_type=?"
+                ),
+                (review_type,),
+            )
+        return True
+
     def get_annotation(
         self, user_id: str, review_type: str, item_id: str
     ) -> dict | None:
