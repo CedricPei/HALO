@@ -369,23 +369,26 @@ class AnnotationStore:
             connection.execute("DELETE FROM annotations")
             connection.execute("DELETE FROM annotation_assignments")
             assigned_at = utc_now()
+            assignments = []
             for review_type, plan in plans.items():
                 for user_id, item_ids in plan.items():
                     for position, item_id in enumerate(item_ids):
-                        connection.execute(
-                            self._sql(
-                                "INSERT INTO annotation_assignments "
-                                "(user_id, review_type, item_id, position, status, "
-                                "assigned_at) VALUES (?, ?, ?, ?, 'assigned', ?)"
-                            ),
-                            (
-                                user_id,
-                                review_type,
-                                item_id,
-                                position,
-                                assigned_at,
-                            ),
+                        assignments.append(
+                            (user_id, review_type, item_id, position, assigned_at)
                         )
+            for start in range(0, len(assignments), 100):
+                batch = assignments[start : start + 100]
+                values = ", ".join(
+                    "(?, ?, ?, ?, 'assigned', ?)" for _ in batch
+                )
+                connection.execute(
+                    self._sql(
+                        "INSERT INTO annotation_assignments "
+                        "(user_id, review_type, item_id, position, status, "
+                        f"assigned_at) VALUES {values}"
+                    ),
+                    tuple(value for row in batch for value in row),
+                )
         return True
 
     def get_annotation(
