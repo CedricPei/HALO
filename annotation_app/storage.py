@@ -422,6 +422,24 @@ class AnnotationStore:
             )
         return True
 
+    def apply_all_participant_accounts_purge(self, migration_id: str) -> bool:
+        """Delete every participant account and its dependent data exactly once."""
+        with self._connect() as connection:
+            claimed = connection.execute(
+                self._sql(
+                    "INSERT INTO annotation_migrations (migration_id, applied_at) "
+                    "VALUES (?, ?) ON CONFLICT(migration_id) DO NOTHING "
+                    "RETURNING migration_id"
+                ),
+                (migration_id, utc_now()),
+            ).fetchone()
+            if not claimed:
+                return False
+            connection.execute("DELETE FROM annotations")
+            connection.execute("DELETE FROM annotation_assignments")
+            connection.execute("DELETE FROM annotation_users")
+        return True
+
     def get_annotation(
         self, user_id: str, review_type: str, item_id: str
     ) -> dict | None:

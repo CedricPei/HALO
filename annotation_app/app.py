@@ -30,7 +30,10 @@ import annotation_app.storage as storage_module  # noqa: E402
 from annotation_app.ui import apply_style  # noqa: E402
 
 
-if not hasattr(storage_module.AnnotationStore, "apply_review_type_purge"):
+if not hasattr(
+    storage_module.AnnotationStore,
+    "apply_all_participant_accounts_purge",
+):
     storage_module = importlib.reload(storage_module)
 AnnotationStore = storage_module.AnnotationStore
 
@@ -70,7 +73,7 @@ st.markdown(
 
 def _storage_cache_key() -> str:
     source = Path(__file__).with_name("storage.py").read_bytes()
-    return hashlib.sha256(source).hexdigest() + ":eval-purge-v2"
+    return hashlib.sha256(source).hexdigest() + ":participant-purge-v1"
 
 
 @st.cache_resource(show_spinner=False)
@@ -95,11 +98,13 @@ def _login(
     config: AppConfig,
     audit_count: int,
     eval_count: int,
+    participant_count: int,
 ) -> None:
     st.title("Proactive Agent Benchmark Annotation Interface")
     st.caption(
         f"Benchmark Audit catalog: {audit_count} scenarios · "
-        f"Agent Evaluation catalog: {eval_count} checkpoints"
+        f"Agent Evaluation catalog: {eval_count} checkpoints · "
+        f"Participant accounts: {participant_count}"
     )
     with st.form("annotation-login"):
         user_id = st.text_input("Participant ID")
@@ -200,6 +205,9 @@ def main() -> None:
             "purge-all-eval-data-2026-09-10",
             "eval",
         )
+        store.apply_all_participant_accounts_purge(
+            "purge-all-participant-accounts-2026-09-10",
+        )
     except Exception as error:
         st.title("Database connection failed")
         st.error("The App could not connect to its annotation database.")
@@ -209,13 +217,22 @@ def main() -> None:
         )
         return
 
+    participant_users = {row["user_id"] for row in store.list_users()}
     user = st.session_state.get("annotation_user")
+    if (
+        user
+        and not user.get("is_admin")
+        and user["user_id"] not in participant_users
+    ):
+        del st.session_state["annotation_user"]
+        st.rerun()
     if not user:
         _login(
             store,
             config,
             len(_audit_items(CATALOG_VERSION)),
             len(_eval_items(CATALOG_VERSION)),
+            len(participant_users),
         )
         return
 
