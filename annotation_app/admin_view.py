@@ -171,18 +171,24 @@ def _render_assignments(
 
     audit_units = len(audit_items)
     eval_units = len(evaluation_groups(eval_items))
-    max_batch_size = max(1, min(audit_units, eval_units))
     task_label = st.radio(
         "Task type",
         ("Audit", "Eval"),
         horizontal=True,
     )
     review_type = task_label.lower()
+    items = audit_items if review_type == "audit" else eval_items
+    available_units = audit_units if review_type == "audit" else eval_units
     existing_type_ids = {
         row["user_id"]
         for row in store.progress_all_users()
         if row.get("review_type") == review_type
     }
+    if available_units == 0:
+        st.caption(f"Existing accounts: {len(existing_type_ids)}")
+        st.info(f"No {task_label} items are available for assignment.")
+        return
+
     with st.form("create-account-batch"):
         assignment_scope = st.radio(
             "Scope",
@@ -193,8 +199,8 @@ def _render_assignments(
         count = st.number_input(
             "New annotators",
             min_value=1,
-            max_value=max_batch_size,
-            value=min(5, max_batch_size),
+            max_value=available_units,
+            value=min(5, available_units),
             step=1,
         )
         submitted = st.form_submit_button(
@@ -209,7 +215,6 @@ def _render_assignments(
             users = store.list_users()
             existing_ids = {row["user_id"] for row in users}
             user_ids = _next_ids(review_type, int(count), existing_ids)
-            items = audit_items if review_type == "audit" else eval_items
             if assignment_scope == "Remaining":
                 assignment_users = [*sorted(existing_type_ids), *user_ids]
                 plan = remaining_assignment_plan(
