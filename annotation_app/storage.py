@@ -319,6 +319,75 @@ class AnnotationStore:
                         (user_id, review_type, item_id, start + offset, now),
                     )
 
+    def apply_catalog_reset(
+        self,
+        migration_id: str,
+        audit_items: list[dict],
+        eval_items: list[dict],
+    ) -> bool:
+        """Clear answers once and rebuild assignments for the current catalogs."""
+        from annotation_app.assignment import all_assignment_plan
+
+        with self._connect() as connection:
+            claimed = connection.execute(
+                self._sql(
+                    "INSERT INTO annotation_migrations (migration_id, applied_at) "
+                    "VALUES (?, ?) ON CONFLICT(migration_id) DO NOTHING "
+                    "RETURNING migration_id"
+                ),
+                (migration_id, utc_now()),
+            ).fetchone()
+            if not claimed:
+                return False
+
+            rows = connection.execute(
+                "SELECT DISTINCT user_id, review_type "
+                "FROM annotation_assignments ORDER BY user_id, review_type"
+            ).fetchall()
+            users_by_type = {
+                review_type: [
+                    row["user_id"]
+                    for row in rows
+                    if row["review_type"] == review_type
+                ]
+                for review_type in ("audit", "eval")
+            }
+            plans = {
+                review_type: (
+                    all_assignment_plan(
+                        users_by_type[review_type], review_type, items
+                    )
+                    if users_by_type[review_type]
+                    else {}
+                )
+                for review_type, items in (
+                    ("audit", audit_items),
+                    ("eval", eval_items),
+                )
+            }
+
+            connection.execute("DELETE FROM annotations")
+            connection.execute("DELETE FROM annotation_assignments")
+            assigned_at = utc_now()
+            for review_type, plan in plans.items():
+                for user_id, item_ids in plan.items():
+                    for position, item_id in enumerate(item_ids):
+                        connection.execute(
+                            self._sql(
+                                "INSERT INTO annotation_assignments "
+                                "(user_id, review_type, item_id, position, status, "
+                                "assigned_at) VALUES (?, ?, ?, ?, 'assigned', ?)"
+                            ),
+                            (
+                                user_id,
+                                review_type,
+                                item_id,
+                                position,
+                                assigned_at,
+                            ),
+                        )
+        return True
+
     def get_annotation(
         self, user_id: str, review_type: str, item_id: str
     ) -> dict | None:

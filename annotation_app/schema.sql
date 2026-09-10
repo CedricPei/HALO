@@ -35,6 +35,11 @@ CREATE TABLE IF NOT EXISTS annotations (
 CREATE INDEX IF NOT EXISTS annotations_lookup
     ON annotations(user_id, review_type, item_id);
 
+CREATE TABLE IF NOT EXISTS annotation_migrations (
+    migration_id TEXT PRIMARY KEY,
+    applied_at TEXT NOT NULL
+);
+
 ALTER TABLE annotation_users DROP COLUMN IF EXISTS display_name;
 ALTER TABLE annotation_users DROP COLUMN IF EXISTS role;
 ALTER TABLE annotation_users DROP COLUMN IF EXISTS active;
@@ -45,3 +50,4 @@ ALTER TABLE annotation_users DROP COLUMN IF EXISTS access_code_hash;
 ALTER TABLE annotation_users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE annotation_assignments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE annotations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE annotation_migrations ENABLE ROW LEVEL SECURITY;

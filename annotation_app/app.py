@@ -173,6 +173,11 @@ def main() -> None:
         return
     try:
         store = _store(config, _storage_cache_key())
+        store.apply_catalog_reset(
+            "complete-400-benchmark-2026-09-10",
+            _audit_items(),
+            _eval_items(),
+        )
     except Exception as error:
         st.title("Database connection failed")
         st.error("The App could not connect to its annotation database.")
