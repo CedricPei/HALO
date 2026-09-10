@@ -81,8 +81,9 @@ def _eval_items() -> list[dict]:
     return load_evaluation_items()
 
 
-def _login(store: AnnotationStore, config: AppConfig) -> None:
+def _login(store: AnnotationStore, config: AppConfig, audit_count: int) -> None:
     st.title("Proactive Agent Benchmark Annotation Interface")
+    st.caption(f"Benchmark Audit catalog: {audit_count} scenarios")
     with st.form("annotation-login"):
         user_id = st.text_input("Participant ID")
         access_code = st.text_input("Access code", type="password")
@@ -189,7 +190,7 @@ def main() -> None:
 
     user = st.session_state.get("annotation_user")
     if not user:
-        _login(store, config)
+        _login(store, config, len(_audit_items()))
         return
 
     if user.get("is_admin"):
