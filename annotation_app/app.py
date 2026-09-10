@@ -11,6 +11,7 @@ import streamlit as st
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
+CATALOG_VERSION = "2026-09-10-complete-400"
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
@@ -72,12 +73,14 @@ def _store(config: AppConfig, storage_cache_key: str) -> AnnotationStore:
 
 
 @st.cache_data(show_spinner="Loading Benchmark Audit items…")
-def _audit_items() -> list[dict]:
+def _audit_items(catalog_version: str) -> list[dict]:
+    del catalog_version
     return load_construction_items()
 
 
 @st.cache_data(show_spinner="Loading Agent Evaluation items…")
-def _eval_items() -> list[dict]:
+def _eval_items(catalog_version: str) -> list[dict]:
+    del catalog_version
     return load_evaluation_items()
 
 
@@ -175,9 +178,9 @@ def main() -> None:
     try:
         store = _store(config, _storage_cache_key())
         store.apply_catalog_reset(
-            "complete-400-benchmark-2026-09-10",
-            _audit_items(),
-            _eval_items(),
+            "complete-400-benchmark-2026-09-10-v2",
+            _audit_items(CATALOG_VERSION),
+            _eval_items(CATALOG_VERSION),
         )
     except Exception as error:
         st.title("Database connection failed")
@@ -190,12 +193,16 @@ def main() -> None:
 
     user = st.session_state.get("annotation_user")
     if not user:
-        _login(store, config, len(_audit_items()))
+        _login(store, config, len(_audit_items(CATALOG_VERSION)))
         return
 
     if user.get("is_admin"):
         _sidebar(user, "Administration")
-        render_admin(store, _audit_items(), _eval_items())
+        render_admin(
+            store,
+            _audit_items(CATALOG_VERSION),
+            _eval_items(CATALOG_VERSION),
+        )
         return
 
     progress = store.progress_for_user(user["user_id"])
@@ -214,10 +221,10 @@ def main() -> None:
         return
     if review_type == "audit":
         _sidebar(user, "Benchmark Audit")
-        render_audit(store, user, _audit_items())
+        render_audit(store, user, _audit_items(CATALOG_VERSION))
     else:
         _sidebar(user, "Agent Evaluation")
-        render_eval(store, user, _eval_items())
+        render_eval(store, user, _eval_items(CATALOG_VERSION))
 
 
 if __name__ == "__main__":
