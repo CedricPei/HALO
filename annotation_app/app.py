@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import importlib
 import sys
 from pathlib import Path
 
@@ -25,8 +26,13 @@ from annotation_app.review_views import (  # noqa: E402
     render_audit,
     render_eval,
 )
-from annotation_app.storage import AnnotationStore  # noqa: E402
+import annotation_app.storage as storage_module  # noqa: E402
 from annotation_app.ui import apply_style  # noqa: E402
+
+
+if not hasattr(storage_module.AnnotationStore, "apply_review_type_purge"):
+    storage_module = importlib.reload(storage_module)
+AnnotationStore = storage_module.AnnotationStore
 
 
 st.set_page_config(
@@ -64,7 +70,7 @@ st.markdown(
 
 def _storage_cache_key() -> str:
     source = Path(__file__).with_name("storage.py").read_bytes()
-    return hashlib.sha256(source).hexdigest()
+    return hashlib.sha256(source).hexdigest() + ":eval-purge-v2"
 
 
 @st.cache_resource(show_spinner=False)
