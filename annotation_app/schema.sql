@@ -40,6 +40,15 @@ CREATE TABLE IF NOT EXISTS annotation_migrations (
     applied_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS annotation_assignment_repairs (
+    repair_id TEXT PRIMARY KEY,
+    review_type TEXT NOT NULL CHECK (review_type IN ('audit', 'eval')),
+    created_at TEXT NOT NULL,
+    selected_users_json TEXT NOT NULL,
+    previous_assignments_json TEXT NOT NULL,
+    saved_annotation_count INTEGER NOT NULL
+);
+
 ALTER TABLE annotation_users DROP COLUMN IF EXISTS display_name;
 ALTER TABLE annotation_users DROP COLUMN IF EXISTS role;
 ALTER TABLE annotation_users DROP COLUMN IF EXISTS active;
@@ -51,3 +60,4 @@ ALTER TABLE annotation_users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE annotation_assignments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE annotations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE annotation_migrations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE annotation_assignment_repairs ENABLE ROW LEVEL SECURITY;

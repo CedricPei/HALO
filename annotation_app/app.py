@@ -35,7 +35,7 @@ if not all(
     for method in (
         "apply_all_participant_accounts_purge",
         "assignment_snapshot",
-        "restore_audit_cohort",
+        "apply_fixed_audit_cohort_migration",
     )
 ):
     storage_module = importlib.reload(storage_module)
@@ -44,7 +44,9 @@ if not hasattr(assignment_module, "quota_audit_assignment_plan"):
     assignment_module = importlib.reload(assignment_module)
 import annotation_app.admin_view as admin_view_module  # noqa: E402
 
-if not hasattr(admin_view_module, "_render_audit_diagnostics"):
+if getattr(admin_view_module, "ADMIN_VIEW_VERSION", None) != (
+    "2026-09-17-fixed-audit-cohort"
+):
     admin_view_module = importlib.reload(admin_view_module)
 render_admin = admin_view_module.render_admin
 
@@ -215,6 +217,16 @@ def main() -> None:
             "Check DATABASE_URL. For Supabase on Streamlit Cloud, use the pooled "
             f"connection string. Error type: {type(error).__name__}."
         )
+        return
+
+    try:
+        store.apply_fixed_audit_cohort_migration(
+            "restore-audit001-010-delete011-015-2026-09-17",
+            _audit_items(CATALOG_VERSION),
+        )
+    except (ValueError, RuntimeError) as error:
+        st.title("Audit assignment migration paused")
+        st.error(str(error))
         return
 
     participant_users = {row["user_id"] for row in store.list_users()}

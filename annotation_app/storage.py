@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import re
 import secrets
@@ -277,11 +276,6 @@ class AnnotationStore:
             ).fetchall()
         return [dict(row) for row in rows]
 
-    @staticmethod
-    def assignment_snapshot_hash(rows: list[dict]) -> str:
-        content = json.dumps(rows, sort_keys=True, separators=(",", ":"))
-        return hashlib.sha256(content.encode("utf-8")).hexdigest()
-
     def annotation_counts(self, review_type: str) -> dict[str, int]:
         """Count saved answers per account without reading their contents."""
         if review_type not in {"audit", "eval"}:
@@ -296,65 +290,107 @@ class AnnotationStore:
             ).fetchall()
         return {row["user_id"]: int(row["count"]) for row in rows}
 
-    def restore_audit_cohort(
-        self,
-        user_ids: list[str],
-        items: list[dict],
-        expected_snapshot_hash: str,
-    ) -> dict[str, int]:
-        """Restore equal Audit quotas while leaving every saved answer intact.
-
-        Submitted assignments for selected accounts stay fixed. Submitted
-        assignments for other accounts leave the active queue, but their
-        annotation records remain available in exports.
-        """
+    def apply_fixed_audit_cohort_migration(
+        self, migration_id: str, items: list[dict]
+    ) -> bool:
+        """Atomically restore audit001-010 to 80 tasks and remove audit011-015."""
         from annotation_app.assignment import quota_audit_assignment_plan
 
-        user_ids = list(dict.fromkeys(normalize_user_id(value) for value in user_ids))
-        if len(user_ids) != 10 or len(items) != 400:
-            raise ValueError("Restoration requires 10 accounts and 400 Audit items.")
-        placeholders = ", ".join("?" for _ in user_ids)
+        user_ids = [f"audit{number:03d}" for number in range(1, 11)]
+        extra_ids = [f"audit{number:03d}" for number in range(11, 16)]
+        if len(items) != 400 or len({item["item_id"] for item in items}) != 400:
+            raise ValueError("Audit migration requires 400 unique catalog items.")
+        extra_placeholders = ", ".join("?" for _ in extra_ids)
         with self._connect() as connection:
-            found = connection.execute(
+            claimed = connection.execute(
                 self._sql(
-                    f"SELECT user_id FROM annotation_users WHERE user_id IN ({placeholders})"
+                    "INSERT INTO annotation_migrations (migration_id, applied_at) "
+                    "VALUES (?, ?) ON CONFLICT(migration_id) DO NOTHING "
+                    "RETURNING migration_id"
                 ),
-                user_ids,
+                (migration_id, utc_now()),
+            ).fetchone()
+            if not claimed:
+                return False
+
+            lock = " FOR UPDATE" if not self.sqlite else ""
+            account_rows = connection.execute(
+                "SELECT user_id FROM annotation_users WHERE user_id LIKE 'audit%' "
+                f"ORDER BY user_id{lock}"
             ).fetchall()
-            if len(found) != len(user_ids):
-                raise ValueError("One or more selected Audit accounts no longer exist.")
+            if {row["user_id"] for row in account_rows} != set(user_ids + extra_ids):
+                raise ValueError(
+                    "Audit accounts changed since diagnosis; migration was not applied."
+                )
+            extra_annotations = connection.execute(
+                self._sql(
+                    "SELECT COUNT(*) AS count FROM annotations "
+                    f"WHERE user_id IN ({extra_placeholders})"
+                ),
+                extra_ids,
+            ).fetchone()["count"]
+            if extra_annotations:
+                raise ValueError(
+                    "One of audit011-015 has submitted an annotation; "
+                    "migration was not applied."
+                )
+            extra_eval_assignments = connection.execute(
+                self._sql(
+                    "SELECT COUNT(*) AS count FROM annotation_assignments "
+                    f"WHERE user_id IN ({extra_placeholders}) AND review_type!='audit'"
+                ),
+                extra_ids,
+            ).fetchone()["count"]
+            if extra_eval_assignments:
+                raise ValueError(
+                    "One of audit011-015 has an Eval assignment; migration was not applied."
+                )
 
             rows = [
                 dict(row)
                 for row in connection.execute(
                     "SELECT user_id, item_id, position, status, assigned_at, "
                     "submitted_at FROM annotation_assignments "
-                    "WHERE review_type='audit' ORDER BY user_id, item_id"
+                    f"WHERE review_type='audit' ORDER BY user_id, item_id{lock}"
                 ).fetchall()
             ]
-            if self.assignment_snapshot_hash(rows) != expected_snapshot_hash:
+            if len(rows) != 800 or any(
+                row["user_id"] in extra_ids and row["status"] == "submitted"
+                for row in rows
+            ):
                 raise ValueError(
-                    "Audit assignments changed since the preview. Refresh and review again."
+                    "Audit assignments changed since diagnosis; migration was not applied."
                 )
 
-            selected = set(user_ids)
             submitted: dict[str, set[str]] = {}
             pending: dict[str, set[str]] = {}
             for row in rows:
                 target = submitted if row["status"] == "submitted" else pending
                 target.setdefault(row["item_id"], set()).add(row["user_id"])
             plan = quota_audit_assignment_plan(user_ids, items, submitted, pending)
-            retained_submissions = sum(
-                row["status"] == "submitted" and row["user_id"] in selected
-                for row in rows
+            before_annotations = [
+                dict(row)
+                for row in connection.execute(
+                    "SELECT annotation_id, user_id, review_type, item_id, "
+                    "payload_json, created_at FROM annotations "
+                    "WHERE review_type='audit' ORDER BY user_id, item_id"
+                ).fetchall()
+            ]
+            connection.execute(
+                self._sql(
+                    "INSERT INTO annotation_assignment_repairs "
+                    "(repair_id, review_type, created_at, selected_users_json, "
+                    "previous_assignments_json, saved_annotation_count) "
+                    "VALUES (?, 'audit', ?, ?, ?, ?)"
+                ),
+                (
+                    migration_id,
+                    utc_now(),
+                    json.dumps(user_ids),
+                    json.dumps(rows, ensure_ascii=False, sort_keys=True),
+                    len(before_annotations),
+                ),
             )
-            historical_submissions = sum(
-                row["status"] == "submitted" and row["user_id"] not in selected
-                for row in rows
-            )
-            before = connection.execute(
-                "SELECT COUNT(*) AS count FROM annotations WHERE review_type='audit'"
-            ).fetchone()["count"]
 
             connection.execute(
                 "DELETE FROM annotation_assignments "
@@ -362,12 +398,13 @@ class AnnotationStore:
             )
             connection.execute(
                 self._sql(
-                    "DELETE FROM annotation_assignments WHERE review_type='audit' "
-                    f"AND user_id NOT IN ({placeholders})"
+                    "DELETE FROM annotation_assignments "
+                    f"WHERE user_id IN ({extra_placeholders})"
                 ),
-                user_ids,
+                extra_ids,
             )
             now = utc_now()
+            inserts = []
             for user_id, item_ids in plan.items():
                 maximum = connection.execute(
                     self._sql(
@@ -378,18 +415,35 @@ class AnnotationStore:
                     (user_id,),
                 ).fetchone()["maximum"]
                 for offset, item_id in enumerate(item_ids, start=1):
-                    connection.execute(
-                        self._sql(
-                            "INSERT INTO annotation_assignments "
-                            "(user_id, review_type, item_id, position, status, assigned_at) "
-                            "VALUES (?, 'audit', ?, ?, 'assigned', ?)"
-                        ),
-                        (user_id, item_id, int(maximum) + offset, now),
-                    )
+                    inserts.append((user_id, item_id, int(maximum) + offset, now))
+            for start in range(0, len(inserts), 100):
+                batch = inserts[start : start + 100]
+                values = ", ".join(
+                    "(?, 'audit', ?, ?, 'assigned', ?)" for _ in batch
+                )
+                connection.execute(
+                    self._sql(
+                        "INSERT INTO annotation_assignments "
+                        "(user_id, review_type, item_id, position, status, assigned_at) "
+                        f"VALUES {values}"
+                    ),
+                    tuple(value for row in batch for value in row),
+                )
+            connection.execute(
+                self._sql(
+                    f"DELETE FROM annotation_users WHERE user_id IN ({extra_placeholders})"
+                ),
+                extra_ids,
+            )
 
-            after = connection.execute(
-                "SELECT COUNT(*) AS count FROM annotations WHERE review_type='audit'"
-            ).fetchone()["count"]
+            after_annotations = [
+                dict(row)
+                for row in connection.execute(
+                    "SELECT annotation_id, user_id, review_type, item_id, "
+                    "payload_json, created_at FROM annotations "
+                    "WHERE review_type='audit' ORDER BY user_id, item_id"
+                ).fetchall()
+            ]
             active_rows = connection.execute(
                 "SELECT user_id, item_id FROM annotation_assignments "
                 "WHERE review_type='audit'"
@@ -397,21 +451,23 @@ class AnnotationStore:
             by_user = Counter(row["user_id"] for row in active_rows)
             by_item = Counter(row["item_id"] for row in active_rows)
             catalog_ids = {item["item_id"] for item in items}
+            remaining_accounts = {
+                row["user_id"]
+                for row in connection.execute(
+                    "SELECT user_id FROM annotation_users WHERE user_id LIKE 'audit%'"
+                ).fetchall()
+            }
             if (
-                before != after
+                before_annotations != after_annotations
                 or len(active_rows) != 800
                 or any(by_user[user_id] != 80 for user_id in user_ids)
-                or set(by_user) != selected
+                or set(by_user) != set(user_ids)
                 or set(by_item) != catalog_ids
                 or any(count != 2 for count in by_item.values())
+                or remaining_accounts != set(user_ids)
             ):
                 raise RuntimeError("Audit restoration failed its integrity check.")
-        return {
-            "active_assignments": 800,
-            "retained_submissions": retained_submissions,
-            "historical_submissions": historical_submissions,
-            "preserved_annotations": int(after),
-        }
+        return True
 
     def reviewed_ids(self, user_id: str, review_type: str) -> set[str]:
         with self._connect() as connection:
@@ -627,10 +683,11 @@ class AnnotationStore:
         annotation_id = str(uuid.uuid4())
         now = utc_now()
         with self._connect() as connection:
+            lock = " FOR UPDATE" if not self.sqlite else ""
             assigned = connection.execute(
                 self._sql(
                     "SELECT 1 FROM annotation_assignments "
-                    "WHERE user_id=? AND review_type=? AND item_id=?"
+                    f"WHERE user_id=? AND review_type=? AND item_id=?{lock}"
                 ),
                 (user_id, review_type, item_id),
             ).fetchone()
@@ -655,7 +712,7 @@ class AnnotationStore:
                     now,
                 ),
             )
-            connection.execute(
+            updated = connection.execute(
                 self._sql(
                     "UPDATE annotation_assignments "
                     "SET status='submitted', submitted_at=? "
@@ -663,6 +720,8 @@ class AnnotationStore:
                 ),
                 (now, user_id, review_type, item_id),
             )
+            if updated.rowcount != 1:
+                raise ValueError("This assignment changed while the review was saved.")
         return annotation_id
 
     def progress_for_user(self, user_id: str) -> dict[str, dict[str, int]]:
