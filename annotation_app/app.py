@@ -16,7 +16,6 @@ CATALOG_VERSION = "2026-09-10-complete-400-eval-purged"
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from annotation_app.admin_view import render_admin  # noqa: E402
 from benchmark_catalog import (  # noqa: E402
     load_construction_items,
     load_evaluation_items,
@@ -27,15 +26,27 @@ from annotation_app.review_views import (  # noqa: E402
     render_eval,
 )
 import annotation_app.storage as storage_module  # noqa: E402
+import annotation_app.assignment as assignment_module  # noqa: E402
 from annotation_app.ui import apply_style  # noqa: E402
 
 
-if not hasattr(
-    storage_module.AnnotationStore,
-    "apply_all_participant_accounts_purge",
+if not all(
+    hasattr(storage_module.AnnotationStore, method)
+    for method in (
+        "apply_all_participant_accounts_purge",
+        "assignment_snapshot",
+        "restore_audit_cohort",
+    )
 ):
     storage_module = importlib.reload(storage_module)
 AnnotationStore = storage_module.AnnotationStore
+if not hasattr(assignment_module, "quota_audit_assignment_plan"):
+    assignment_module = importlib.reload(assignment_module)
+import annotation_app.admin_view as admin_view_module  # noqa: E402
+
+if not hasattr(admin_view_module, "_render_audit_diagnostics"):
+    admin_view_module = importlib.reload(admin_view_module)
+render_admin = admin_view_module.render_admin
 
 
 st.set_page_config(

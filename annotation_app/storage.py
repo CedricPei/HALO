@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import secrets
 import sqlite3
 import uuid
+from collections import Counter
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -258,6 +260,158 @@ class AnnotationStore:
                 (user_id, review_type),
             ).fetchall()
         return [row["item_id"] for row in rows]
+
+    def assignment_snapshot(self, review_type: str) -> list[dict]:
+        """Read assignment metadata without credentials or annotation content."""
+        if review_type not in {"audit", "eval"}:
+            raise ValueError("Invalid review type.")
+        with self._connect() as connection:
+            rows = connection.execute(
+                self._sql(
+                    "SELECT user_id, item_id, position, status, assigned_at, "
+                    "submitted_at "
+                    "FROM annotation_assignments WHERE review_type=? "
+                    "ORDER BY user_id, item_id"
+                ),
+                (review_type,),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    @staticmethod
+    def assignment_snapshot_hash(rows: list[dict]) -> str:
+        content = json.dumps(rows, sort_keys=True, separators=(",", ":"))
+        return hashlib.sha256(content.encode("utf-8")).hexdigest()
+
+    def annotation_counts(self, review_type: str) -> dict[str, int]:
+        """Count saved answers per account without reading their contents."""
+        if review_type not in {"audit", "eval"}:
+            raise ValueError("Invalid review type.")
+        with self._connect() as connection:
+            rows = connection.execute(
+                self._sql(
+                    "SELECT user_id, COUNT(*) AS count FROM annotations "
+                    "WHERE review_type=? GROUP BY user_id"
+                ),
+                (review_type,),
+            ).fetchall()
+        return {row["user_id"]: int(row["count"]) for row in rows}
+
+    def restore_audit_cohort(
+        self,
+        user_ids: list[str],
+        items: list[dict],
+        expected_snapshot_hash: str,
+    ) -> dict[str, int]:
+        """Restore equal Audit quotas while leaving every saved answer intact.
+
+        Submitted assignments for selected accounts stay fixed. Submitted
+        assignments for other accounts leave the active queue, but their
+        annotation records remain available in exports.
+        """
+        from annotation_app.assignment import quota_audit_assignment_plan
+
+        user_ids = list(dict.fromkeys(normalize_user_id(value) for value in user_ids))
+        if len(user_ids) != 10 or len(items) != 400:
+            raise ValueError("Restoration requires 10 accounts and 400 Audit items.")
+        placeholders = ", ".join("?" for _ in user_ids)
+        with self._connect() as connection:
+            found = connection.execute(
+                self._sql(
+                    f"SELECT user_id FROM annotation_users WHERE user_id IN ({placeholders})"
+                ),
+                user_ids,
+            ).fetchall()
+            if len(found) != len(user_ids):
+                raise ValueError("One or more selected Audit accounts no longer exist.")
+
+            rows = [
+                dict(row)
+                for row in connection.execute(
+                    "SELECT user_id, item_id, position, status, assigned_at, "
+                    "submitted_at FROM annotation_assignments "
+                    "WHERE review_type='audit' ORDER BY user_id, item_id"
+                ).fetchall()
+            ]
+            if self.assignment_snapshot_hash(rows) != expected_snapshot_hash:
+                raise ValueError(
+                    "Audit assignments changed since the preview. Refresh and review again."
+                )
+
+            selected = set(user_ids)
+            submitted: dict[str, set[str]] = {}
+            pending: dict[str, set[str]] = {}
+            for row in rows:
+                target = submitted if row["status"] == "submitted" else pending
+                target.setdefault(row["item_id"], set()).add(row["user_id"])
+            plan = quota_audit_assignment_plan(user_ids, items, submitted, pending)
+            retained_submissions = sum(
+                row["status"] == "submitted" and row["user_id"] in selected
+                for row in rows
+            )
+            historical_submissions = sum(
+                row["status"] == "submitted" and row["user_id"] not in selected
+                for row in rows
+            )
+            before = connection.execute(
+                "SELECT COUNT(*) AS count FROM annotations WHERE review_type='audit'"
+            ).fetchone()["count"]
+
+            connection.execute(
+                "DELETE FROM annotation_assignments "
+                "WHERE review_type='audit' AND status='assigned'"
+            )
+            connection.execute(
+                self._sql(
+                    "DELETE FROM annotation_assignments WHERE review_type='audit' "
+                    f"AND user_id NOT IN ({placeholders})"
+                ),
+                user_ids,
+            )
+            now = utc_now()
+            for user_id, item_ids in plan.items():
+                maximum = connection.execute(
+                    self._sql(
+                        "SELECT COALESCE(MAX(position), -1) AS maximum "
+                        "FROM annotation_assignments "
+                        "WHERE review_type='audit' AND user_id=?"
+                    ),
+                    (user_id,),
+                ).fetchone()["maximum"]
+                for offset, item_id in enumerate(item_ids, start=1):
+                    connection.execute(
+                        self._sql(
+                            "INSERT INTO annotation_assignments "
+                            "(user_id, review_type, item_id, position, status, assigned_at) "
+                            "VALUES (?, 'audit', ?, ?, 'assigned', ?)"
+                        ),
+                        (user_id, item_id, int(maximum) + offset, now),
+                    )
+
+            after = connection.execute(
+                "SELECT COUNT(*) AS count FROM annotations WHERE review_type='audit'"
+            ).fetchone()["count"]
+            active_rows = connection.execute(
+                "SELECT user_id, item_id FROM annotation_assignments "
+                "WHERE review_type='audit'"
+            ).fetchall()
+            by_user = Counter(row["user_id"] for row in active_rows)
+            by_item = Counter(row["item_id"] for row in active_rows)
+            catalog_ids = {item["item_id"] for item in items}
+            if (
+                before != after
+                or len(active_rows) != 800
+                or any(by_user[user_id] != 80 for user_id in user_ids)
+                or set(by_user) != selected
+                or set(by_item) != catalog_ids
+                or any(count != 2 for count in by_item.values())
+            ):
+                raise RuntimeError("Audit restoration failed its integrity check.")
+        return {
+            "active_assignments": 800,
+            "retained_submissions": retained_submissions,
+            "historical_submissions": historical_submissions,
+            "preserved_annotations": int(after),
+        }
 
     def reviewed_ids(self, user_id: str, review_type: str) -> set[str]:
         with self._connect() as connection:
