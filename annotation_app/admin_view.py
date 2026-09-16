@@ -192,9 +192,19 @@ def _render_assignments(
     with st.form("create-account-batch"):
         assignment_scope = st.radio(
             "Scope",
-            ("Remaining", "All"),
+            ("Rebalance unfinished", "All for new accounts"),
             horizontal=True,
         )
+        if assignment_scope == "Rebalance unfinished":
+            st.caption(
+                "Adding annotators redistributes every unsubmitted task across "
+                "existing and new accounts. Existing task totals may change."
+            )
+        else:
+            st.caption(
+                "Assign the full catalog to the new accounts in addition to "
+                "existing assignments."
+            )
         st.caption(f"Existing accounts: {len(existing_type_ids)}")
         count = st.number_input(
             "New annotators",
@@ -215,7 +225,7 @@ def _render_assignments(
             users = store.list_users()
             existing_ids = {row["user_id"] for row in users}
             user_ids = _next_ids(review_type, int(count), existing_ids)
-            if assignment_scope == "Remaining":
+            if assignment_scope == "Rebalance unfinished":
                 assignment_users = [*sorted(existing_type_ids), *user_ids]
                 plan = remaining_assignment_plan(
                     assignment_users,
@@ -233,7 +243,7 @@ def _render_assignments(
                     code = generate_access_code()
                     store.create_user(new_user_id, code)
                     created.append({"user_id": new_user_id, "access_code": code})
-                if assignment_scope == "Remaining":
+                if assignment_scope == "Rebalance unfinished":
                     store.replace_pending_assignments(review_type, plan)
                 else:
                     for user_id, item_ids in plan.items():
@@ -244,6 +254,68 @@ def _render_assignments(
             st.error(
                 f"Batch creation stopped after {len(created)} account(s): {error}"
             )
+
+
+def _render_audit_reassignment(
+    store: AnnotationStore,
+    audit_items: list[dict],
+) -> None:
+    """Let an administrator rebalance pending Audit work without adding accounts."""
+    progress = store.progress_all_users()
+    audit_rows = {
+        row["user_id"]: row
+        for row in progress
+        if row.get("review_type") == "audit" and row.get("assigned")
+    }
+    if len(audit_rows) < 2 or not audit_items:
+        return
+
+    with st.expander("Reassign existing Audit accounts"):
+        st.caption(
+            "Choose the accounts that should receive unfinished Audit tasks. "
+            "Submitted reviews stay with their original accounts; pending "
+            "assignments are redistributed. No account is deleted."
+        )
+        selected_ids = st.multiselect(
+            "Accounts to receive pending Audit tasks",
+            sorted(audit_rows),
+            default=sorted(audit_rows),
+            key="audit-reassignment-users",
+        )
+        if len(selected_ids) < 2:
+            st.info("Select at least two accounts for double review coverage.")
+            return
+
+        submitted_users = store.submitted_users_by_item("audit")
+        plan = remaining_assignment_plan(
+            selected_ids, "audit", audit_items, submitted_users
+        )
+        selected_set = set(selected_ids)
+        preview = []
+        for user_id, row in sorted(audit_rows.items()):
+            completed = int(row.get("submitted") or 0)
+            preview.append(
+                {
+                    "Account": user_id,
+                    "Current tasks": int(row["assigned"]),
+                    "After reassignment": completed + len(plan[user_id])
+                    if user_id in selected_set
+                    else completed,
+                    "Completed (retained)": completed,
+                }
+            )
+        st.dataframe(preview, use_container_width=True, hide_index=True)
+        if st.button(
+            "Apply Audit reassignment",
+            type="primary",
+            use_container_width=True,
+            key="apply-audit-reassignment",
+        ):
+            store.replace_pending_assignments("audit", plan)
+            st.session_state["audit_reassignment_done"] = True
+            st.rerun()
+        if st.session_state.pop("audit_reassignment_done", False):
+            st.success("Pending Audit tasks were reassigned.")
 
 
 def _render_manage(store: AnnotationStore) -> None:
@@ -402,6 +474,7 @@ def render_admin(
     )
     with assignment_tab:
         _render_assignments(store, audit_items, eval_items)
+        _render_audit_reassignment(store, audit_items)
     with manage_tab:
         _render_manage(store)
     with progress_tab:
