@@ -229,6 +229,13 @@ def main() -> None:
         st.error(str(error))
         return
 
+    assignment_version = "2026-09-17-fixed-audit-cohort"
+    if st.session_state.get("cloud_audit_assignment_version") != assignment_version:
+        for key in list(st.session_state):
+            if key.startswith("cloud_audit_position_"):
+                del st.session_state[key]
+        st.session_state["cloud_audit_assignment_version"] = assignment_version
+
     participant_users = {row["user_id"] for row in store.list_users()}
     user = st.session_state.get("annotation_user")
     if (
