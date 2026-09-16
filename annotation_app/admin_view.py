@@ -6,7 +6,6 @@ import csv
 import io
 import json
 import zipfile
-from collections import Counter, defaultdict
 
 import streamlit as st
 
@@ -20,7 +19,7 @@ from annotation_app.storage import (
     generate_access_code,
 )
 
-ADMIN_VIEW_VERSION = "2026-09-17-fixed-audit-cohort"
+ADMIN_VIEW_VERSION = "2026-09-17-progress-table"
 
 
 EXPORT_BASE_FIELDS = ("annotation_id", "user_id", "item_id")
@@ -246,81 +245,6 @@ def _render_eval_assignments(
             )
 
 
-def _render_audit_diagnostics(
-    store: AnnotationStore,
-    audit_items: list[dict],
-) -> None:
-    """Show a credential-free snapshot of Audit coverage and account workload."""
-    assignments = store.assignment_snapshot("audit")
-    annotation_counts = store.annotation_counts("audit")
-    catalog_ids = {item["item_id"] for item in audit_items}
-    coverage = Counter(
-        row["item_id"] for row in assignments if row["item_id"] in catalog_ids
-    )
-    by_user: dict[str, list[dict]] = defaultdict(list)
-    for row in assignments:
-        by_user[row["user_id"]].append(row)
-
-    users = []
-    for user in store.list_users():
-        user_id = user["user_id"]
-        rows = by_user.get(user_id, [])
-        saved = annotation_counts.get(user_id, 0)
-        if not rows and not saved and not user_id.startswith("audit"):
-            continue
-        users.append(
-            {
-                "Account": user_id,
-                "Assigned": len(rows),
-                "Completed": sum(row["status"] == "submitted" for row in rows),
-                "Saved annotations": saved,
-                "Created": user["created_at"],
-                "Last assigned": max(
-                    (row["assigned_at"] for row in rows), default=""
-                ),
-            }
-        )
-
-    report = {
-        "catalog_items": len(catalog_ids),
-        "audit_account_records": sum(
-            user["Account"].startswith("audit") for user in users
-        ),
-        "active_audit_accounts": len(by_user),
-        "assignment_rows": len(assignments),
-        "submitted_assignment_rows": sum(
-            row["status"] == "submitted" for row in assignments
-        ),
-        "saved_annotation_rows": sum(annotation_counts.values()),
-        "catalog_coverage": {
-            "zero_reviewers": sum(coverage[item_id] == 0 for item_id in catalog_ids),
-            "one_reviewer": sum(coverage[item_id] == 1 for item_id in catalog_ids),
-            "two_reviewers": sum(coverage[item_id] == 2 for item_id in catalog_ids),
-            "more_than_two_reviewers": sum(
-                coverage[item_id] > 2 for item_id in catalog_ids
-            ),
-            "assignments_outside_catalog": sum(
-                row["item_id"] not in catalog_ids for row in assignments
-            ),
-        },
-        "accounts": users,
-    }
-    with st.expander("Audit assignment diagnostics"):
-        st.caption(
-            "This report contains account IDs and counts only; it has no "
-            "access codes or annotation text."
-        )
-        st.json({key: value for key, value in report.items() if key != "accounts"})
-        st.dataframe(users, use_container_width=True, hide_index=True)
-        st.download_button(
-            "Download Audit diagnostics",
-            data=json.dumps(report, ensure_ascii=False, indent=2),
-            file_name="proact-audit-diagnostics.json",
-            mime="application/json",
-            use_container_width=True,
-        )
-
-
 def _render_manage(store: AnnotationStore) -> None:
     deleted_ids = st.session_state.pop("deleted_account_ids", [])
     if deleted_ids:
@@ -425,36 +349,46 @@ def _render_progress(store: AnnotationStore, records: list[dict]) -> None:
         _progress_metrics(assigned, submitted, _pass_rate(review_records))
 
     st.markdown("#### Annotator details")
-    users = store.list_users()
-    users_by_id = {row["user_id"]: row for row in users}
-    selected_id = st.selectbox(
-        "Annotator",
-        [row["user_id"] for row in users],
-        index=None,
-        placeholder="Select an annotator",
-        key="progress-annotator-selection",
+    task_label = st.radio(
+        "Task type",
+        ("Audit", "Eval"),
+        horizontal=True,
+        key="progress-review-type",
     )
-    if selected_id is None:
-        return
-    selected = users_by_id[selected_id]
-    selected_rows = [row for row in rows if row["user_id"] == selected_id]
-    assigned = sum(int(row.get("assigned") or 0) for row in selected_rows)
-    submitted = sum(int(row.get("submitted") or 0) for row in selected_rows)
-    task_types = ", ".join(
-        sorted(
+    review_type = task_label.lower()
+    users_by_id = {user["user_id"]: user for user in store.list_users()}
+    records_by_user: dict[str, list[dict]] = {}
+    for record in records:
+        if record["review_type"] == review_type:
+            records_by_user.setdefault(record["user_id"], []).append(record)
+
+    details = []
+    for row in rows:
+        if row.get("review_type") != review_type:
+            continue
+        user_id = row["user_id"]
+        assigned = int(row.get("assigned") or 0)
+        submitted = int(row.get("submitted") or 0)
+        pass_rate = _pass_rate(records_by_user.get(user_id, []))
+        details.append(
             {
-                str(row["review_type"]).title()
-                for row in selected_rows
-                if row.get("review_type")
+                "Annotator": user_id,
+                "Assigned": assigned,
+                "Completed": submitted,
+                "Remaining": max(assigned - submitted, 0),
+                "Completion": (
+                    f"{100 * submitted / assigned:.1f}%" if assigned else "—"
+                ),
+                "Pass rate": f"{100 * pass_rate:.1f}%" if pass_rate is not None else "—",
+                "Last login": (
+                    users_by_id.get(user_id, {}).get("last_login_at") or "Never"
+                ),
             }
         )
-    ) or "Unassigned"
-    last_login = selected.get("last_login_at") or "Never"
-    st.caption(f"Task: {task_types} · Last login: {last_login}")
-    selected_records = [
-        record for record in records if record["user_id"] == selected_id
-    ]
-    _progress_metrics(assigned, submitted, _pass_rate(selected_records))
+    if details:
+        st.dataframe(details, use_container_width=True, hide_index=True)
+    else:
+        st.info(f"No {task_label} assignments yet.")
 
 
 def _export_button(records: list[dict]) -> None:
@@ -486,7 +420,6 @@ def render_admin(
     with manage_tab:
         _render_manage(store)
     with progress_tab:
-        _render_audit_diagnostics(store, audit_items)
         records = store.export_annotations()
         _render_progress(store, records)
         _export_button(records)

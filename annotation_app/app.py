@@ -45,7 +45,7 @@ if not hasattr(assignment_module, "quota_audit_assignment_plan"):
 import annotation_app.admin_view as admin_view_module  # noqa: E402
 
 if getattr(admin_view_module, "ADMIN_VIEW_VERSION", None) != (
-    "2026-09-17-fixed-audit-cohort"
+    "2026-09-17-progress-table"
 ):
     admin_view_module = importlib.reload(admin_view_module)
 render_admin = admin_view_module.render_admin
