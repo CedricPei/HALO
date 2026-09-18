@@ -17,9 +17,10 @@ from benchmark_catalog import evaluation_groups
 from annotation_app.storage import (
     AnnotationStore,
     generate_access_code,
+    generate_admin_password,
 )
 
-ADMIN_VIEW_VERSION = "2026-09-17-progress-table"
+ADMIN_VIEW_VERSION = "2026-09-18-admin-accounts"
 
 
 EXPORT_BASE_FIELDS = ("annotation_id", "user_id", "item_id")
@@ -245,7 +246,82 @@ def _render_eval_assignments(
             )
 
 
+def _render_admin_accounts(store: AnnotationStore) -> None:
+    st.markdown("#### Administrator accounts")
+    created = st.session_state.get("new_admin_credentials")
+    if created:
+        st.success(
+            f"Administrator {created['user_id']} created. Save this password now."
+        )
+        st.code(created["password"], language=None)
+        st.caption("This password is shown only in this browser session.")
+        if st.button("I saved the password", key="dismiss-admin-password"):
+            st.session_state.pop("new_admin_credentials", None)
+            st.rerun()
+
+    admins = store.list_admins()
+    st.dataframe(
+        [
+            {
+                "Administrator": store.config.admin_username,
+                "Source": "Streamlit Secrets",
+                "Last login": "—",
+            },
+            *[
+                {
+                    "Administrator": row["user_id"],
+                    "Source": "Database",
+                    "Last login": row["last_login_at"] or "Never",
+                }
+                for row in admins
+            ],
+        ],
+        use_container_width=True,
+        hide_index=True,
+    )
+    with st.form("create-administrator"):
+        existing_ids = {row["user_id"] for row in admins}
+        next_number = 2
+        while f"admin{next_number}" in existing_ids:
+            next_number += 1
+        user_id = st.text_input(
+            "New administrator ID", value=f"admin{next_number}"
+        )
+        submitted = st.form_submit_button("Create administrator")
+    if submitted:
+        password = generate_admin_password()
+        try:
+            store.create_admin(user_id, password)
+        except Exception as error:
+            st.error(f"Could not create administrator: {error}")
+        else:
+            st.session_state["new_admin_credentials"] = {
+                "user_id": user_id.strip().lower().replace(" ", "-"),
+                "password": password,
+            }
+            st.rerun()
+
+    if admins:
+        with st.expander("Revoke a database administrator"):
+            with st.form("revoke-administrator", clear_on_submit=True):
+                revoke_id = st.selectbox(
+                    "Administrator to revoke",
+                    [row["user_id"] for row in admins],
+                )
+                confirmed = st.checkbox(
+                    "I understand this account will lose access"
+                )
+                revoke = st.form_submit_button("Revoke administrator")
+            if revoke and confirmed:
+                store.delete_admin(revoke_id)
+                st.session_state.pop("new_admin_credentials", None)
+                st.rerun()
+
+
 def _render_manage(store: AnnotationStore) -> None:
+    _render_admin_accounts(store)
+    st.divider()
+    st.markdown("#### Annotator accounts")
     deleted_ids = st.session_state.pop("deleted_account_ids", [])
     if deleted_ids:
         st.success(f"Deleted {len(deleted_ids)} account(s).")

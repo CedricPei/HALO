@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import json
 import re
 import secrets
@@ -18,6 +20,7 @@ from annotation_app.config import AppConfig
 
 USER_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._-]{2,63}$")
 ACCESS_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+ADMIN_PASSWORD_ITERATIONS = 600_000
 
 
 def utc_now() -> str:
@@ -38,6 +41,34 @@ def generate_access_code() -> str:
         "".join(secrets.choice(ACCESS_CODE_ALPHABET) for _ in range(4))
         for _ in range(3)
     )
+
+
+def generate_admin_password() -> str:
+    return secrets.token_urlsafe(32)
+
+
+def hash_admin_password(password: str) -> str:
+    if len(password) < 20:
+        raise ValueError("Administrator passwords must have at least 20 characters.")
+    salt = secrets.token_bytes(16)
+    digest = hashlib.pbkdf2_hmac(
+        "sha256", password.encode("utf-8"), salt, ADMIN_PASSWORD_ITERATIONS
+    )
+    return f"pbkdf2_sha256${ADMIN_PASSWORD_ITERATIONS}${salt.hex()}${digest.hex()}"
+
+
+def verify_admin_password(password: str, password_hash: str) -> bool:
+    try:
+        algorithm, iterations, salt_hex, digest_hex = password_hash.split("$")
+        if algorithm != "pbkdf2_sha256":
+            return False
+        expected = bytes.fromhex(digest_hex)
+        actual = hashlib.pbkdf2_hmac(
+            "sha256", password.encode("utf-8"), bytes.fromhex(salt_hex), int(iterations)
+        )
+        return hmac.compare_digest(actual, expected)
+    except (TypeError, ValueError):
+        return False
 
 
 class AnnotationStore:
@@ -151,6 +182,11 @@ class AnnotationStore:
         if user_id == self.config.admin_username.strip().lower():
             raise ValueError("This user ID is reserved for the bootstrap administrator.")
         with self._connect() as connection:
+            if connection.execute(
+                self._sql("SELECT 1 FROM annotation_admins WHERE user_id=?"),
+                (user_id,),
+            ).fetchone():
+                raise ValueError("This user ID belongs to an administrator.")
             connection.execute(
                 self._sql(
                     "INSERT INTO annotation_users "
@@ -161,6 +197,106 @@ class AnnotationStore:
                     access_code.strip().upper(),
                     utc_now(),
                 ),
+            )
+
+    def create_admin(self, user_id: str, password: str) -> None:
+        user_id = normalize_user_id(user_id)
+        password_hash = hash_admin_password(password)
+        if user_id == self.config.admin_username.strip().lower():
+            raise ValueError("This user ID belongs to the bootstrap administrator.")
+        with self._connect() as connection:
+            if connection.execute(
+                self._sql("SELECT 1 FROM annotation_users WHERE user_id=?"),
+                (user_id,),
+            ).fetchone():
+                raise ValueError("This user ID belongs to an annotator.")
+            connection.execute(
+                self._sql(
+                    "INSERT INTO annotation_admins "
+                    "(user_id, password_hash, created_at) VALUES (?, ?, ?)"
+                ),
+                (user_id, password_hash, utc_now()),
+            )
+
+    def apply_initial_admin(
+        self, migration_id: str, user_id: str, password_hash: str
+    ) -> bool:
+        """Create a one-time administrator on deployment without storing its password."""
+        user_id = normalize_user_id(user_id)
+        if user_id == self.config.admin_username.strip().lower():
+            raise ValueError("This user ID belongs to the bootstrap administrator.")
+        with self._connect() as connection:
+            if connection.execute(
+                self._sql("SELECT 1 FROM annotation_migrations WHERE migration_id=?"),
+                (migration_id,),
+            ).fetchone():
+                return False
+            if connection.execute(
+                self._sql("SELECT 1 FROM annotation_users WHERE user_id=?"),
+                (user_id,),
+            ).fetchone():
+                raise ValueError(f"{user_id} is already an annotator account.")
+            connection.execute(
+                self._sql(
+                    "INSERT INTO annotation_admins "
+                    "(user_id, password_hash, created_at) VALUES (?, ?, ?) "
+                    "ON CONFLICT(user_id) DO NOTHING"
+                ),
+                (user_id, password_hash, utc_now()),
+            )
+            connection.execute(
+                self._sql(
+                    "INSERT INTO annotation_migrations (migration_id, applied_at) "
+                    "VALUES (?, ?) ON CONFLICT(migration_id) DO NOTHING"
+                ),
+                (migration_id, utc_now()),
+            )
+        return True
+
+    def authenticate_admin(self, user_id: str, password: str) -> dict | None:
+        try:
+            user_id = normalize_user_id(user_id)
+        except ValueError:
+            return None
+        with self._connect() as connection:
+            row = connection.execute(
+                self._sql(
+                    "SELECT user_id, password_hash FROM annotation_admins WHERE user_id=?"
+                ),
+                (user_id,),
+            ).fetchone()
+            if not row or not verify_admin_password(password, row["password_hash"]):
+                return None
+            connection.execute(
+                self._sql(
+                    "UPDATE annotation_admins SET last_login_at=? WHERE user_id=?"
+                ),
+                (utc_now(), user_id),
+            )
+        return {"user_id": user_id, "is_admin": True, "admin_source": "database"}
+
+    def list_admins(self) -> list[dict]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT user_id, created_at, last_login_at "
+                "FROM annotation_admins ORDER BY created_at, user_id"
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def admin_exists(self, user_id: str) -> bool:
+        with self._connect() as connection:
+            return bool(
+                connection.execute(
+                    self._sql("SELECT 1 FROM annotation_admins WHERE user_id=?"),
+                    (user_id,),
+                ).fetchone()
+            )
+
+    def delete_admin(self, user_id: str) -> None:
+        with self._connect() as connection:
+            connection.execute(
+                self._sql("DELETE FROM annotation_admins WHERE user_id=?"),
+                (normalize_user_id(user_id),),
             )
 
     def authenticate(self, user_id: str, access_code: str) -> dict | None:

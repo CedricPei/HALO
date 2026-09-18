@@ -189,3 +189,14 @@ Each run is written to `eval_results/<model>/`. After a successful command,
 `eval_results/summary.json` is regenerated with checkpoint-level token, latency,
 inspection-round, and action-intensity metrics. Use the evaluation Streamlit
 interface to review the resulting Event–Response pairs.
+
+## Annotation administrators
+
+The original administrator signs in with `ADMIN_USERNAME` and `ADMIN_PASSWORD`
+from Streamlit Secrets. To add another administrator, sign in and open
+**Administration → Manage → Administrator accounts**. Enter an ID and select
+**Create administrator**. The app generates a password and displays it in that
+browser session; save it before signing out. Additional administrator passwords
+are stored as salted hashes in the annotation database. The same page can
+revoke a database administrator. Revoked accounts lose access on their next
+page load.

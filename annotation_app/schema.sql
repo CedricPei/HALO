@@ -5,6 +5,13 @@ CREATE TABLE IF NOT EXISTS annotation_users (
     last_login_at TEXT
 );
 
+CREATE TABLE IF NOT EXISTS annotation_admins (
+    user_id TEXT PRIMARY KEY,
+    password_hash TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    last_login_at TEXT
+);
+
 CREATE TABLE IF NOT EXISTS annotation_assignments (
     user_id TEXT NOT NULL,
     review_type TEXT NOT NULL CHECK (review_type IN ('audit', 'eval')),
@@ -57,6 +64,7 @@ ALTER TABLE annotation_users ALTER COLUMN access_code DROP DEFAULT;
 ALTER TABLE annotation_users DROP COLUMN IF EXISTS access_code_hash;
 
 ALTER TABLE annotation_users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE annotation_admins ENABLE ROW LEVEL SECURITY;
 ALTER TABLE annotation_assignments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE annotations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE annotation_migrations ENABLE ROW LEVEL SECURITY;

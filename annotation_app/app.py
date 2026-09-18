@@ -13,6 +13,10 @@ import streamlit as st
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 CATALOG_VERSION = "2026-09-10-complete-400-eval-purged"
+INITIAL_ADMIN2_PASSWORD_HASH = (
+    "pbkdf2_sha256$600000$e983fc7d21e20df94191e12090c5b63d$"
+    "6a06af22d1cf83b423560c645e0b05606bdeb3b6de7f75eefff4f15fc2a0053f"
+)
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
@@ -36,6 +40,7 @@ if not all(
         "apply_all_participant_accounts_purge",
         "assignment_snapshot",
         "apply_fixed_audit_cohort_migration",
+        "authenticate_admin",
     )
 ):
     storage_module = importlib.reload(storage_module)
@@ -45,7 +50,7 @@ if not hasattr(assignment_module, "quota_audit_assignment_plan"):
 import annotation_app.admin_view as admin_view_module  # noqa: E402
 
 if getattr(admin_view_module, "ADMIN_VIEW_VERSION", None) != (
-    "2026-09-17-progress-table"
+    "2026-09-18-admin-accounts"
 ):
     admin_view_module = importlib.reload(admin_view_module)
 render_admin = admin_view_module.render_admin
@@ -122,9 +127,12 @@ def _login(store: AnnotationStore, config: AppConfig) -> None:
             user = {
                 "user_id": config.admin_username,
                 "is_admin": True,
+                "admin_source": "bootstrap",
             }
         else:
-            user = store.authenticate(user_id, access_code)
+            user = store.authenticate_admin(user_id, access_code)
+            if user is None:
+                user = store.authenticate(user_id, access_code)
         if user:
             st.session_state["annotation_user"] = user
             st.rerun()
@@ -180,7 +188,11 @@ def _sidebar(user: dict, task_label: str) -> None:
         st.caption("Supabase PostgreSQL")
         if st.button("Sign out", use_container_width=True):
             for key in list(st.session_state):
-                if key.startswith("cloud_") or key == "annotation_user":
+                if key.startswith("cloud_") or key in {
+                    "annotation_user",
+                    "new_admin_credentials",
+                    "new_assignment_credentials",
+                }:
                     del st.session_state[key]
             st.rerun()
 
@@ -229,6 +241,15 @@ def main() -> None:
         st.error(str(error))
         return
 
+    try:
+        store.apply_initial_admin(
+            "create-admin2-2026-09-18",
+            "admin2",
+            INITIAL_ADMIN2_PASSWORD_HASH,
+        )
+    except ValueError as error:
+        st.warning(f"Could not create admin2: {error}")
+
     assignment_version = "2026-09-17-fixed-audit-cohort"
     if st.session_state.get("cloud_audit_assignment_version") != assignment_version:
         for key in list(st.session_state):
@@ -238,6 +259,15 @@ def main() -> None:
 
     participant_users = {row["user_id"] for row in store.list_users()}
     user = st.session_state.get("annotation_user")
+    if user and user.get("is_admin"):
+        active_admin = (
+            store.admin_exists(user["user_id"])
+            if user.get("admin_source") == "database"
+            else user["user_id"] == config.admin_username
+        )
+        if not active_admin:
+            del st.session_state["annotation_user"]
+            st.rerun()
     if (
         user
         and not user.get("is_admin")
