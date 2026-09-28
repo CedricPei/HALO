@@ -3,6 +3,7 @@
 import json
 import re
 import shutil
+import sqlite3
 import tempfile
 from pathlib import Path
 
@@ -171,29 +172,48 @@ class InstanceCreator:
             name = _protagonist_name(item["personal_description"])
             if name:
                 names_in_existing.add(name)
-            output = json.loads(
-                (path.parent / "outputs" / "instance.json").read_text(
-                    encoding="utf-8"
+            output_path = path.parent / "outputs" / "instance.json"
+            if output_path.exists():
+                output = json.loads(output_path.read_text(encoding="utf-8"))
+                database_description = [
+                    command["description"] for command in output["commands"]
+                    if command["app"] == "database"
+                ]
+                file_description = [
+                    {
+                        "name": command["parameter"]["name"],
+                        "description": command["description"],
+                    }
+                    for command in output["commands"] if command["app"] == "files"
+                ]
+            else:
+                database_path = path.parent / "data" / f"{path.parent.name}.sqlite"
+                connection = sqlite3.connect(
+                    database_path.resolve().as_uri() + "?mode=ro", uri=True
                 )
-            )
+                try:
+                    database_description = [
+                        row[0] for row in connection.execute(
+                            "SELECT sql FROM sqlite_master WHERE type='table' "
+                            "AND name NOT LIKE 'sqlite_%' ORDER BY name"
+                        )
+                    ]
+                finally:
+                    connection.close()
+                file_description = [
+                    {
+                        "name": file_path.name,
+                        "description": f"Shared text file: {file_path.stem.replace('_', ' ')}.",
+                    }
+                    for file_path in sorted((path.parent / "data").glob("*.txt"))
+                ]
             existing.append(
                 {
                     "instance_id": path.parent.name,
                     "instance_description": item["instance_description"],
                     "personal_description": item["personal_description"],
-                    "database_description": [
-                        command["description"]
-                        for command in output["commands"]
-                        if command["app"] == "database"
-                    ],
-                    "file_description": [
-                        {
-                            "name": command["parameter"]["name"],
-                            "description": command["description"],
-                        }
-                        for command in output["commands"]
-                        if command["app"] == "files"
-                    ],
+                    "database_description": database_description,
+                    "file_description": file_description,
                 }
             )
         used_protagonist_names = []

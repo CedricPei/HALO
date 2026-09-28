@@ -21,6 +21,10 @@ OPENAI_CONSTRUCTION_REASONING_EFFORT = "xhigh"
 class LLMTransportError(RuntimeError):
     """An HTTP(S)-layer failure before a usable response."""
 
+    def __init__(self, message, *, retryable=True):
+        super().__init__(message)
+        self.retryable = retryable
+
 
 class LLMProtocolError(RuntimeError):
     """A successful HTTP response with an unusable model payload."""
@@ -250,22 +254,44 @@ class LLMClient:
             raise protocol_error from error
         return call
 
+    def evaluation_settings(self, model):
+        """Non-secret request settings saved with results and checked on resume."""
+        if model.startswith("gemini") and self.gemini_transport == "developer":
+            return {
+                "transport": "gemini/developer",
+                "base_url": self.gemini_base_url,
+                "thinking_level": self.thinking_level,
+                "max_output_tokens": self.max_output_tokens,
+            }
+        if model.startswith("gemini"):
+            return {"transport": "openai/chat", "url": self.openai_chat_completions_url,
+                    "temperature": 1.0}
+        return {"transport": "openai/responses", "url": self.openai_responses_url}
+
     def _retry(self, operation, label):
-        for attempt in range(1, 6):
+        max_attempts = 8
+        for attempt in range(1, max_attempts + 1):
             try:
                 return operation()
             except LLMTransportError as error:
+                if not error.retryable:
+                    raise
+                exhausted = attempt == max_attempts
+                backoff_seconds = min(2 ** attempt, 30)
                 LOGGER.warning(
-                    "[%s] HTTP attempt %s/5 failed; %s: %s",
+                    "[%s] HTTP attempt %s/%s failed; %s%s: %s",
                     label,
                     attempt,
-                    "stopping" if attempt == 5 else "retrying immediately",
+                    max_attempts,
+                    "stopping" if exhausted else "retrying",
+                    "" if exhausted else f" in {backoff_seconds}s",
                     error,
                 )
-                if attempt == 5:
+                if exhausted:
                     raise LLMTransportError(
-                        "LLM call stopped after 5 network failures"
+                        f"LLM call stopped after {max_attempts} network failures"
                     ) from error
+                time.sleep(backoff_seconds)
 
     def _post(self, url, payload, headers):
         request = urllib.request.Request(
@@ -280,7 +306,10 @@ class LLMClient:
                 data = json.loads(response.read().decode("utf-8"))
         except urllib.error.HTTPError as error:
             detail = error.read().decode("utf-8", errors="replace")
-            raise LLMTransportError(f"HTTP {error.code}: {detail}") from error
+            raise LLMTransportError(
+                f"HTTP {error.code}: {detail}",
+                retryable=error.code in {408, 429} or error.code >= 500,
+            ) from error
         except (
             urllib.error.URLError,
             http.client.HTTPException,

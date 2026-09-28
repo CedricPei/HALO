@@ -21,7 +21,7 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from benchmark_catalog import (  # noqa: E402
-    load_construction_items,
+    load_benchmark_items,
     load_evaluation_items,
 )
 from annotation_app.config import AppConfig  # noqa: E402
@@ -102,7 +102,7 @@ def _store(config: AppConfig, storage_cache_key: str) -> AnnotationStore:
 @st.cache_data(show_spinner="Loading Benchmark Audit items…")
 def _audit_items(catalog_version: str) -> list[dict]:
     del catalog_version
-    return load_construction_items()
+    return load_benchmark_items()
 
 
 @st.cache_data(show_spinner="Loading Agent Evaluation items…")

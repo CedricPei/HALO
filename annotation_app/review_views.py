@@ -10,10 +10,16 @@ from evaluation.intensity import INTENSITY_LEVELS, action_intensity
 from annotation_app.ui import format_event_label, metadata, render_structured_text
 
 
-REJECTION_DIMENSIONS = ("Timing", "Intensity", "Other issues")
 TIMING_ERRORS = ("Premature", "Belated")
+TIMING_CHECKS = ("Premature", "Appropriate", "Belated")
+TIMING_STORAGE = {
+    "Premature": "Premature",
+    "Appropriate": "Timely",
+    "Belated": "Belated",
+}
 INACTION_ERROR = "Inaction"
 INTENSITY_ERRORS = ("Insufficient", "Excessive")
+INTENSITY_CHECKS = ("Insufficient", "Appropriate", "Excessive")
 OTHER_ISSUES = (
     "Unsupported Evidence",
     "Irrelevant Action",
@@ -323,6 +329,36 @@ def _stored_dimensions(existing: dict, diagnostics: dict) -> set[str]:
     }
 
 
+def _stored_timing_check(
+    existing: dict,
+    stored_dimensions: set[str],
+    has_saved_unacceptable_review: bool,
+) -> str | None:
+    if not has_saved_unacceptable_review:
+        return None
+    prior = existing.get("timing", "")
+    if prior in TIMING_ERRORS:
+        return prior
+    if prior == "Timely" or "Timing" not in stored_dimensions:
+        return "Appropriate"
+    return None
+
+
+def _stored_intensity_check(
+    existing: dict,
+    stored_dimensions: set[str],
+    has_saved_unacceptable_review: bool,
+) -> str | None:
+    if not has_saved_unacceptable_review:
+        return None
+    prior = existing.get("intensity", "")
+    if prior in INTENSITY_ERRORS:
+        return prior
+    if prior == "Appropriate" or "Intensity" not in stored_dimensions:
+        return "Appropriate"
+    return None
+
+
 def render_eval(
     store: AnnotationStore,
     user: dict,
@@ -428,7 +464,7 @@ def render_eval(
             st.markdown("#### Intensity Check")
             st.markdown(
                 "- **L0 · No action or retrieval:** The Agent returns no command or a retrieval-only response.\n"
-                "- **L1 · Attention:** The command surfaces something for the user’s attention.\n"
+                "- **L1 · Attention:** The command presents a notification, reminder, or flagged item for the user’s attention.\n"
                 "- **L2 · Preparation:** The command prepares an unexecuted operation or maintains internal contact information.\n"
                 "- **L3 · Execution:** The command changes an active schedule, communicates externally, or moves money."
             )
@@ -461,7 +497,9 @@ def render_eval(
             '<li>Returning no action is unacceptable when a supported, useful intervention is available at this checkpoint.</li></ul></div>'
             '<div class="requirement-group"><strong>Action</strong>'
             '<ul><li>The target, command, parameters, and claimed outcome must be relevant, feasible, and consistent with the environment.</li>'
-            '<li>The intervention must have appropriate intensity and remain safe, authorized, and likely to produce useful progress.</li></ul></div>',
+            '<li>The intervention must have appropriate intensity and remain safe, authorized, and likely to produce useful progress.</li>'
+            '<li>A user notification needs grounded, useful information or a concrete next step; generic advice or restating Events alone is insufficient.</li>'
+            '<li>A notification does not establish user approval, a reply, or completion of proposed operations. A useful L1 message can be sufficient; higher intensity is not inherently better.</li></ul></div>',
             unsafe_allow_html=True,
         )
 
@@ -490,6 +528,7 @@ def render_eval(
         intensity_error = "Appropriate"
         other_issue = ""
         other_issue_detail = ""
+        diagnostics_complete = True
         if verdict == "unacceptable" and selected_intensity == "L0":
             dimensions = ["Timing"]
             timing = INACTION_ERROR
@@ -501,38 +540,53 @@ def render_eval(
                 '<div class="rejection-heading">Rejection Reasons</div>',
                 unsafe_allow_html=True,
             )
-            dimension_columns = st.columns(3)
-            for column, dimension in zip(
-                dimension_columns, REJECTION_DIMENSIONS
-            ):
-                if column.checkbox(
-                    dimension,
-                    value=dimension in stored_dimensions,
-                    key=f"cloud-dimension-{dimension}-{user_id}-{item['item_id']}",
-                ):
-                    dimensions.append(dimension)
-            timing = intensity_error = ""
-            if "Timing" in dimensions:
-                prior = existing.get("timing", "")
-                timing = st.selectbox(
-                    "Timing",
-                    TIMING_ERRORS,
-                    index=TIMING_ERRORS.index(prior) if prior in TIMING_ERRORS else 0,
-                    key=f"cloud-timing-{user_id}-{item['item_id']}",
-                )
-            if "Intensity" in dimensions:
-                prior = existing.get("intensity", "")
-                intensity_error = st.selectbox(
-                    "Intensity",
-                    INTENSITY_ERRORS,
-                    index=(
-                        INTENSITY_ERRORS.index(prior)
-                        if prior in INTENSITY_ERRORS
-                        else 0
-                    ),
-                    key=f"cloud-intensity-error-{user_id}-{item['item_id']}",
-                )
-            if "Other issues" in dimensions:
+            timing_check = _stored_timing_check(
+                existing,
+                stored_dimensions,
+                stored_verdict == "unacceptable",
+            )
+            timing_check = st.radio(
+                "Regardless of the intervention intensity, was this an "
+                "appropriate time to intervene?",
+                TIMING_CHECKS,
+                index=(
+                    TIMING_CHECKS.index(timing_check)
+                    if timing_check in TIMING_CHECKS
+                    else None
+                ),
+                horizontal=True,
+                key=f"cloud-timing-check-{user_id}-{item['item_id']}",
+            )
+            intensity_check = _stored_intensity_check(
+                existing,
+                stored_dimensions,
+                stored_verdict == "unacceptable",
+            )
+            intensity_check = st.radio(
+                "At this point, was the intervention intensity appropriate?",
+                INTENSITY_CHECKS,
+                index=(
+                    INTENSITY_CHECKS.index(intensity_check)
+                    if intensity_check in INTENSITY_CHECKS
+                    else None
+                ),
+                horizontal=True,
+                key=f"cloud-intensity-appropriateness-{user_id}-{item['item_id']}",
+            )
+            other_issue_selected = st.checkbox(
+                "Other issues",
+                value="Other issues" in stored_dimensions,
+                key=f"cloud-dimension-Other issues-{user_id}-{item['item_id']}",
+            )
+
+            timing = TIMING_STORAGE.get(timing_check, "")
+            intensity_error = intensity_check or ""
+            if timing_check in TIMING_ERRORS:
+                dimensions.append("Timing")
+            if intensity_check in INTENSITY_ERRORS:
+                dimensions.append("Intensity")
+            if other_issue_selected:
+                dimensions.append("Other issues")
                 prior = diagnostics.get("other_issue")
                 other_issue = st.selectbox(
                     "Other issues",
@@ -549,6 +603,27 @@ def render_eval(
                     ).strip()
                     diagnostics_to_save["other_issue_detail"] = other_issue_detail
             diagnostics_to_save["rejection_dimensions"] = dimensions
+            checks_answered = (
+                timing_check is not None and intensity_check is not None
+            )
+            has_rejection_reason = bool(dimensions)
+            other_detail_complete = not (
+                other_issue_selected
+                and other_issue == "Others"
+                and not other_issue_detail
+            )
+            diagnostics_complete = (
+                checks_answered
+                and has_rejection_reason
+                and other_detail_complete
+            )
+            if checks_answered and not has_rejection_reason:
+                st.caption(
+                    "Timing and intensity are appropriate. Select an Other Issue "
+                    "or change the Verdict to Acceptable."
+                )
+            elif not other_detail_complete:
+                st.caption("Describe the issue when Others is selected.")
             st.markdown(
                 '<div class="eval-actions-spacer"></div>',
                 unsafe_allow_html=True,
@@ -559,7 +634,7 @@ def render_eval(
                 "Comment (optional)",
                 value=existing.get("comments", ""),
                 placeholder="Add context that would help explain your judgment.",
-                height=80,
+                height=56,
             )
             back_col, save_col = st.columns([1, 2])
             back = back_col.form_submit_button(
@@ -569,7 +644,7 @@ def render_eval(
                 "Save and next",
                 type="primary",
                 use_container_width=True,
-                disabled=verdict is None,
+                disabled=verdict is None or not diagnostics_complete,
             )
         if back:
             st.session_state[position_key] -= 1
@@ -577,14 +652,8 @@ def render_eval(
         elif submitted:
             if verdict is None:
                 st.error("Select a verdict before continuing.")
-            elif (
-                verdict == "unacceptable"
-                and selected_intensity != "L0"
-                and not dimensions
-            ):
-                st.error("Select at least one rejection dimension.")
-            elif other_issue == "Others" and not other_issue_detail:
-                st.error("Describe the issue when Others is selected.")
+            elif not diagnostics_complete:
+                st.error("Complete the rejection checks before continuing.")
             else:
                 primary_reason = ", ".join(dimensions)
                 updated = {

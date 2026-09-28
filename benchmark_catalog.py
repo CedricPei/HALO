@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import sqlite3
 from collections import defaultdict
 from pathlib import Path
@@ -15,6 +16,25 @@ RESULTS_DIR = ROOT_DIR / "eval_results"
 
 def _json(path: Path):
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def input_fingerprint(item: dict) -> str:
+    """Identify the published scenario, one shared state, and execution code."""
+    instance_dir = (ROOT_DIR / item["path"]).parents[2]
+    digest = hashlib.sha256()
+    digest.update(json.dumps(item["scenario"], sort_keys=True).encode())
+    paths = [ROOT_DIR / item["path"], instance_dir / "profile.json"]
+    for folder in ("data", "app"):
+        paths.extend(path for path in (instance_dir / folder).rglob("*") if path.is_file())
+    paths.extend(ROOT_DIR / name for name in (
+        "benchmark_catalog.py", "command_parser.py", "evaluation/runner.py", "evaluation/prompt.py",
+        "evaluation/intensity.py", "llm_client.py", "env/app_surfaces/evaluated_agent.md",
+    ))
+    paths.extend((ROOT_DIR / "env/apps").glob("*.py"))
+    for path in sorted(paths):
+        digest.update(str(path.relative_to(ROOT_DIR)).encode() + b"\0")
+        digest.update(path.read_bytes())
+    return digest.hexdigest()
 
 
 def _state_summary(instance_dir: Path, instance_id: str) -> dict:
@@ -54,8 +74,8 @@ def _state_summary(instance_dir: Path, instance_id: str) -> dict:
     return {"database": database, "files": files, "apps": apps}
 
 
-def load_construction_items() -> list[dict]:
-    """Return all accepted Scenarios; source files remain read-only."""
+def load_benchmark_items() -> list[dict]:
+    """Return the current published Scenarios and their shared Instance state."""
     items = []
     profile_cache: dict[Path, dict] = {}
     state_cache: dict[Path, dict] = {}
@@ -65,6 +85,9 @@ def load_construction_items() -> list[dict]:
         domain_dir = instance_dir.parents[1]
         trigger = public_path.parent.name
         scenario_id = public_path.stem
+        scenario = _json(public_path)
+        if set(scenario) != {"scenario_description", "events"}:
+            raise ValueError(f"Scenario must use its shared Instance state: {public_path}")
         if instance_dir not in state_cache:
             state_cache[instance_dir] = _state_summary(instance_dir, instance_id)
             profile_cache[instance_dir] = _json(instance_dir / "profile.json")
@@ -76,7 +99,7 @@ def load_construction_items() -> list[dict]:
                 "scenario_id": scenario_id,
                 "trigger_type": trigger,
                 "instance": profile_cache[instance_dir],
-                "scenario": _json(public_path),
+                "scenario": scenario,
                 "state": state_cache[instance_dir],
                 "path": str(public_path.relative_to(ROOT_DIR)),
             }
@@ -87,18 +110,13 @@ def load_construction_items() -> list[dict]:
 def load_evaluation_items() -> list[dict]:
     """Flatten saved model runs into checkpoint-level review items."""
     items = []
-    profile_cache: dict[Path, dict] = {}
-    scenario_cache: dict[Path, dict] = {}
     for path in sorted(RESULTS_DIR.glob("*/*.json")):
         run = _json(path)
         source_path = run["source_path"]
-        scenario_path = ROOT_DIR / source_path
-        instance_dir = scenario_path.parents[2]
-        if scenario_path not in scenario_cache:
-            scenario_cache[scenario_path] = _json(scenario_path)
-        if instance_dir not in profile_cache:
-            profile_cache[instance_dir] = _json(instance_dir / "profile.json")
-        scenario = scenario_cache[scenario_path]
+        if "scenario" not in run or "instance" not in run:
+            raise ValueError(f"Evaluation result lacks scenario/profile snapshots; rerun: {path}")
+        scenario = run["scenario"]
+        instance = run["instance"]
         events = list(scenario["events"].items())
         event_positions = {
             event_id: index for index, (event_id, _) in enumerate(events)
@@ -115,7 +133,7 @@ def load_evaluation_items() -> list[dict]:
                     "model": run["model"],
                     "domain_id": run["domain_id"],
                     "trigger_type": run["trigger_type"],
-                    "instance": profile_cache[instance_dir],
+                    "instance": instance,
                     "scenario_description": scenario["scenario_description"],
                     "event_prefix": [
                         {"event_id": prefix_id, **event}

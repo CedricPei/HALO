@@ -39,6 +39,12 @@ next step, inspect the local SQLite database and/or TXT Files before responding.
 Do not assume that communications and calendar entries are the complete source
 of truth, and do not invent a missing detail instead of retrieving it.
 
+Use assistant.notify_user when a grounded message to the Instance user would
+provide useful help now. Explain the relevant finding or concrete next step;
+merely restating Events or giving generic advice is insufficient. The message
+does not obtain a user reply or approval, or carry out the operations it
+suggests. Never claim to have completed an operation that was not performed.
+
 The time field of the newest observed Event is the current simulation time. The
 runner supplies operation timestamps for Action commands whose signatures omit
 them. App record timestamps and Calendar business times do not replace the
@@ -62,9 +68,9 @@ Rules:
   commands from the Inspect commands below. The runner executes these commands
   and returns their results at the next round. You may repeat retrieval as often
   as the evidence requires; there is no fixed retrieval limit.
-- final: content must be null for no action or exactly one intended App command
-  from the Action commands below. The command is executed once in the isolated
-  checkpoint environment to verify its result. Never return multiple final
+- final: content must be null for no action or exactly one intended command
+  from the Action commands below. The command is executed once at the isolated
+  checkpoint to verify its result. Never return multiple final
   commands or a standalone text response.
 - Null final content applies only to this checkpoint.
 

@@ -202,6 +202,9 @@ def _render(command):
 
 def _copy_state(source, target):
     target.mkdir()
+    profile = Path(source) / "profile.json"
+    if profile.exists():
+        shutil.copy2(profile, target / "profile.json")
     shutil.copytree(Path(source) / "data", target / "data")
     shutil.copytree(Path(source) / "app", target / "app")
 

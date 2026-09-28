@@ -24,7 +24,10 @@ class CommandParser:
                 "files": Files(data_dir),
                 "email": Email(app_dir / "email.json", owner=owner),
                 "calendar": Calendar(app_dir / "calendar.json"),
-                "messaging": Messaging(app_dir / "messaging.json", owner=owner),
+                "messaging": Messaging(
+                    app_dir / "messaging.json",
+                    owner=cls._messaging_owner(app_dir / "messaging.json", owner),
+                ),
                 "contacts": Contacts(app_dir / "contacts.json"),
                 "wallet": Wallet(app_dir / "wallet.json"),
             }
@@ -46,6 +49,32 @@ class CommandParser:
                 "personal_description must begin with the protagonist's full name"
             )
         return match.group(1).strip()
+
+    @staticmethod
+    def _messaging_owner(state_path, owner):
+        """Resolve a stored account's short name or email without changing history."""
+        if not owner or not state_path.exists():
+            return owner
+        conversations = json.loads(state_path.read_text(encoding="utf-8")).get(
+            "conversations", []
+        )
+        if not conversations:
+            return owner
+        common = set.intersection(
+            *(set(item["participants"]) for item in conversations)
+        )
+        if owner in common:
+            return owner
+        # A unique shared participant must also match the protagonist's name.
+        # Never select an unrelated contact merely because it appears often.
+        if len(common) == 1:
+            candidate = next(iter(common))
+            names = owner.casefold().split()
+            account = candidate.casefold().split("@", 1)[0]
+            tokens = re.split(r"[\s._-]+", account)
+            if len(names) >= 2 and tokens == [names[0], names[-1]]:
+                return candidate
+        return owner
 
     def execute_command(self, command: dict):
         """Execute one command and return the App function result."""

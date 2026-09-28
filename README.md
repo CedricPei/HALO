@@ -1,105 +1,99 @@
 # ProActCal
 
-ProActCal is a benchmark for testing whether an Agent can recognize when help
-is needed in an evolving application environment, gather the necessary
-evidence, and respond at the right time with an appropriate level of action.
+ProActCal evaluates whether an Agent recognizes when help is needed, gathers
+relevant evidence, and responds at the right time with an appropriate action.
+The active benchmark contains **10 domains, 50 instances, 400 scenarios, and
+2,160 event checkpoints per model**.
 
-The complete benchmark contains **10 Domains, 5 Instances per Domain, and 8
-Scenarios per Instance: 50 Instances and 400 Scenarios in total**. With roughly
-5 Events per Scenario, evaluating one model produces about 2,000 Event–Response
-pairs.
+## Data and repository layout
 
-## Benchmark structure
+```text
+proactive_agent_benchmark/
+├── README.md                  # Project documentation
+├── annotations/               # Original human audit: 800 annotation records
+├── domains/                   # Revised benchmark used for evaluation
+│   └── <domain>/
+│       ├── domain.json
+│       └── instances/<instance>/
+│           ├── profile.json
+│           ├── data/          # SQLite database and text files
+│           ├── app/           # Shared initial App state, including noise
+│           └── scenarios/<trigger>/*.json
+├── evaluation/                # Agent runner, prompts and local validation
+├── annotation_app/            # Annotation interface
+├── env/                       # Simulated Apps and their API surfaces
+├── creators/                  # Benchmark construction pipeline
+├── benchmark_plan.json        # Domain definitions and planned scale
+├── benchmark_catalog.py       # Dataset and evaluation-result loaders
+├── build_benchmark.py         # Construction/resume and current-data audit
+├── command_parser.py          # Local App command execution
+├── llm_client.py               # HTTP(S) model clients
+└── requirements.txt
+```
 
-- A **Domain** defines a broad area of life, such as work and professional
-  activity.
-- An **Instance** represents one person and their initial state across Apps,
-  local files, and structured data.
-- A **Scenario** is a time-ordered Event sequence containing one of four
-  proactive Triggers: `blockage`, `dependency`, `opportunity`, or `risk`.
-- Each Instance contains two Scenarios for every Trigger type, for a total of
-  eight accepted Scenarios.
-- **Noise** adds unrelated background Events so the Agent must distinguish
-  genuine intervention opportunities from ordinary activity.
-- **Evaluation** replays Scenario prefixes in isolated copies of the Instance
-  and records the Agent's inspections and final response for later review.
+Each instance has **one shared initial environment** (`profile.json`, `data/`,
+`app/`) for all eight scenarios: two each for `blockage`, `dependency`,
+`opportunity`, and `risk`. Scenarios are independent branches. Each evaluation
+checkpoint copies that same initial environment and replays only the available
+event prefix. Background noise is already materialized in the shared state;
+archived construction/noise commands must not be reapplied for evaluation.
+Public scenario JSON contains only `scenario_description` and `events`.
 
-The 10 fixed Domains are:
+The original human audit and adjudication retained 289 scenarios and selected
+111 for revision. Revision and subsequent AI acceptance covered all 400;
+179 public scenarios and 48 shared instance environments differ from raw.
+These are AI acceptance results, not new human votes. The original 800 human
+votes and comments are retained in `annotations/proact-anno-audit-annotations.csv`.
+The historical raw archive has been removed; `domains/` is the active dataset.
 
-1. Education and Learning
-2. Work and Professional Life
-3. Home and Household Management
-4. Family and Caregiving Life
-5. Health and Wellbeing
-6. Travel and Mobility
-7. Personal Finance and Consumer Life
-8. Community and Civic Life
-9. Social and Cultural Life
-10. Recreation, Sports, and Hobbies
+Local credentials and the existing design documents remain in their original
+locations. Evaluation creates `eval_results/` when needed; it is not a dataset.
 
-Domains are assigned by the person's **primary objective**, not by the App,
-record type, or resource involved. Cross-domain cases belong to the Domain that
-best describes the outcome being pursued; each Instance then defines a narrower
-setting and explicit exclusions inside that Domain.
+## Initial construction pass rates
 
-The repository contains three main workflows:
+These counts describe persisted, parseable candidates from the **initial
+construction**, before human audit and benchmark revision.
 
-1. Construct and validate benchmark Instances, Scenarios, and Noise.
-2. Annotate constructed Scenarios and evaluated Agent responses in the cloud.
-3. Run Agents on accepted Scenarios and review their responses.
+| Stage | Passed / evaluated | Pass rate | Rejected |
+|---|---:|---:|---:|
+| Validator | 509 / 568 | 89.61% | 59 |
+| Reviewer, after Validator passed | 400 / 509 | 78.59% | 109 |
+| Complete pipeline | 400 / 568 | 70.42% | 168 |
 
-## Repository layout
+Revised candidates count as separate candidates. These are candidate acceptance
+rates, not API-request success rates; network retries and unparseable model
+outputs are not included. These statistics were recorded before the historical
+construction archive was removed.
 
-- `benchmark_plan.json` defines the human-authored Domains and benchmark scale.
-- `domains/` contains generated Instances, Scenarios, and construction records.
-- `creators/` implements Instance, Scenario, Reviewer, Validator, and Noise
-  construction stages.
-- `evaluation/` runs evaluated Agents.
-- `eval_results/` stores Agent outputs and aggregate usage metrics.
-- `benchmark_catalog.py` loads benchmark items for evaluation and annotation.
-- `annotation_app/` contains the cloud annotation interface.
-- `benchmark/manifest.json` is generated by the benchmark audit.
+## Setup
 
-## Environment setup
-
-Clone the private repository and create a Python 3.11 environment:
+Use Python 3.11 or later:
 
 ```bash
-git clone https://github.com/CedricPei/ProActCal.git
-cd ProActCal
-python3.11 -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements.txt
 cp .env.example .env
 ```
 
-Keep `.env` local and never commit API keys.
+Keep `.env` local. `llm_client.py` reads it from the repository root; existing
+shell variables take precedence. Model calls use HTTP(S).
 
-`llm_client.py` reads `.env` from the repository root. Existing shell
-environment variables take precedence. All model calls use non-streaming
-HTTP(S).
-
-### OpenAI API
-
-For the official OpenAI API:
+For the OpenAI-compatible Responses endpoint:
 
 ```dotenv
 CREATOR_LLM_PROVIDER=openai
 OPENAI_API_KEY=...
 OPENAI_RESPONSES_URL=https://api.openai.com/v1/responses
-OPENAI_REASONING_EFFORT=...
+OPENAI_REASONING_EFFORT=xhigh
 ```
 
-`OPENAI_RESPONSES_URL` is the complete endpoint. The client sends requests to
-this URL exactly as configured and does not append a path.
+`OPENAI_RESPONSES_URL` is the complete endpoint; no path is appended. The
+construction model configured in code is `gpt-5.6-sol`. Evaluation selects its
+model separately with `--model` and does not inherit the construction reasoning
+setting.
 
-Benchmark construction uses `gpt-5.6-sol` with `OPENAI_REASONING_EFFORT` set
-to `xhigh` (`max` may be used when latency and cost permit). This model and
-reasoning setting apply only to benchmark construction. Agent evaluation
-selects models separately with `--model` and does not inherit the construction
-reasoning setting.
-
-### Gemini Developer API
+For the Gemini Developer API:
 
 ```dotenv
 CREATOR_LLM_PROVIDER=gemini
@@ -110,58 +104,29 @@ GEMINI_THINKING_LEVEL=high
 EVALUATION_GEMINI_TRANSPORT=developer
 ```
 
-`GEMINI_MODEL` selects the construction model. During Agent evaluation, any
-`--model` value beginning with `gemini` uses the Gemini Developer API when
-`EVALUATION_GEMINI_TRANSPORT=developer`.
+## Validate the published dataset
 
-## Constructing the benchmark
-
-To construct or resume the complete planned benchmark with one command:
+Run local checks without calling a model or writing reports:
 
 ```bash
-python -B build_benchmark.py
+python -B -m evaluation.validate
 ```
 
-This command traverses all 10 Domains and all 50 planned Instances, constructs
-each Instance's eight Scenarios and final Noise, and runs the final benchmark
-audit. Existing completed stages are skipped when the same command is rerun.
+This checks the shared-state structure, database integrity, initial record
+timing and wallet consistency, and replays all 2,160 independent event prefixes
+across 400 scenarios and 50 databases. Temporary states are removed and all
+published source files must remain unchanged. This verifies local execution;
+semantic quality and model performance require separate evaluation.
 
-To construct or resume only one planned Instance:
+A lighter current-data audit is available:
 
 ```bash
-python -B build_benchmark.py \
-  --domain <domain-id> \
-  --instance <instance-id>
+python -B build_benchmark.py --audit-only
 ```
-
-For example:
-
-```bash
-python -B build_benchmark.py \
-  --domain work_and_professional_life \
-  --instance work_and_professional_life_01
-```
-
-To construct every planned Instance in a Domain, omit `--instance`:
-
-```bash
-python -B build_benchmark.py --domain work_and_professional_life
-```
-
-Construction is resumable. Existing accepted Scenarios and final Noise are
-skipped, while missing stages continue. Construction runs Instances and their
-Scenarios serially because later Scenarios depend on the accepted shared state.
 
 ## Agent evaluation
 
-For each accepted Scenario, evaluation creates one checkpoint after every
-Event. Each checkpoint starts from a fresh copy of the accepted Instance,
-replays only the Event prefix available at that moment, and lets the Agent
-inspect read-only App state before returning either no action or one final
-command. The final command is executed once in a disposable state copy.
-
-Independent `(model, Scenario)` jobs run in parallel; checkpoints within one
-Scenario remain serial. Start with one Scenario as a smoke test:
+Start with one scenario:
 
 ```bash
 python -B -m evaluation.runner \
@@ -171,32 +136,95 @@ python -B -m evaluation.runner \
   --workers 1
 ```
 
-After the smoke test succeeds, run the same model on every accepted Scenario:
+Then evaluate the complete dataset:
 
 ```bash
 python -B -m evaluation.runner --model <model-id> --workers 8
 ```
 
-For a complete benchmark, this schedules 400 independent `(model, Scenario)`
-jobs per model.
+Each checkpoint lets the Agent inspect read-only App state and return either
+no action or one final command, executed in a disposable state copy. Independent
+`(model, scenario)` jobs run in parallel; checkpoints within a scenario are
+serial. `--model` and `--instance` may be repeated. Model IDs beginning with
+`gemini` use the configured Gemini transport; other IDs use the Responses
+endpoint.
 
-`--model` and `--instance` may be repeated. A model name beginning with
-`gemini` uses the configured Gemini transport; other model names use the
-OpenAI-compatible Responses endpoint. Existing `(model, Scenario)` results are
-skipped, so rerunning the command resumes unfinished jobs.
+Runs are saved under `eval_results/<model>/`, with aggregate metrics in
+`eval_results/summary.json`. A successful run is reused only when its input
+fingerprint matches the current scenario, shared environment and execution
+code and model request settings. Runs retain scenario/profile snapshots for
+review; results without these snapshots must be rerun. Old runs are retained
+but excluded from current summary metrics when their fingerprints or settings
+no longer match.
 
-Each run is written to `eval_results/<model>/`. After a successful command,
-`eval_results/summary.json` is regenerated with checkpoint-level token, latency,
-inspection-round, and action-intensity metrics. Use the evaluation Streamlit
-interface to review the resulting Event–Response pairs.
+Progress and API retries are logged both to the console and to
+`evaluation/evaluation.log`; use `--log-file <path>` for separate model logs.
+Logs include checkpoint completion, scenario counts, failures, and a heartbeat
+while requests are pending. A run with failed checkpoints exits nonzero; rerun
+the same command to retry incomplete scenarios while skipping completed ones.
+HTTP 400/401/403/404 errors stop immediately; transient errors use bounded retries.
 
-## Annotation administrators
+To run both Gemini models concurrently in the background, use separate processes
+and moderate concurrency (four scenarios per model):
 
-The original administrator signs in with `ADMIN_USERNAME` and `ADMIN_PASSWORD`
-from Streamlit Secrets. To add another administrator, sign in and open
-**Administration → Manage → Administrator accounts**. Enter an ID and select
-**Create administrator**. The app generates a password and displays it in that
-browser session; save it before signing out. Additional administrator passwords
-are stored as salted hashes in the annotation database. The same page can
-revoke a database administrator. Revoked accounts lose access on their next
-page load.
+```bash
+mkdir -p eval_results/logs
+nohup python -u -B -m evaluation.runner --model gemini-3.8-flash --workers 4 \
+  --log-file eval_results/logs/gemini-3.8-flash.log >/dev/null 2>&1 &
+nohup python -u -B -m evaluation.runner --model gemini-3.1-pro-preview --workers 4 \
+  --log-file eval_results/logs/gemini-3.1-pro-preview.log >/dev/null 2>&1 &
+tail -f eval_results/logs/gemini-3.8-flash.log
+```
+
+The evaluated Agent can also use `assistant.notify_user(message)` to present
+a non-empty, one-way notification to the instance user. The runner fixes the
+recipient and simulation timestamp and saves the record as
+`agent.execution_result`. This evaluation-only action is unavailable to
+construction, Scenario Events and shared initialization. It supplies no user
+reply or approval, sends nothing to third parties, and does not perform the
+operations described in its text. It still uses the single final-command slot.
+Execution verifies the simulated action; it does not prove that a real user
+read the message or followed its advice, or that the response is acceptable.
+
+### Action levels and evaluation labels
+
+| Level | Meaning | Examples |
+|---|---|---|
+| L0 | No action or retrieval | `null`, a retrieval-only final response |
+| L1 | Attention | Notify the user, create a reminder, flag an item |
+| L2 | Preparation | Prepare a draft, create or update an internal contact |
+| L3 | Execution | Send a message, change an active schedule, make a payment |
+
+The interface infers the action level and lets the annotator correct it.
+The level describes what the Agent did; **intensity appropriateness** judges
+whether that level fits the current need. Higher intensity is not inherently
+better. Notifications need evidence and practical value: generic advice,
+restating Events, or claiming unperformed operations is insufficient.
+
+The verdict is **Acceptable / Unacceptable**. For an unacceptable non-L0
+response, the interface asks:
+
+| Check | Options |
+|---|---|
+| Timing | Premature / Appropriate / Belated |
+| Intensity appropriateness | Insufficient / Appropriate / Excessive |
+
+Timing **Appropriate** is stored as `Timely`. Other issues can also be recorded
+as Unsupported Evidence, Irrelevant Action, Factual Contradiction, or Others.
+An unacceptable L0 response automatically records **Timing / Inaction**;
+Inaction is not a separate selectable timing option. A `null` response hides
+the level selector, while a retrieval-only final response retains it.
+
+## Construction and annotation
+
+`python -B build_benchmark.py` constructs or resumes the planned benchmark.
+Use `--domain <domain-id>` and optionally `--instance <instance-id>` to limit
+scope. Complete published instances are validated and skipped; removing archived
+construction logs does not rerun initialization or noise. New construction can
+create working outputs and logs for unfinished instances.
+
+The annotation interface lives in `annotation_app/`. The original administrator
+uses `ADMIN_USERNAME` and `ADMIN_PASSWORD` from Streamlit Secrets. Additional
+accounts can be created or revoked under **Administration → Manage →
+Administrator accounts**. Generated passwords are shown once and stored as
+salted hashes; revoked accounts lose access on their next page load.

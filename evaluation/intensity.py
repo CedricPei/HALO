@@ -4,6 +4,9 @@ from .prompt import INSPECT_COMMANDS
 
 
 ACTION_INTENSITIES = {
+    "assistant": {
+        "notify_user": "L1",
+    },
     "email": {
         "flag_email": "L1",
         "create_draft": "L2",

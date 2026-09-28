@@ -61,6 +61,16 @@ Files are read-only.
 
 ## Action commands
 
+### Assistant
+
+- `assistant.notify_user(message)`: Present a non-empty message to the Instance
+  user at the current checkpoint (L1 attention). The recipient and timestamp
+  are supplied automatically. This is a one-way notification: it provides no
+  user reply or approval, contacts no third party, and performs none of the
+  operations proposed in its text. Ground the message in available evidence
+  and provide useful information or a concrete next step; generic advice alone
+  does not establish that the current need has been addressed.
+
 ### Email
 
 - `email.flag_email(sender, subject, timestamp, comment)`: Flag an existing

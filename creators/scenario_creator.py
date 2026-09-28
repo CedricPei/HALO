@@ -2,7 +2,7 @@
 
 import json
 import random
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from env.apps import Database, Files
@@ -56,8 +56,10 @@ def load_instance_state(instance_dir, instance_id):
         "SELECT name, sql FROM sqlite_master WHERE type='table' "
         "AND name NOT LIKE 'sqlite_%' ORDER BY name"
     )["rows"]
-    instance_output = json.loads(
-        (instance_dir / "outputs" / "instance.json").read_text(encoding="utf-8")
+    output_path = instance_dir / "outputs" / "instance.json"
+    instance_output = (
+        json.loads(output_path.read_text(encoding="utf-8"))
+        if output_path.exists() else {"commands": []}
     )
     file_descriptions = {
         command["parameter"]["name"]: command["description"]
@@ -79,7 +81,7 @@ def load_instance_state(instance_dir, instance_id):
                 "name": item["name"],
                 "description": file_descriptions.get(
                     item["name"],
-                    "Instance-specific text file added by an accepted Scenario.",
+                    "Text file in the shared Instance state.",
                 ),
                 "content": files.get_file(item["name"])["content"],
             }
@@ -89,8 +91,44 @@ def load_instance_state(instance_dir, instance_id):
     }
 
 
+def published_scenario(original, public):
+    """Overlay published content without rewriting historical construction logs."""
+    scenario = {**original, **public}
+    events = public.get("events", {})
+    if isinstance(events, dict) and events:
+        first = next(iter(events.values()))
+        try:
+            scenario["reference_time"] = datetime.fromisoformat(
+                first["time"].replace("Z", "+00:00")
+            ).date().isoformat()
+        except (KeyError, TypeError, ValueError, AttributeError):
+            pass  # Structural validation reports malformed event timestamps.
+    return scenario
+
+
+def load_published_scenario(public_path):
+    """Add only validation metadata to an already materialized public Scenario."""
+    public_path = Path(public_path)
+    public = json.loads(public_path.read_text(encoding="utf-8"))
+    if not isinstance(public, dict) or set(public) != {
+        "scenario_description", "events"
+    }:
+        raise ValueError(
+            "Published Scenario must contain only scenario_description and events"
+        )
+    return published_scenario(
+        {
+            "scenario_id": public_path.stem,
+            "trigger_type": public_path.parent.name,
+            "reference_time": None,
+            "ini_data_commands": [],
+        },
+        public,
+    )
+
+
 def load_accepted_scenarios(instance_dir):
-    """Load every accepted hidden Scenario."""
+    """Read current events, with construction metadata only when still present."""
     instance_dir = Path(instance_dir)
     scenarios = []
     for trigger in TRIGGER_DEFINITIONS:
@@ -100,7 +138,13 @@ def load_accepted_scenarios(instance_dir):
                 instance_dir / "scenarios" / "logs" / public_path.stem
                 / "scenario_output.json"
             )
-            scenarios.append(json.loads(hidden.read_text(encoding="utf-8")))
+            scenario = load_published_scenario(public_path)
+            if hidden.exists():
+                scenario = published_scenario(
+                    json.loads(hidden.read_text(encoding="utf-8")),
+                    json.loads(public_path.read_text(encoding="utf-8")),
+                )
+            scenarios.append(scenario)
     return scenarios
 
 

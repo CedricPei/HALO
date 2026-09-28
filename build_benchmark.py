@@ -5,6 +5,7 @@ import hashlib
 import json
 import logging
 import random
+import sqlite3
 import time
 from collections import Counter
 from concurrent.futures import CancelledError
@@ -14,9 +15,9 @@ from threading import Event
 
 from creators import InstanceCreator, NoiseCreator, build_scenario
 from creators.prompt import TRIGGER_DEFINITIONS
+from creators.scenario_creator import load_published_scenario
 from creators.validator import (
     description_similarity,
-    find_noise_structure_conflicts,
     validate_published_scenario,
 )
 from llm_client import LLMTransportError
@@ -82,13 +83,92 @@ def _hash_file(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def audit_benchmark(domain_ids=None):
-    """Validate a complete benchmark and write its canonical manifest."""
+def _shared_state_errors(instance_dir, instance_id):
+    """Check the materialized evaluation state, independently of build logs."""
+    errors = []
+    try:
+        profile = _load_json(instance_dir / "profile.json")
+        for field in ("instance_description", "personal_description"):
+            if not isinstance(profile.get(field), str) or not profile[field].strip():
+                errors.append(f"profile.json has no {field}")
+    except Exception as error:
+        errors.append(f"unreadable profile.json: {error}")
+    for app in ("calendar", "contacts", "email", "messaging", "wallet"):
+        try:
+            if not isinstance(_load_json(instance_dir / "app" / f"{app}.json"), dict):
+                errors.append(f"app/{app}.json must be an object")
+        except Exception as error:
+            errors.append(f"unreadable app/{app}.json: {error}")
+    database_path = instance_dir / "data" / f"{instance_id}.sqlite"
+    try:
+        connection = sqlite3.connect(database_path.resolve().as_uri() + "?mode=ro", uri=True)
+        try:
+            if connection.execute("PRAGMA integrity_check").fetchall() != [("ok",)]:
+                errors.append("shared database failed integrity_check")
+            if connection.execute("PRAGMA foreign_key_check").fetchall():
+                errors.append("shared database failed foreign_key_check")
+        finally:
+            connection.close()
+        for path in (instance_dir / "data").glob("*.txt"):
+            path.read_text(encoding="utf-8")
+    except Exception as error:
+        errors.append(f"unreadable shared data: {error}")
+    return errors
+
+
+def _published_instance(instance_dir, instance_id):
+    """Validate every published branch against the same final Instance state."""
+    errors = _shared_state_errors(instance_dir, instance_id)
+    scenarios, trigger_counts = [], Counter()
+    expected_paths = set()
+    for trigger in TRIGGER_DEFINITIONS:
+        trigger_dir = instance_dir / "scenarios" / trigger
+        public_paths = sorted(trigger_dir.glob("*.json"))
+        expected_paths.update(
+            trigger_dir / f"{trigger}_{slot}.json"
+            for slot in range(1, SCENARIOS_PER_TRIGGER + 1)
+        )
+        trigger_counts[trigger] = len(public_paths)
+        if len(public_paths) != SCENARIOS_PER_TRIGGER:
+            errors.append(
+                f"{trigger} has {len(public_paths)} Scenarios; expected {SCENARIOS_PER_TRIGGER}"
+            )
+        for public_path in public_paths:
+            try:
+                scenario = load_published_scenario(public_path)
+                conflicts = validate_published_scenario(
+                    instance_dir, instance_id, scenario, trigger
+                )
+                errors.extend(f"{public_path.stem}: {item}" for item in conflicts)
+                if not conflicts:
+                    scenarios.append((public_path, scenario))
+            except Exception as error:
+                errors.append(f"{public_path.stem}: {type(error).__name__}: {error}")
+    actual_paths = {path for path, _ in scenarios}
+    if actual_paths != expected_paths:
+        errors.append("Published Scenario paths do not match the eight scheduled slots")
+    return errors, scenarios, trigger_counts
+
+
+def _uses_published_state(instance_dir):
+    """An archived or fully completed Instance must not be constructed again."""
+    if not instance_dir.exists():
+        return False
+    if not (instance_dir / "outputs" / "instance.json").exists():
+        return True
+    return (instance_dir / "outputs" / "noise.json").exists() and all(
+        (instance_dir / "scenarios" / trigger / f"{trigger}_{slot}.json").exists()
+        for trigger in TRIGGER_DEFINITIONS
+        for slot in range(1, SCENARIOS_PER_TRIGGER + 1)
+    )
+
+
+def audit_benchmark(domain_ids=None, *, write_manifest=True):
+    """Validate the current dataset; archived build outcomes are provenance only."""
     plan = load_plan()
     domains_dir, output_dir = DOMAINS_DIR, BENCHMARK_DIR
     errors, warnings, domain_entries, all_records = [], [], [], []
-    event_counts, ini_app_counts = Counter(), Counter()
-    noise_command_count = 0
+    event_counts = Counter()
 
     domain_specs = [
         item
@@ -106,11 +186,12 @@ def audit_benchmark(domain_ids=None):
         if domains_dir.exists()
         else set()
     )
-    if actual_domains != expected_domains:
+    checked_domains = actual_domains if domain_ids is None else actual_domains & expected_domains
+    if checked_domains != expected_domains:
         errors.append(
             "Domain directories differ: "
             f"missing={sorted(expected_domains - actual_domains)}, "
-            f"unexpected={sorted(actual_domains - expected_domains)}"
+            f"unexpected={sorted(checked_domains - expected_domains)}"
         )
 
     for domain_spec in domain_specs:
@@ -128,116 +209,30 @@ def audit_benchmark(domain_ids=None):
             if not instance_dir.exists():
                 instance_errors.append("Instance directory is missing")
             else:
-                try:
-                    output = _load_json(instance_dir / "outputs" / "instance.json")
-                    if output.get("instance_id") != instance_id:
-                        instance_errors.append("outputs/instance.json has wrong ID")
-                    _load_json(instance_dir / "profile.json")
-                except Exception as error:
-                    instance_errors.append(f"unreadable Instance metadata: {error}")
-
-                for trigger in TRIGGER_DEFINITIONS:
-                    trigger_dir = instance_dir / "scenarios" / trigger
-                    public_paths = sorted(trigger_dir.glob(f"{trigger}_*.json"))
-                    trigger_counts[trigger] = len(public_paths)
-                    if len(public_paths) != SCENARIOS_PER_TRIGGER:
-                        instance_errors.append(
-                            f"{trigger} has {len(public_paths)} Scenarios; expected "
-                            f"{SCENARIOS_PER_TRIGGER}"
-                        )
-                    for public_path in public_paths:
-                        scenario_id = public_path.stem
-                        log_dir = instance_dir / "scenarios" / "logs" / scenario_id
-                        required = (
-                            "scenario_output.json",
-                            "validation_output.json",
-                            "review_output.json",
-                        )
-                        missing = [
-                            name for name in required if not (log_dir / name).exists()
-                        ]
-                        if missing:
-                            instance_errors.append(f"{scenario_id} missing {missing}")
-                            continue
-                        try:
-                            scenario = _load_json(log_dir / "scenario_output.json")
-                            validation = _load_json(
-                                log_dir / "validation_output.json"
-                            )
-                            review = _load_json(log_dir / "review_output.json")
-                            public = _load_json(public_path)
-                        except Exception as error:
-                            instance_errors.append(
-                                f"{scenario_id} unreadable: {error}"
-                            )
-                            continue
-                        if validation != {"valid": True, "conflicts": []}:
-                            instance_errors.append(f"{scenario_id} failed Validator")
-                        if not review.get("valid") or review.get("issues"):
-                            instance_errors.append(f"{scenario_id} failed Reviewer")
-                        if public != {
-                            "scenario_description": scenario.get(
-                                "scenario_description"
-                            ),
-                            "events": scenario.get("events"),
-                        }:
-                            instance_errors.append(
-                                f"{scenario_id} public output differs"
-                            )
-                        for conflict in validate_published_scenario(
-                            instance_dir,
-                            instance_id,
-                            scenario,
-                            trigger,
-                        ):
-                            instance_errors.append(f"{scenario_id}: {conflict}")
-
-                        ini_apps = sorted(
-                            {item["app"] for item in scenario["ini_data_commands"]}
-                        )
-                        ini_app_counts.update(ini_apps)
-                        event_count = len(scenario["events"])
-                        event_counts[event_count] += 1
-                        scenario_entries.append(
-                            {
-                                "scenario_id": scenario_id,
-                                "trigger_type": trigger,
-                                "event_count": event_count,
-                                "ini_data_command_count": len(
-                                    scenario["ini_data_commands"]
-                                ),
-                                "ini_data_apps": ini_apps,
-                                "path": str(public_path.relative_to(ROOT_DIR)),
-                                "sha256": _hash_file(public_path),
-                            }
-                        )
-                        record = {
-                            "domain_id": domain_id,
-                            "instance_id": instance_id,
+                instance_errors, scenarios, trigger_counts = _published_instance(
+                    instance_dir, instance_id
+                )
+                for public_path, scenario in scenarios:
+                    scenario_id, trigger = public_path.stem, public_path.parent.name
+                    event_count = len(scenario["events"])
+                    event_counts[event_count] += 1
+                    scenario_entries.append(
+                        {
                             "scenario_id": scenario_id,
-                            "description": scenario["scenario_description"],
+                            "trigger_type": trigger,
+                            "event_count": event_count,
+                            "path": str(public_path.relative_to(ROOT_DIR)),
+                            "sha256": _hash_file(public_path),
                         }
-                        records.append(record)
-                        all_records.append(record)
-
-                review_path = instance_dir / "outputs" / "review.json"
-                if not review_path.exists() or not _load_json(review_path).get(
-                    "valid"
-                ):
-                    instance_errors.append(
-                        "current Instance review is missing or invalid"
                     )
-                noise_path = instance_dir / "outputs" / "noise.json"
-                if not noise_path.exists():
-                    instance_errors.append("outputs/noise.json is missing")
-                else:
-                    noise = _load_json(noise_path)
-                    noise_conflicts = find_noise_structure_conflicts(noise)
-                    if noise_conflicts:
-                        instance_errors.extend(
-                            f"Noise: {conflict}" for conflict in noise_conflicts
-                        )
-                    noise_command_count += len(noise.get("noise_commands", []))
+                    record = {
+                        "domain_id": domain_id,
+                        "instance_id": instance_id,
+                        "scenario_id": scenario_id,
+                        "description": scenario["scenario_description"],
+                    }
+                    records.append(record)
+                    all_records.append(record)
 
             for left, right in combinations(records, 2):
                 score = description_similarity(
@@ -276,22 +271,11 @@ def audit_benchmark(domain_ids=None):
         )
         errors.extend(f"{domain_id}: {item}" for item in domain_errors)
 
-    validator_rejected = reviewer_rejected = 0
-    for log_dir in domains_dir.glob(
-        "*/instances/*/scenarios/logs/*_failed_*"
-    ):
-        validation_path = log_dir / "validation_output.json"
-        review_path = log_dir / "review_output.json"
-        if validation_path.exists() and not _load_json(validation_path).get("valid"):
-            validator_rejected += 1
-        elif review_path.exists() and not _load_json(review_path).get("valid"):
-            reviewer_rejected += 1
-    generated = len(all_records) + validator_rejected + reviewer_rejected
     manifest = {
         "benchmark_id": plan["benchmark_id"],
         "valid": not errors,
         "summary": {
-            "domain_count": len(actual_domains),
+            "domain_count": len(checked_domains),
             "instance_count": sum(
                 len(item["instances"]) for item in domain_entries
             ),
@@ -299,24 +283,14 @@ def audit_benchmark(domain_ids=None):
             "event_count": sum(
                 count * frequency for count, frequency in event_counts.items()
             ),
-            "candidate_success": {
-                "generated": generated,
-                "accepted": len(all_records),
-                "validator_rejected": validator_rejected,
-                "reviewer_rejected": reviewer_rejected,
-                "success_rate": (
-                    round(len(all_records) / generated, 4) if generated else None
-                ),
-            },
-            "noise_command_count": noise_command_count,
             "event_count_distribution": dict(sorted(event_counts.items())),
-            "initial_data_app_counts": dict(sorted(ini_app_counts.items())),
         },
         "review_report": {"errors": errors, "warnings": warnings},
         "domains": domain_entries,
     }
-    output_dir.mkdir(parents=True, exist_ok=True)
-    _write_json(output_dir / "manifest.json", manifest)
+    if write_manifest:
+        output_dir.mkdir(parents=True, exist_ok=True)
+        _write_json(output_dir / "manifest.json", manifest)
     return manifest
 
 
@@ -363,13 +337,39 @@ def _create_instance(domain_spec, instance_spec, benchmark_year, stop_event):
 
 def _build_one_instance(plan, domain_spec, instance_spec, stop_event):
     domain_id, instance_id = domain_spec["domain_id"], instance_spec["instance_id"]
+    instance_dir = DOMAINS_DIR / domain_id / "instances" / instance_id
+    if stop_event.is_set():
+        raise CancelledError
+    if _uses_published_state(instance_dir):
+        errors, scenarios, _ = _published_instance(instance_dir, instance_id)
+        if errors:
+            raise ValueError(
+                "Existing published Instance failed validation; no state was changed: "
+                + "; ".join(errors)
+            )
+        LOGGER.info(f"[{domain_id}/{instance_id}] Published state validated; skipping construction")
+        return {
+            "domain_id": domain_id,
+            "instance_id": instance_id,
+            "status": "complete",
+            "elapsed_seconds": 0,
+            "scenario_results": [
+                {"scenario_id": scenario["scenario_id"], "status": "existing"}
+                for _, scenario in scenarios
+            ],
+            "noise_result": {"status": "materialized"},
+            "review": {
+                "valid": True,
+                "issues": [],
+                "source": "local validation of published state",
+            },
+        }
     _create_instance(
         domain_spec,
         instance_spec,
         plan["benchmark_year"],
         stop_event,
     )
-    instance_dir = DOMAINS_DIR / domain_id / "instances" / instance_id
     construction_started = (
         instance_dir / "outputs" / "instance.json"
     ).stat().st_mtime
@@ -483,7 +483,6 @@ def build_benchmark(
     domain_ids=None,
     instance_ids=None,
 ):
-    _configure_logging()
     plan = load_plan()
     selected_domains = [
         spec
@@ -494,8 +493,6 @@ def build_benchmark(
     unknown_domains = set(domain_ids or []) - known_domains
     if unknown_domains:
         raise ValueError(f"unknown Domain ids: {sorted(unknown_domains)}")
-    _prepare_domains(selected_domains)
-
     known_instances = {
         instance_spec["instance_id"]
         for domain_spec in selected_domains
@@ -505,7 +502,21 @@ def build_benchmark(
     if unknown_instances:
         raise ValueError(f"unknown Instance ids: {sorted(unknown_instances)}")
 
-    BENCHMARK_DIR.mkdir(parents=True, exist_ok=True)
+    selected_instances = [
+        DOMAINS_DIR / spec["domain_id"] / "instances" / instance["instance_id"]
+        for spec in selected_domains
+        for instance in instance_schedule(plan, spec)
+        if instance_ids is None or instance["instance_id"] in instance_ids
+    ]
+    published_only = bool(selected_instances) and all(
+        _uses_published_state(path) for path in selected_instances
+    )
+    if published_only:
+        logging.basicConfig(level=logging.INFO, format="%(message)s", force=True)
+    else:
+        _configure_logging()
+        _prepare_domains(selected_domains)
+        BENCHMARK_DIR.mkdir(parents=True, exist_ok=True)
     started = time.monotonic()
     results, failures = [], []
     stop_event = Event()
@@ -563,7 +574,8 @@ def build_benchmark(
     complete_domain_selection = instance_ids is None
     if complete_domain_selection and report["complete"]:
         audit = audit_benchmark(
-            domain_ids=[spec["domain_id"] for spec in selected_domains]
+            domain_ids=[spec["domain_id"] for spec in selected_domains],
+            write_manifest=not published_only,
         )
     else:
         audit = None
@@ -574,7 +586,20 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--domain", action="append", dest="domain_ids")
     parser.add_argument("--instance", action="append", dest="instance_ids")
+    parser.add_argument(
+        "--audit-only", action="store_true",
+        help="Validate published data and print JSON without writing build artifacts",
+    )
     args = parser.parse_args()
+    if args.audit_only:
+        if args.instance_ids:
+            parser.error("--audit-only supports --domain, not --instance")
+        audit = audit_benchmark(domain_ids=args.domain_ids, write_manifest=False)
+        summary = {
+            key: audit[key] for key in ("valid", "summary", "review_report")
+        }
+        print(json.dumps(summary, ensure_ascii=False, indent=2))
+        raise SystemExit(0 if audit["valid"] else 1)
     report, audit = build_benchmark(
         domain_ids=args.domain_ids,
         instance_ids=args.instance_ids,

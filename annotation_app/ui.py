@@ -142,6 +142,14 @@ STYLE = """
         + [data-testid="stElementContainer"]:has([data-testid="stRadio"]) {
         margin-top: -.3rem;
     }
+    [class*="st-key-cloud-timing-check-"] [data-testid="stWidgetLabel"],
+    [class*="st-key-cloud-intensity-appropriateness-"] [data-testid="stWidgetLabel"] {
+        margin-bottom: 0;
+    }
+    [class*="st-key-cloud-timing-check-"] [role="radiogroup"],
+    [class*="st-key-cloud-intensity-appropriateness-"] [role="radiogroup"] {
+        margin-top: -.55rem;
+    }
     p, li {font-size: .94rem; line-height: 1.55;}
     [data-testid="stMarkdownContainer"] p {margin-bottom: .35rem;}
     [data-testid="stMarkdownContainer"] ul {margin-bottom: .35rem; margin-top: .2rem;}
@@ -185,7 +193,11 @@ STYLE = """
         font-size: .96rem;
         font-weight: 700;
         line-height: 1.2;
-        margin: -.45rem 0 .08rem;
+        margin: -.45rem 0 0;
+    }
+    [data-testid="stElementContainer"]:has(.rejection-heading)
+        + [class*="st-key-cloud-timing-check-"] {
+        margin-top: 1rem;
     }
     .eval-actions-spacer {height: 1.15rem;}
     .review-meta {
