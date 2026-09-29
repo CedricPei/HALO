@@ -108,7 +108,10 @@ def save_retry(path, run, index, replacement, expected_bytes):
     return updated, data
 
 
-def retry_run(path, item):
+def retry_run(path, item, max_attempts=3):
+    """Give each currently failed checkpoint up to max_attempts fresh episodes."""
+    if max_attempts < 1:
+        raise ValueError("max_attempts must be positive")
     expected_bytes = path.read_bytes()
     run = json.loads(expected_bytes)
     runner = EvaluationRunner()
@@ -124,18 +127,21 @@ def retry_run(path, item):
     repaired = 0
     for index in failures:
         event_id = run["checkpoints"][index]["event_id"]
-        LOGGER.info("RETRY [%s/%s] %s", run["model"], item["item_id"], event_id)
-        replacement = retry_checkpoint(runner, item, run["model"], event_id)
-        if input_fingerprint(item) != fingerprint:
-            raise ValueError("Benchmark inputs changed during retry; result not saved")
-        run, expected_bytes = save_retry(path, run, index, replacement, expected_bytes)
-        success = replacement["agent"]["decision"] == "final"
-        repaired += success
-        LOGGER.info("CHECKPOINT [%s/%s] %s status=%s tokens=%s latency_ms=%.0f",
-                    run["model"], item["item_id"], event_id,
-                    "repaired" if success else "still_failed",
-                    replacement["metrics"]["total_tokens"], replacement["metrics"]["latency_ms"])
-        if not success:
+        for attempt in range(1, max_attempts + 1):
+            LOGGER.info("RETRY [%s/%s] %s attempt=%s/%s", run["model"],
+                        item["item_id"], event_id, attempt, max_attempts)
+            replacement = retry_checkpoint(runner, item, run["model"], event_id)
+            if input_fingerprint(item) != fingerprint:
+                raise ValueError("Benchmark inputs changed during retry; result not saved")
+            run, expected_bytes = save_retry(path, run, index, replacement, expected_bytes)
+            success = replacement["agent"]["decision"] == "final"
+            LOGGER.info("CHECKPOINT [%s/%s] %s attempt=%s/%s status=%s latency_ms=%.0f",
+                        run["model"], item["item_id"], event_id, attempt, max_attempts,
+                        "repaired" if success else "still_failed",
+                        replacement["metrics"]["latency_ms"])
+            if success:
+                repaired += 1
+                break
             LOGGER.warning("RETRY_FAILED %s %s: %s", item["item_id"], event_id,
                            replacement["agent"].get("error"))
     return len(failures), repaired
@@ -145,10 +151,14 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model", required=True)
     parser.add_argument("--workers", type=int, default=4)
+    parser.add_argument("--max-attempts", type=int, default=3,
+                        help="New full attempts per failed checkpoint in this invocation (default: 3)")
     parser.add_argument("--log-file", type=Path)
     args = parser.parse_args()
     if args.workers < 1:
         parser.error("--workers must be positive")
+    if args.max_attempts < 1:
+        parser.error("--max-attempts must be positive")
     log = args.log_file or RESULTS_DIR / "logs" / f"{_slug(args.model)}-retry.log"
     log.parent.mkdir(parents=True, exist_ok=True)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s",
@@ -157,12 +167,13 @@ def main():
     items = {item["path"]: item for item in load_benchmark_items()}
     jobs = [run for run, complete in _current_runs() if run["model"] == args.model and not complete]
     count = sum(c["agent"]["decision"] == "error" for run in jobs for c in run["checkpoints"])
-    LOGGER.info("START failed_checkpoints=%s scenarios=%s workers=%s; one retry pass", count, len(jobs), args.workers)
+    LOGGER.info("START failed_checkpoints=%s scenarios=%s workers=%s max_attempts=%s",
+                count, len(jobs), args.workers, args.max_attempts)
     attempted = repaired = errors = 0
     with ThreadPoolExecutor(max_workers=args.workers) as executor:
         pending = {executor.submit(retry_run,
                                   RESULTS_DIR / _slug(args.model) / f"{run['run_id']}.json",
-                                  items[run["source_path"]]): run for run in jobs}
+                                  items[run["source_path"]], args.max_attempts): run for run in jobs}
         while pending:
             done, _ = wait(pending, timeout=30, return_when=FIRST_COMPLETED)
             if not done:

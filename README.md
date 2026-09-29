@@ -167,14 +167,16 @@ HTTP 400/401/403/404 errors stop immediately; transient errors use bounded retri
 To retry only failed checkpoints with the same Agent policy and model settings:
 
 ```bash
-python -u -B -m evaluation.retry --model gemini-3.1-pro-preview --workers 4
+python -u -B -m evaluation.retry --model gemini-3.1-pro-preview --workers 4 --max-attempts 3
 ```
 
-This makes one retry pass, leaves successful checkpoints and annotation IDs
-unchanged, and atomically updates the existing result files. Each replaced
-checkpoint retains its full prior failed attempts under `retry_history`.
-Failures remain visible if the new attempt also fails. The additional module
-does not change the execution fingerprint of ongoing or completed evaluations.
+Each invocation gives every currently failed checkpoint up to three new full
+attempts (the default), stopping as soon as it succeeds. Each attempt replays
+the original independent prefix. This is separate from the three output/tool
+attempts already allowed per Agent round. Successful checkpoints and annotation
+IDs stay unchanged. Each attempt atomically updates the existing result file,
+preserving all preceding failures under `retry_history`; exhausted failures
+remain visible. The retry module does not change the execution fingerprint.
 
 Every model call records input, visible completion, reasoning and total tokens,
 plus `latency_ms` for that HTTP response. Checkpoint and scenario metrics sum
@@ -186,6 +188,21 @@ After checkpoint repair, `totals_including_retry_history` additionally counts
 the preceding failed attempts; ordinary `totals` describes the selected results.
 Keep the first-attempt failures when reporting benchmark reliability separately
 from completion after retries.
+
+Export comparison tables without token totals (CSV, readable directly in Excel):
+
+```bash
+python -B -m evaluation.export
+```
+
+This writes `eval_results/evaluation_summary.csv` and `evaluation_checkpoints.csv`.
+Only current successful checkpoints contribute; earlier failed attempts are
+excluded. `all_success` uses each model's successful points; `common_success`
+uses only points successful for every selected model (`--model` is repeatable).
+Means weight each checkpoint equally. Latency is the sum of its recorded API
+response times in seconds. `retrieval_rounds` counts completed inspect rounds,
+not individual tool commands; `api_calls` also counts output retries within
+the successful episode. The detail CSV retains stable IDs and a recovery flag.
 
 To run both Gemini models concurrently in the background, use separate processes
 and moderate concurrency (four scenarios per model):
