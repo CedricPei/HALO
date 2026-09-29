@@ -10,14 +10,17 @@ import tempfile
 from .runner import RESULTS_DIR, _current_runs
 
 
+TOKEN_FIELDS = ("input_tokens", "completion_tokens", "reasoning_tokens")
 DETAIL_FIELDS = (
     "model", "domain_id", "instance_id", "scenario_id", "event_id", "run_id",
     "source_path", "latency_seconds", "retrieval_rounds", "api_calls",
+    *TOKEN_FIELDS,
     "common_success", "recovered_after_retry",
 )
 SUMMARY_FIELDS = (
     "snapshot_utc", "model", "scope", "successful_checkpoints",
     "mean_latency_seconds", "mean_retrieval_rounds", "mean_api_calls",
+    *(f"mean_{field}" for field in TOKEN_FIELDS),
 )
 
 
@@ -44,6 +47,7 @@ def build_tables(runs, snapshot_utc):
                 "latency_seconds": checkpoint["metrics"]["latency_ms"] / 1000,
                 "retrieval_rounds": checkpoint["metrics"]["intermediate_round_count"],
                 "api_calls": len(checkpoint["agent"]["model_calls"]),
+                **{field: checkpoint["metrics"][field] for field in TOKEN_FIELDS},
                 "recovered_after_retry": int(bool(checkpoint.get("retry_history"))),
             })
     common = set.intersection(*successes.values()) if models else set()
@@ -64,7 +68,7 @@ def build_tables(runs, snapshot_utc):
                 "successful_checkpoints": len(selected),
                 **{f"mean_{metric}": round(fmean(row[metric] for row in selected), 6)
                    if selected else ""
-                   for metric in ("latency_seconds", "retrieval_rounds", "api_calls")},
+                   for metric in ("latency_seconds", "retrieval_rounds", "api_calls", *TOKEN_FIELDS)},
             })
     return summary, rows
 
