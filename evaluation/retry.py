@@ -15,7 +15,7 @@ from benchmark_catalog import ROOT_DIR, input_fingerprint, load_benchmark_items
 from command_parser import CommandParser
 from .runner import (
     EvaluationRunner, PREFIX_METRICS, RESULTS_DIR, TOKEN_METRICS,
-    _current_runs, _execute_final_action, _slug, write_prefix_metrics,
+    _current_runs, _execute_final_action, _matches_fingerprint, _slug, write_prefix_metrics,
 )
 
 
@@ -116,7 +116,7 @@ def retry_run(path, item, max_attempts=3):
     run = json.loads(expected_bytes)
     runner = EvaluationRunner()
     fingerprint = input_fingerprint(item)
-    if (run.get("input_fingerprint") != fingerprint
+    if (not _matches_fingerprint(run, fingerprint)
             or run.get("scenario") != item["scenario"]
             or run.get("instance") != item["instance"]
             or run.get("model_settings") != runner.client.evaluation_settings(run["model"])):
@@ -147,10 +147,26 @@ def retry_run(path, item, max_attempts=3):
     return len(failures), repaired
 
 
+def run_with_retries(runner, item, model, saved_path=None):
+    """Run or resume one scenario, then automatically repair failed checkpoints."""
+    if saved_path is None:
+        run, path = runner.run(item, model)
+    else:
+        path = Path(saved_path)
+        run = json.loads(path.read_text(encoding="utf-8"))
+        if run["model"] != model or run["source_path"] != item["path"]:
+            raise ValueError("Saved run does not match the requested model/scenario")
+    if any(point["agent"]["decision"] == "error" for point in run["checkpoints"]):
+        retry_run(path, item, max_attempts=3)
+        run = json.loads(path.read_text(encoding="utf-8"))
+    return run, path
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model", required=True)
-    parser.add_argument("--workers", type=int, default=4)
+    parser.add_argument("--workers", type=int, default=6,
+                        help="Concurrent scenarios (default: 6)")
     parser.add_argument("--max-attempts", type=int, default=3,
                         help="New full attempts per failed checkpoint in this invocation (default: 3)")
     parser.add_argument("--log-file", type=Path)

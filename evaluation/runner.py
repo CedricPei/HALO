@@ -202,6 +202,14 @@ def _validate_response(response):
     return {"decision": decision, "content": content}
 
 
+def _matches_fingerprint(run, fingerprint):
+    """Accept an exact fingerprint or an explicitly recorded compatible revision."""
+    return (
+        run.get("input_fingerprint") == fingerprint
+        or fingerprint in run.get("compatible_input_fingerprints", {})
+    )
+
+
 def _current_runs():
     """Choose one current run per job, preferring successful completion."""
     items = {item["path"]: item for item in load_benchmark_items()}
@@ -215,7 +223,7 @@ def _current_runs():
             continue
         if source not in fingerprints:
             fingerprints[source] = input_fingerprint(items[source])
-        if run.get("input_fingerprint") != fingerprints[source]:
+        if not _matches_fingerprint(run, fingerprints[source]):
             continue
         if run.get("model_settings") != client.evaluation_settings(run["model"]):
             continue
@@ -501,6 +509,8 @@ class EvaluationRunner:
 
 
 def main():
+    from .retry import run_with_retries
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model", action="append", dest="models")
     parser.add_argument("--instance", action="append", dest="instances")
@@ -510,7 +520,8 @@ def main():
         type=Path,
         help="Evaluate only source paths listed under selected_scenarios",
     )
-    parser.add_argument("--workers", type=int, default=8)
+    parser.add_argument("--workers", type=int, default=6,
+                        help="Concurrent model/scenario jobs (default: 6)")
     parser.add_argument("--log-file", type=Path, default=LOG_PATH)
     args = parser.parse_args()
     if args.workers < 1:
@@ -541,7 +552,14 @@ def main():
         raise SystemExit("No matching accepted Scenarios")
     runner = EvaluationRunner()
     failures = 0
-    completed = completed_jobs()
+    current = _current_runs()
+    completed = {(run["model"], run["source_path"])
+                 for run, complete in current if complete}
+    incomplete = {
+        (run["model"], run["source_path"]):
+            RESULTS_DIR / _slug(run["model"]) / f"{run['run_id']}.json"
+        for run, complete in current if not complete
+    }
     jobs = [
         (model, item)
         for model in args.models or DEFAULT_MODELS
@@ -563,7 +581,10 @@ def main():
         LOGGER.info("[%s] settings=%s", model, runner.client.evaluation_settings(model))
     with ThreadPoolExecutor(max_workers=min(args.workers, len(jobs))) as executor:
         pending = {
-            executor.submit(runner.run, item, model): (model, item)
+            executor.submit(
+                run_with_retries, runner, item, model,
+                incomplete.get((model, item["path"])),
+            ): (model, item)
             for model, item in jobs
         }
         stopping = False

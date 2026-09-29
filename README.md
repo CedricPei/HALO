@@ -139,13 +139,14 @@ python -B -m evaluation.runner \
 Then evaluate the complete dataset:
 
 ```bash
-python -B -m evaluation.runner --model <model-id> --workers 8
+python -B -m evaluation.runner --model <model-id>
 ```
 
 Each checkpoint lets the Agent inspect read-only App state and return either
 no action or one final command, executed in a disposable state copy. Independent
 `(model, scenario)` jobs run in parallel; checkpoints within a scenario are
-serial. `--model` and `--instance` may be repeated. Model IDs beginning with
+serial. Both evaluation and checkpoint repair default to **6 workers per process**;
+use `--workers` to override this. `--model` and `--instance` may be repeated. Model IDs beginning with
 `gemini` use the configured Gemini transport; other IDs use the Responses
 endpoint.
 
@@ -156,18 +157,25 @@ code and model request settings. Runs retain scenario/profile snapshots for
 review; results without these snapshots must be rerun. Old runs are retained
 but excluded from current summary metrics when their fingerprints or settings
 no longer match.
+An explicitly verified scheduling-only revision may be recorded under
+`compatible_input_fingerprints`, with its Git revision and reason. The original
+fingerprint and checkpoint records remain intact; unrelated code or data
+changes still invalidate reuse.
 
 Progress and API retries are logged both to the console and to
 `evaluation/evaluation.log`; use `--log-file <path>` for separate model logs.
 Logs include checkpoint completion, scenario counts, failures, and a heartbeat
-while requests are pending. A run with failed checkpoints exits nonzero; rerun
-the same command to retry incomplete scenarios while skipping completed ones.
+while requests are pending. Normal evaluation automatically gives each failed
+checkpoint up to **three additional full attempts**, stopping on success
+(at most four full attempts including the initial run). A run still containing
+failures exits nonzero. Rerunning the same command repairs only failed checkpoints
+in saved scenarios and skips completed scenarios; successful checkpoints are reused.
 HTTP 400/401/403/404 errors stop immediately; transient errors use bounded retries.
 
 To retry only failed checkpoints with the same Agent policy and model settings:
 
 ```bash
-python -u -B -m evaluation.retry --model gemini-3.1-pro-preview --workers 4 --max-attempts 3
+python -u -B -m evaluation.retry --model gemini-3.1-pro-preview --max-attempts 3
 ```
 
 Each invocation gives every currently failed checkpoint up to three new full
