@@ -1,4 +1,4 @@
-"""Export successful current checkpoints and comparable averages as UTF-8 CSV."""
+"""Export comparable averages for successful checkpoints as one English CSV."""
 
 import argparse
 import csv
@@ -11,12 +11,6 @@ from .runner import RESULTS_DIR, _current_runs
 
 
 TOKEN_FIELDS = ("input_tokens", "completion_tokens", "reasoning_tokens")
-DETAIL_FIELDS = (
-    "model", "domain_id", "instance_id", "scenario_id", "event_id", "run_id",
-    "source_path", "latency_seconds", "retrieval_rounds", "api_calls",
-    *TOKEN_FIELDS,
-    "common_success", "recovered_after_retry",
-)
 SUMMARY_FIELDS = (
     "snapshot_utc", "model", "scope", "successful_checkpoints",
     "mean_latency_seconds", "mean_retrieval_rounds", "mean_api_calls",
@@ -24,7 +18,7 @@ SUMMARY_FIELDS = (
 )
 
 
-def build_tables(runs, snapshot_utc):
+def build_summary(runs, snapshot_utc):
     models = sorted({run["model"] for run in runs})
     rows = []
     successes = {model: set() for model in models}
@@ -40,20 +34,17 @@ def build_tables(runs, snapshot_utc):
             seen.add(identity)
             successes[run["model"]].add(key)
             rows.append({
-                **{key: run[key] for key in (
-                    "model", "domain_id", "instance_id", "scenario_id", "run_id", "source_path",
-                )},
+                "model": run["model"],
+                "source_path": run["source_path"],
                 "event_id": checkpoint["event_id"],
                 "latency_seconds": checkpoint["metrics"]["latency_ms"] / 1000,
                 "retrieval_rounds": checkpoint["metrics"]["intermediate_round_count"],
                 "api_calls": len(checkpoint["agent"]["model_calls"]),
                 **{field: checkpoint["metrics"][field] for field in TOKEN_FIELDS},
-                "recovered_after_retry": int(bool(checkpoint.get("retry_history"))),
             })
     common = set.intersection(*successes.values()) if models else set()
     for row in rows:
         row["common_success"] = int((row["source_path"], row["event_id"]) in common)
-    rows.sort(key=lambda row: (row["model"], row["source_path"], row["event_id"]))
     summary = []
     for model in models:
         successful = [row for row in rows if row["model"] == model]
@@ -70,7 +61,7 @@ def build_tables(runs, snapshot_utc):
                    if selected else ""
                    for metric in ("latency_seconds", "retrieval_rounds", "api_calls", *TOKEN_FIELDS)},
             })
-    return summary, rows
+    return summary
 
 
 def write_csv(path, fields, rows):
@@ -103,14 +94,10 @@ def main():
     missing = set(args.model or ()) - {run["model"] for run in runs}
     if missing:
         parser.error(f"No current results for: {', '.join(sorted(missing))}")
-    summary, rows = build_tables(runs, datetime.now(timezone.utc).isoformat())
-    for name, fields, records in (
-        ("evaluation_summary.csv", SUMMARY_FIELDS, summary),
-        ("evaluation_checkpoints.csv", DETAIL_FIELDS, rows),
-    ):
-        path = args.output_dir / name
-        write_csv(path, fields, records)
-        print(f"{path}: {len(records)} rows")
+    summary = build_summary(runs, datetime.now(timezone.utc).isoformat())
+    path = args.output_dir / "evaluation_summary.csv"
+    write_csv(path, SUMMARY_FIELDS, summary)
+    print(f"{path}: {len(summary)} rows")
 
 
 if __name__ == "__main__":

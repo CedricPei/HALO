@@ -189,24 +189,24 @@ the preceding failed attempts; ordinary `totals` describes the selected results.
 Keep the first-attempt failures when reporting benchmark reliability separately
 from completion after retries.
 
-Export comparison tables with per-checkpoint averages (CSV, readable directly in Excel):
+Export an English summary with per-checkpoint averages (CSV, readable directly in Excel):
 
 ```bash
 python -B -m evaluation.export
 ```
 
-This writes `eval_results/evaluation_summary.csv` and `evaluation_checkpoints.csv`.
+This writes only `eval_results/evaluation_summary.csv`.
 Only current successful checkpoints contribute; earlier failed attempts are
 excluded. `all_success` uses each model's successful points; `common_success`
 uses only points successful for every selected model (`--model` is repeatable).
 Means weight each checkpoint equally. Latency is the sum of its recorded API
 response times in seconds. `retrieval_rounds` counts completed inspect rounds,
 not individual tool commands; `api_calls` also counts output retries within
-the successful episode. The detail CSV retains stable IDs and a recovery flag.
+the successful episode.
 Token columns separate `input_tokens`, `completion_tokens` (visible output,
-excluding reasoning), and `reasoning_tokens`. The detail contains each successful
-checkpoint's recorded API-call sums; the summary reports their per-checkpoint
-means, without dataset-wide token consumption totals.
+excluding reasoning), and `reasoning_tokens`. Each successful checkpoint's
+recorded API calls are summed before averaging across checkpoints, without
+dataset-wide token consumption totals.
 
 To run both Gemini models concurrently in the background, use separate processes
 and moderate concurrency (four scenarios per model):
