@@ -164,6 +164,29 @@ while requests are pending. A run with failed checkpoints exits nonzero; rerun
 the same command to retry incomplete scenarios while skipping completed ones.
 HTTP 400/401/403/404 errors stop immediately; transient errors use bounded retries.
 
+To retry only failed checkpoints with the same Agent policy and model settings:
+
+```bash
+python -u -B -m evaluation.retry --model gemini-3.1-pro-preview --workers 4
+```
+
+This makes one retry pass, leaves successful checkpoints and annotation IDs
+unchanged, and atomically updates the existing result files. Each replaced
+checkpoint retains its full prior failed attempts under `retry_history`.
+Failures remain visible if the new attempt also fails. The additional module
+does not change the execution fingerprint of ongoing or completed evaluations.
+
+Every model call records input, visible completion, reasoning and total tokens,
+plus `latency_ms` for that HTTP response. Checkpoint and scenario metrics sum
+their recorded calls, including output/tool retries within the Agent loop.
+Latency excludes network-failure backoff, local tool execution and queue time;
+it is not wall-clock duration or time to first token. `summary.json` aggregates
+the currently selected successful checkpoints, excluding failed checkpoints.
+After checkpoint repair, `totals_including_retry_history` additionally counts
+the preceding failed attempts; ordinary `totals` describes the selected results.
+Keep the first-attempt failures when reporting benchmark reliability separately
+from completion after retries.
+
 To run both Gemini models concurrently in the background, use separate processes
 and moderate concurrency (four scenarios per model):
 
