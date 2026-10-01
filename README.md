@@ -297,13 +297,15 @@ python -B -m evaluation.human_subset
 The command refuses to overwrite a different published release. Keep the
 catalog and its account-assignment manifest together when deploying.
 
-`eval4000-01` through `eval4000-20` each receive **200 items**: 20 complete
+`eval01` through `eval20` each receive **200 items**: 20 complete
 scenario groups, 40 items per model, 20 per domain, and 50 per trigger type.
 Every selected response is assigned once, consistent with the existing Eval
 workflow. Deployment provisions accounts and assignments in one transaction,
 once; subsequent restarts preserve submitted work, existing Audit accounts,
 and administrator accounts. Completed historical reset migrations are no
 longer replayed at application startup.
+Existing `eval4000-01`–`eval4000-20` accounts are renamed once to `eval01`–`eval20`,
+preserving their access codes, assignment order, and submitted annotations.
 
 Only salted password hashes are included in the deployment manifest. Access
 codes are delivered separately and cannot be recovered from the administrator

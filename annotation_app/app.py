@@ -13,7 +13,7 @@ import streamlit as st
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
-CATALOG_VERSION = "human-eval-4000-2026-10-02"
+CATALOG_VERSION = "human-eval-4000-2026-10-02-short-ids-v1"
 INITIAL_ADMIN2_PASSWORD_HASH = (
     "pbkdf2_sha256$600000$e983fc7d21e20df94191e12090c5b63d$"
     "6a06af22d1cf83b423560c645e0b05606bdeb3b6de7f75eefff4f15fc2a0053f"
@@ -55,6 +55,7 @@ if not all(
         "apply_fixed_audit_cohort_migration",
         "authenticate_admin",
         "apply_eval_cohort",
+        "rename_user_accounts",
     )
 ):
     storage_module = importlib.reload(storage_module)
@@ -241,6 +242,10 @@ def main() -> None:
         # Historical resets and audit repairs have already been deployed.
         # New releases must not replay them against existing annotations.
         store.apply_eval_cohort(_eval_release(CATALOG_VERSION)[1])
+        store.rename_user_accounts(
+            "human-eval-4000-short-ids-v1",
+            {f"eval4000-{number:02d}": f"eval{number:02d}" for number in range(1, 21)},
+        )
     except (ValueError, RuntimeError) as error:
         st.title("Eval account setup paused")
         st.error(str(error))

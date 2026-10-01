@@ -402,6 +402,57 @@ class AnnotationStore:
     def delete_user(self, user_id: str) -> None:
         self.delete_users([user_id])
 
+    def rename_user_accounts(self, migration_id: str, renames: dict[str, str]) -> bool:
+        """Rename participants and their work together, without changing credentials."""
+        pairs = [(normalize_user_id(old), normalize_user_id(new))
+                 for old, new in renames.items()]
+        sources = {old for old, _ in pairs}
+        targets = {new for _, new in pairs}
+        if (len(sources) != len(pairs) or len(targets) != len(pairs)
+                or sources & targets
+                or self.config.admin_username.strip().lower() in targets):
+            raise ValueError("Account renames must use distinct, unreserved target IDs")
+        with self._connect() as connection:
+            claimed = connection.execute(
+                self._sql("INSERT INTO annotation_migrations (migration_id, applied_at) "
+                          "VALUES (?, ?) ON CONFLICT(migration_id) DO NOTHING "
+                          "RETURNING migration_id"),
+                (migration_id, utc_now()),
+            ).fetchone()
+            if not claimed:
+                return False
+            lock = " FOR UPDATE" if not self.sqlite else ""
+            for old, new in pairs:
+                source = connection.execute(
+                    self._sql("SELECT user_id FROM annotation_users WHERE user_id=?" + lock),
+                    (old,),
+                ).fetchone()
+                if not source:
+                    continue  # New deployments already use the short IDs; revoked users stay revoked.
+                occupied = connection.execute(
+                    self._sql("SELECT user_id FROM annotation_users WHERE user_id=? "
+                              "UNION ALL SELECT user_id FROM annotation_admins WHERE user_id=?"),
+                    (new, new),
+                ).fetchone()
+                if occupied:
+                    raise ValueError(f"Cannot rename {old}: {new} already exists; no accounts changed")
+                connection.execute(
+                    self._sql("INSERT INTO annotation_users "
+                              "(user_id, access_code, created_at, last_login_at) "
+                              "SELECT ?, access_code, created_at, last_login_at "
+                              "FROM annotation_users WHERE user_id=?"),
+                    (new, old),
+                )
+                for table in ("annotation_assignments", "annotations"):
+                    connection.execute(
+                        self._sql(f"UPDATE {table} SET user_id=? WHERE user_id=?"),
+                        (new, old),
+                    )
+                connection.execute(
+                    self._sql("DELETE FROM annotation_users WHERE user_id=?"), (old,),
+                )
+        return True
+
     def delete_users(self, user_ids: Iterable[str]) -> None:
         user_ids = list(dict.fromkeys(normalize_user_id(value) for value in user_ids))
         if not user_ids:
