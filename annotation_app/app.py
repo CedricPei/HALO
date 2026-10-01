@@ -47,19 +47,15 @@ import annotation_app.assignment as assignment_module  # noqa: E402
 from annotation_app.ui import apply_style  # noqa: E402
 
 
-if not all(
-    hasattr(storage_module.AnnotationStore, method)
-    for method in (
-        "apply_all_participant_accounts_purge",
-        "assignment_snapshot",
-        "apply_fixed_audit_cohort_migration",
-        "authenticate_admin",
-        "apply_eval_cohort",
-        "rename_user_accounts",
-    )
-):
-    storage_module = importlib.reload(storage_module)
-AnnotationStore = storage_module.AnnotationStore
+storage_source_hash = hashlib.sha256(
+    (ROOT_DIR / "annotation_app" / "storage.py").read_bytes()
+).hexdigest()
+with storage_module.__dict__.setdefault("_annotation_reload_lock", threading.RLock()):
+    if getattr(storage_module, "_annotation_source_hash", None) != storage_source_hash:
+        importlib.invalidate_caches()
+        storage_module = importlib.reload(storage_module)
+        storage_module._annotation_source_hash = storage_source_hash
+    AnnotationStore = storage_module.AnnotationStore
 if not hasattr(assignment_module, "quota_audit_assignment_plan"):
     assignment_module = importlib.reload(assignment_module)
 import annotation_app.admin_view as admin_view_module  # noqa: E402
@@ -110,8 +106,16 @@ def _storage_cache_key() -> str:
 
 
 @st.cache_resource(show_spinner=False)
-def _store(config: AppConfig, storage_cache_key: str) -> AnnotationStore:
-    return AnnotationStore(config)
+def _store(
+    config: AppConfig,
+    storage_cache_key: str,
+    store_class_generation: int,
+    _store_class: type[AnnotationStore],
+) -> AnnotationStore:
+    # A rolling deploy can cache an old class under a new on-disk source hash.
+    # Key by the loaded class identity too, and construct that exact class.
+    # Streamlit excludes the class argument itself (leading _) from hashing.
+    return _store_class(config)
 
 
 @st.cache_data(show_spinner="Loading Benchmark Audit items…")
@@ -228,7 +232,9 @@ def main() -> None:
         )
         return
     try:
-        store = _store(config, _storage_cache_key())
+        store = _store(
+            config, _storage_cache_key(), id(AnnotationStore), AnnotationStore
+        )
     except Exception as error:
         st.title("Database connection failed")
         st.error("The App could not connect to its annotation database.")
