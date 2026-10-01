@@ -314,7 +314,12 @@ class AnnotationStore:
             ).fetchone()
             if not row:
                 return None
-            if row["access_code"] != access_code.strip().upper():
+            supplied = access_code.strip().upper()
+            stored = row["access_code"]
+            valid = (verify_admin_password(supplied, stored)
+                     if stored.startswith("pbkdf2_sha256$")
+                     else hmac.compare_digest(stored.encode(), supplied.encode()))
+            if not valid:
                 return None
             connection.execute(
                 self._sql(
@@ -338,7 +343,61 @@ class AnnotationStore:
                 "SELECT user_id, access_code FROM annotation_users "
                 "ORDER BY created_at, user_id"
             ).fetchall()
-        return [dict(row) for row in rows]
+        return [{"user_id": row["user_id"],
+                 "access_code": "" if row["access_code"].startswith("pbkdf2_sha256$")
+                 else row["access_code"]} for row in rows]
+
+    def apply_eval_cohort(self, cohort: dict) -> bool:
+        """Create the published Eval cohort atomically, once, preserving all prior work."""
+        accounts = cohort["accounts"]
+        ids = [normalize_user_id(account["user_id"]) for account in accounts]
+        items = [item for account in accounts for item in account["item_ids"]]
+        if (len(ids) != 20 or len(set(ids)) != 20 or len(items) != 4000
+                or len(set(items)) != 4000
+                or any(len(a["item_ids"]) != 200 for a in accounts)
+                or self.config.admin_username.strip().lower() in ids):
+            raise ValueError("Invalid published Eval account batch")
+        for account in accounts:
+            parts = account["access_code_hash"].split("$")
+            if (len(parts) != 4 or parts[0] != "pbkdf2_sha256"
+                    or parts[1] != str(ADMIN_PASSWORD_ITERATIONS)
+                    or len(bytes.fromhex(parts[2])) != 16
+                    or len(bytes.fromhex(parts[3])) != 32):
+                raise ValueError("Invalid Eval access-code hash")
+        with self._connect() as connection:
+            claimed = connection.execute(
+                self._sql("INSERT INTO annotation_migrations (migration_id, applied_at) "
+                          "VALUES (?, ?) ON CONFLICT(migration_id) DO NOTHING "
+                          "RETURNING migration_id"),
+                (cohort["subset_id"], utc_now()),
+            ).fetchone()
+            if not claimed:
+                return False
+            now = utc_now()
+            for user_id, account in zip(ids, accounts):
+                exists = connection.execute(
+                    self._sql("SELECT user_id FROM annotation_users WHERE user_id=? "
+                              "UNION ALL SELECT user_id FROM annotation_admins WHERE user_id=?"),
+                    (user_id, user_id),
+                ).fetchone()
+                if exists:
+                    raise ValueError(f"Eval account already exists; no accounts changed: {user_id}")
+                connection.execute(
+                    self._sql("INSERT INTO annotation_users (user_id, access_code, created_at) "
+                              "VALUES (?, ?, ?)"),
+                    (user_id, account["access_code_hash"], now),
+                )
+                for start in range(0, len(account["item_ids"]), 100):
+                    batch = account["item_ids"][start:start + 100]
+                    values = ", ".join("(?, 'eval', ?, ?, 'assigned', ?)" for _ in batch)
+                    connection.execute(
+                        self._sql("INSERT INTO annotation_assignments "
+                                  "(user_id, review_type, item_id, position, status, assigned_at) "
+                                  f"VALUES {values}"),
+                        tuple(value for offset, item_id in enumerate(batch)
+                              for value in (user_id, item_id, start + offset, now)),
+                    )
+        return True
 
     def delete_user(self, user_id: str) -> None:
         self.delete_users([user_id])

@@ -12,7 +12,7 @@ import streamlit as st
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
-CATALOG_VERSION = "2026-09-10-complete-400-eval-purged"
+CATALOG_VERSION = "human-eval-4000-2026-10-02"
 INITIAL_ADMIN2_PASSWORD_HASH = (
     "pbkdf2_sha256$600000$e983fc7d21e20df94191e12090c5b63d$"
     "6a06af22d1cf83b423560c645e0b05606bdeb3b6de7f75eefff4f15fc2a0053f"
@@ -20,10 +20,8 @@ INITIAL_ADMIN2_PASSWORD_HASH = (
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from benchmark_catalog import (  # noqa: E402
-    load_benchmark_items,
-    load_evaluation_items,
-)
+from benchmark_catalog import load_benchmark_items  # noqa: E402
+from annotation_app.eval_catalog import load_eval_release  # noqa: E402
 from annotation_app.config import AppConfig  # noqa: E402
 from annotation_app.review_views import (  # noqa: E402
     render_audit,
@@ -41,6 +39,7 @@ if not all(
         "assignment_snapshot",
         "apply_fixed_audit_cohort_migration",
         "authenticate_admin",
+        "apply_eval_cohort",
     )
 ):
     storage_module = importlib.reload(storage_module)
@@ -50,7 +49,7 @@ if not hasattr(assignment_module, "quota_audit_assignment_plan"):
 import annotation_app.admin_view as admin_view_module  # noqa: E402
 
 if getattr(admin_view_module, "ADMIN_VIEW_VERSION", None) != (
-    "2026-09-18-admin-accounts"
+    "2026-10-02-human-eval-cohort"
 ):
     admin_view_module = importlib.reload(admin_view_module)
 render_admin = admin_view_module.render_admin
@@ -106,9 +105,13 @@ def _audit_items(catalog_version: str) -> list[dict]:
 
 
 @st.cache_data(show_spinner="Loading Agent Evaluation items…")
-def _eval_items(catalog_version: str) -> list[dict]:
+def _eval_release(catalog_version: str) -> tuple:
     del catalog_version
-    return load_evaluation_items()
+    return load_eval_release()
+
+
+def _eval_items(catalog_version: str) -> list[dict]:
+    return _eval_release(catalog_version)[0]
 
 
 def _login(store: AnnotationStore, config: AppConfig) -> None:
@@ -210,18 +213,6 @@ def main() -> None:
         return
     try:
         store = _store(config, _storage_cache_key())
-        store.apply_catalog_reset(
-            "complete-400-benchmark-2026-09-10-v2",
-            _audit_items(CATALOG_VERSION),
-            _eval_items(CATALOG_VERSION),
-        )
-        store.apply_review_type_purge(
-            "purge-all-eval-data-2026-09-10",
-            "eval",
-        )
-        store.apply_all_participant_accounts_purge(
-            "purge-all-participant-accounts-2026-09-10",
-        )
     except Exception as error:
         st.title("Database connection failed")
         st.error("The App could not connect to its annotation database.")
@@ -232,12 +223,11 @@ def main() -> None:
         return
 
     try:
-        store.apply_fixed_audit_cohort_migration(
-            "restore-audit001-010-delete011-015-2026-09-17",
-            _audit_items(CATALOG_VERSION),
-        )
+        # Historical resets and audit repairs have already been deployed.
+        # New releases must not replay them against existing annotations.
+        store.apply_eval_cohort(_eval_release(CATALOG_VERSION)[1])
     except (ValueError, RuntimeError) as error:
-        st.title("Audit assignment migration paused")
+        st.title("Eval account setup paused")
         st.error(str(error))
         return
 
@@ -250,10 +240,10 @@ def main() -> None:
     except ValueError as error:
         st.warning(f"Could not create admin2: {error}")
 
-    assignment_version = "2026-09-17-fixed-audit-cohort"
+    assignment_version = CATALOG_VERSION
     if st.session_state.get("cloud_audit_assignment_version") != assignment_version:
         for key in list(st.session_state):
-            if key.startswith("cloud_audit_position_"):
+            if key.startswith(("cloud_audit_position_", "cloud_eval_position_")):
                 del st.session_state[key]
         st.session_state["cloud_audit_assignment_version"] = assignment_version
 

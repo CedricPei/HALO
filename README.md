@@ -269,6 +269,53 @@ the level selector, while a retrieval-only final response retains it.
 
 ## Construction and annotation
 
+### Human evaluation release (4,000 items)
+
+The frozen human-evaluation subset is stored identically in
+`eval_results/human_eval_4000.json.gz` and
+`annotation_app/data/human_eval_4000.json.gz`. Streamlit loads only the latter;
+new model runs do not change participants' tasks. The ten complete model result
+directories remain in `eval_results/`, including their unsuccessful or missing
+checkpoint information. Running through all scenarios does not mean that every
+checkpoint succeeded.
+
+The subset contains exactly **800 successful responses from each** of
+`deepseek-v4-pro`, `gemini-3.8-flash`, `glm-5.3-flash`, `gpt-5.6-luna`, and
+`grok-4.7`. Each of the 400 scenarios contributes ten responses (two per model),
+covering **all 2,160 distinct scenario/event checkpoints**. Events within each
+scenario receive counts differing by at most one. Selection uses seed
+`20261002`, without filtering on the action or its quality. Original item IDs,
+event prefixes, actions, inspection traces, and model-call records are retained;
+the release records SHA-256 hashes of all source result files.
+
+Reproduce the subset from the preserved result directories:
+
+```bash
+python -B -m evaluation.human_subset
+```
+
+The command refuses to overwrite a different published release. Keep the
+catalog and its account-assignment manifest together when deploying.
+
+`eval4000-01` through `eval4000-20` each receive **200 items**: 20 complete
+scenario groups, 40 items per model, 20 per domain, and 50 per trigger type.
+Every selected response is assigned once, consistent with the existing Eval
+workflow. Deployment provisions accounts and assignments in one transaction,
+once; subsequent restarts preserve submitted work, existing Audit accounts,
+and administrator accounts. Completed historical reset migrations are no
+longer replayed at application startup.
+
+Only salted password hashes are included in the deployment manifest. Access
+codes are delivered separately and cannot be recovered from the administrator
+CSV export (those fields are blank). The cloud app continues to use its existing
+`DATABASE_URL`, `ADMIN_USERNAME`, and `ADMIN_PASSWORD` secrets.
+
+Start the annotation application with:
+
+```bash
+streamlit run annotation_app/app.py
+```
+
 `python -B build_benchmark.py` constructs or resumes the planned benchmark.
 Use `--domain <domain-id>` and optionally `--instance <instance-id>` to limit
 scope. Complete published instances are validated and skipped; removing archived

@@ -20,7 +20,7 @@ from annotation_app.storage import (
     generate_admin_password,
 )
 
-ADMIN_VIEW_VERSION = "2026-09-18-admin-accounts"
+ADMIN_VIEW_VERSION = "2026-10-02-human-eval-cohort"
 
 
 EXPORT_BASE_FIELDS = ("annotation_id", "user_id", "item_id")
@@ -330,6 +330,9 @@ def _render_manage(store: AnnotationStore) -> None:
     if not accounts:
         st.info("No annotator accounts have been created.")
         return
+    if any(not account["access_code"] for account in accounts):
+        st.caption("Pre-provisioned Eval codes are stored as hashes. Use the original "
+                   "credential handout; their codes are blank in this export.")
     st.download_button(
         "Download codes",
         data=_credentials_csv(accounts),

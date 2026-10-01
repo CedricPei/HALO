@@ -1,0 +1,583 @@
+{
+  "run_id": "20260930T060542873035Z-gemini-2.5-flash-family_and_caregiving_life_01-blockage_2",
+  "created_at": "2026-09-30T06:07:12.108164+00:00",
+  "model": "gemini-2.5-flash",
+  "model_settings": {
+    "transport": "gemini/developer",
+    "base_url": "https://generativelanguage.googleapis.com/v1beta",
+    "thinking_level": "high",
+    "max_output_tokens": 16384
+  },
+  "domain_id": "family_and_caregiving_life",
+  "instance_id": "family_and_caregiving_life_01",
+  "scenario_id": "blockage_2",
+  "trigger_type": "blockage",
+  "source_path": "domains/family_and_caregiving_life/instances/family_and_caregiving_life_01/scenarios/blockage/blockage_2.json",
+  "input_fingerprint": "509a1e53e277d83cbd2542149625a833b5bca9d3c509978a60b990eb051073c1",
+  "scenario": {
+    "scenario_description": "Objective: Complete an already-started exhibitor check-in for Mara’s STEM fair project before the morning intake window closes.\nEmerging Need: The kiosk session opens successfully, then the badge scan is paused because an online profile-holder e-waiver is missing and no desk override is available.\nDecision Context: Early scheduling and availability notes do not justify interrupting anyone; the pause notice supplies the session code and 09:05 system deadline, while Talia's earlier 09:00 loss of phone access is the practical contact cutoff. A stored portal note identifies the only guardian account that can unblock it.\nConsequence: Timely coordination can resume the same kiosk session; after it expires, the project cannot enter today’s fair.",
+    "events": {
+      "event1": {
+        "time": "2026-10-17T07:10:00-05:00",
+        "app": "calendar",
+        "function": "create_event",
+        "parameter": {
+          "title": "Mara STEM fair project check-in",
+          "start_time": "2026-10-17T08:30:00-05:00",
+          "end_time": "2026-10-17T09:15:00-05:00",
+          "description": "Drop off Mara and her project board at exhibitor intake; badge activation happens at the lobby kiosk.",
+          "location": "Evanston Civic Center lobby, 2100 Ridge Ave",
+          "attendees": [
+            "Bianca Quill",
+            "Mara Moreno"
+          ],
+          "organizer": "Evanston STEM Fair",
+          "status": "confirmed"
+        }
+      },
+      "event2": {
+        "time": "2026-10-17T08:12:00-05:00",
+        "app": "messaging",
+        "function": "create_message",
+        "parameter": {
+          "sender": "Talia Moreno",
+          "recipients": [
+            "Bianca Quill",
+            "Ben Quill"
+          ],
+          "content": "I will be in Noah's orthodontist waiting room from 8:30 until 9:00. I can complete one short portal item during that interval; at 9:00 I go into the appointment and cannot read or act on messages until 9:20. I cannot call the fair desk.",
+          "timestamp": "2026-10-17T08:11:00-05:00"
+        }
+      },
+      "event3": {
+        "time": "2026-10-17T08:36:00-05:00",
+        "app": "email",
+        "function": "create_email",
+        "parameter": {
+          "sender": "checkin@evanstonstemfair.example",
+          "recipients": [
+            "bianca.quill@example.com"
+          ],
+          "subject": "Kiosk session opened for Mara Moreno",
+          "body": "Lobby kiosk session ESF-883 opened at 8:35 AM for Mara Moreno. Project category: Junior Inventions. Keep this session active until badge activation is complete.",
+          "timestamp": "2026-10-17T08:35:30-05:00",
+          "cc": null
+        }
+      },
+      "event4": {
+        "time": "2026-10-17T08:43:00-05:00",
+        "app": "email",
+        "function": "create_email",
+        "parameter": {
+          "sender": "checkin@evanstonstemfair.example",
+          "recipients": [
+            "bianca.quill@example.com"
+          ],
+          "subject": "Badge activation paused for session ESF-883",
+          "body": "Session ESF-883 is PAUSED. The badge scan cannot continue because the exhibitor profile holder has not completed today’s e-waiver. Volunteer override is not available. Use https://portal.evanstonstemfair.example/waiver with code ESF-883 before the kiosk session expires at 9:05 AM; exhibitor intake closes at 9:15 AM.",
+          "timestamp": "2026-10-17T08:42:30-05:00",
+          "cc": null
+        }
+      },
+      "event5": {
+        "time": "2026-10-17T09:06:00-05:00",
+        "app": "email",
+        "function": "create_email",
+        "parameter": {
+          "sender": "checkin@evanstonstemfair.example",
+          "recipients": [
+            "bianca.quill@example.com"
+          ],
+          "subject": "Kiosk session ESF-883 expired",
+          "body": "Kiosk session ESF-883 expired at 9:05 AM without badge activation. New exhibitor sessions are now locked for today’s fair intake, and the desk cannot admit projects that did not activate before the session cutoff.",
+          "timestamp": "2026-10-17T09:05:45-05:00",
+          "cc": null
+        }
+      }
+    }
+  },
+  "instance": {
+    "instance_description": "Setting: During 2026, a Chicago-area family care circle coordinates practical support for relatives across school routines, elder companionship, appointments, family events, and shared coverage.\nScope: Scenarios may involve ride planning, check-in rotations, caregiver handoffs, dependent calendars, message drafting, milestone celebrations, document reminders, and reimbursement tracking.\nResources: Empty SQLite tables support reusable contact, commitment, and handoff records; blank TXT files support notes, templates, and event drafts; one zero-balance wallet is available.\nExclusions: Do not cover residence maintenance, clinical treatment choices, diagnosis advice, or native app state stored inside the database.",
+    "personal_description": "Identity: Bianca Helene Quill is a 38-year-old nonprofit volunteer coordinator living in Evanston, Illinois, and is the user_id for this Instance.\nResponsibilities: She informally organizes practical help for her widowed father, her sister’s two children, and visiting relatives without replacing professional services.\nAuthority: Bianca may schedule family logistics, draft messages, track commitments, coordinate rides, record preferences, and manage small shared reimbursements when relatives agree.\nRestrictions: She cannot make medical treatment decisions, sign legal documents for others, access private accounts without permission, or commit relatives beyond stated availability."
+  },
+  "checkpoints": [
+    {
+      "event_id": "event1",
+      "agent": {
+        "decision": "final",
+        "content": {
+          "app": "assistant",
+          "function": "notify_user",
+          "parameter": {
+            "message": "Remember for the 'Mara STEM fair project check-in' at 8:30 AM: badge activation for Mara happens at the Evanston Civic Center lobby kiosk."
+          }
+        },
+        "action_intensity": "L1",
+        "execution_result": {
+          "recipient": "Bianca Helene Quill",
+          "message": "Remember for the 'Mara STEM fair project check-in' at 8:30 AM: badge activation for Mara happens at the Evanston Civic Center lobby kiosk.",
+          "timestamp": "2026-10-17T07:10:00-05:00"
+        },
+        "intermediate_round_count": 0,
+        "inspection_trace": [],
+        "model_calls": [
+          {
+            "round": 0,
+            "output_attempt": 1,
+            "raw_text": "{\n  \"decision\": \"final\",\n  \"content\": {\n    \"app\": \"assistant\",\n    \"function\": \"notify_user\",\n    \"parameter\": {\n      \"message\": \"Remember for the 'Mara STEM fair project check-in' at 8:30 AM: badge activation for Mara happens at the Evanston Civic Center lobby kiosk.\"\n    }\n  }\n}",
+            "parsed": {
+              "decision": "final",
+              "content": {
+                "app": "assistant",
+                "function": "notify_user",
+                "parameter": {
+                  "message": "Remember for the 'Mara STEM fair project check-in' at 8:30 AM: badge activation for Mara happens at the Evanston Civic Center lobby kiosk."
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 2595,
+              "completion_tokens": 86,
+              "reasoning_tokens": 250,
+              "total_tokens": 2931
+            },
+            "endpoint": "gemini/generateContent",
+            "response_id": "tqa8au_OOrLD_PUP2__gmAM"
+          }
+        ]
+      },
+      "metrics": {
+        "input_tokens": 2595,
+        "completion_tokens": 86,
+        "reasoning_tokens": 250,
+        "total_tokens": 2931,
+        "intermediate_round_count": 0,
+        "api_call_count": 1
+      }
+    },
+    {
+      "event_id": "event2",
+      "agent": {
+        "decision": "final",
+        "content": {
+          "app": "assistant",
+          "function": "notify_user",
+          "parameter": {
+            "message": "Talia is unavailable to call the Evanston STEM Fair desk from 8:30-9:20. Your event for Mara's check-in starts at 8:30. I could not find contact information for the Evanston STEM Fair or Evanston Civic Center in your records. You may need to find a number to reach them in case of issues with Mara's project drop-off or badge activation."
+          }
+        },
+        "action_intensity": "L1",
+        "execution_result": {
+          "recipient": "Bianca Helene Quill",
+          "message": "Talia is unavailable to call the Evanston STEM Fair desk from 8:30-9:20. Your event for Mara's check-in starts at 8:30. I could not find contact information for the Evanston STEM Fair or Evanston Civic Center in your records. You may need to find a number to reach them in case of issues with Mara's project drop-off or badge activation.",
+          "timestamp": "2026-10-17T08:12:00-05:00"
+        },
+        "intermediate_round_count": 4,
+        "inspection_trace": [
+          {
+            "command": {
+              "app": "contacts",
+              "function": "search_contacts",
+              "parameter": {
+                "query": "Evanston STEM Fair"
+              }
+            },
+            "result": []
+          },
+          {
+            "command": {
+              "app": "email",
+              "function": "search_emails",
+              "parameter": {
+                "query": "Evanston STEM Fair"
+              }
+            },
+            "result": []
+          },
+          {
+            "command": {
+              "app": "files",
+              "function": "search_files",
+              "parameter": {
+                "query": "Evanston STEM Fair phone number"
+              }
+            },
+            "result": []
+          },
+          {
+            "command": {
+              "app": "contacts",
+              "function": "search_contacts",
+              "parameter": {
+                "query": "Evanston Civic Center"
+              }
+            },
+            "result": []
+          },
+          {
+            "command": {
+              "app": "email",
+              "function": "search_emails",
+              "parameter": {
+                "query": "Evanston Civic Center"
+              }
+            },
+            "result": []
+          },
+          {
+            "command": {
+              "app": "files",
+              "function": "search_files",
+              "parameter": {
+                "query": "Evanston Civic Center"
+              }
+            },
+            "result": []
+          }
+        ],
+        "model_calls": [
+          {
+            "round": 0,
+            "output_attempt": 1,
+            "raw_text": "{\n  \"decision\": \"inspect\",\n  \"content\": [\n    {\n      \"app\": \"contacts\",\n      \"function\": \"search_contacts\",\n      \"parameter\": {\n        \"query\": \"Evanston STEM Fair\"\n      }\n    }\n  ]\n}",
+            "parsed": {
+              "decision": "inspect",
+              "content": [
+                {
+                  "app": "contacts",
+                  "function": "search_contacts",
+                  "parameter": {
+                    "query": "Evanston STEM Fair"
+                  }
+                }
+              ]
+            },
+            "usage": {
+              "input_tokens": 2809,
+              "completion_tokens": 64,
+              "reasoning_tokens": 1723,
+              "total_tokens": 4596
+            },
+            "endpoint": "gemini/generateContent",
+            "response_id": "uaa8ao2HI570jMcP_8DVyAI"
+          },
+          {
+            "round": 1,
+            "output_attempt": 1,
+            "raw_text": "{\n  \"decision\": \"inspect\",\n  \"content\": [\n    {\n      \"app\": \"email\",\n      \"function\": \"search_emails\",\n      \"parameter\": {\n        \"query\": \"Evanston STEM Fair\"\n      }\n    }\n  ]\n}",
+            "parsed": {
+              "decision": "inspect",
+              "content": [
+                {
+                  "app": "email",
+                  "function": "search_emails",
+                  "parameter": {
+                    "query": "Evanston STEM Fair"
+                  }
+                }
+              ]
+            },
+            "usage": {
+              "input_tokens": 2870,
+              "completion_tokens": 64,
+              "reasoning_tokens": 667,
+              "total_tokens": 3601
+            },
+            "endpoint": "gemini/generateContent",
+            "response_id": "xKa8aozEGeyJ-sAPtYOVmAo"
+          },
+          {
+            "round": 2,
+            "output_attempt": 1,
+            "raw_text": "{\n  \"decision\": \"inspect\",\n  \"content\": [\n    {\n      \"app\": \"files\",\n      \"function\": \"search_files\",\n      \"parameter\": {\n        \"query\": \"Evanston STEM Fair phone number\"\n      }\n    }\n  ]\n}",
+            "parsed": {
+              "decision": "inspect",
+              "content": [
+                {
+                  "app": "files",
+                  "function": "search_files",
+                  "parameter": {
+                    "query": "Evanston STEM Fair phone number"
+                  }
+                }
+              ]
+            },
+            "usage": {
+              "input_tokens": 2929,
+              "completion_tokens": 66,
+              "reasoning_tokens": 2731,
+              "total_tokens": 5726
+            },
+            "endpoint": "gemini/generateContent",
+            "response_id": "yKa8atjYKPeq_PUPiu21-Ak"
+          },
+          {
+            "round": 3,
+            "output_attempt": 1,
+            "raw_text": "{\n  \"decision\": \"inspect\",\n  \"content\": [\n    {\n      \"app\": \"contacts\",\n      \"function\": \"search_contacts\",\n      \"parameter\": {\n        \"query\": \"Evanston Civic Center\"\n      }\n    },\n    {\n      \"app\": \"email\",\n      \"function\": \"search_emails\",\n      \"parameter\": {\n        \"query\": \"Evanston Civic Center\"\n      }\n    },\n    {\n      \"app\": \"files\",\n      \"function\": \"search_files\",\n      \"parameter\": {\n        \"query\": \"Evanston Civic Center\"\n      }\n    }\n  ]\n}",
+            "parsed": {
+              "decision": "inspect",
+              "content": [
+                {
+                  "app": "contacts",
+                  "function": "search_contacts",
+                  "parameter": {
+                    "query": "Evanston Civic Center"
+                  }
+                },
+                {
+                  "app": "email",
+                  "function": "search_emails",
+                  "parameter": {
+                    "query": "Evanston Civic Center"
+                  }
+                },
+                {
+                  "app": "files",
+                  "function": "search_files",
+                  "parameter": {
+                    "query": "Evanston Civic Center"
+                  }
+                }
+              ]
+            },
+            "usage": {
+              "input_tokens": 2990,
+              "completion_tokens": 152,
+              "reasoning_tokens": 3222,
+              "total_tokens": 6364
+            },
+            "endpoint": "gemini/generateContent",
+            "response_id": "2Ka8avX7FZPLjMcPjvDJkQo"
+          },
+          {
+            "round": 4,
+            "output_attempt": 1,
+            "raw_text": "{\n  \"decision\": \"final\",\n  \"content\": {\n    \"app\": \"assistant\",\n    \"function\": \"notify_user\",\n    \"parameter\": {\n      \"message\": \"Talia is unavailable to call the Evanston STEM Fair desk from 8:30-9:20. Your event for Mara's check-in starts at 8:30. I could not find contact information for the Evanston STEM Fair or Evanston Civic Center in your records. You may need to find a number to reach them in case of issues with Mara's project drop-off or badge activation.\"\n    }\n  }\n}",
+            "parsed": {
+              "decision": "final",
+              "content": {
+                "app": "assistant",
+                "function": "notify_user",
+                "parameter": {
+                  "message": "Talia is unavailable to call the Evanston STEM Fair desk from 8:30-9:20. Your event for Mara's check-in starts at 8:30. I could not find contact information for the Evanston STEM Fair or Evanston Civic Center in your records. You may need to find a number to reach them in case of issues with Mara's project drop-off or badge activation."
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 3167,
+              "completion_tokens": 138,
+              "reasoning_tokens": 1904,
+              "total_tokens": 5209
+            },
+            "endpoint": "gemini/generateContent",
+            "response_id": "7Ka8av-9DpfT_uMPuaX4gAU"
+          }
+        ]
+      },
+      "metrics": {
+        "input_tokens": 14765,
+        "completion_tokens": 484,
+        "reasoning_tokens": 10247,
+        "total_tokens": 25496,
+        "intermediate_round_count": 4,
+        "api_call_count": 5
+      }
+    },
+    {
+      "event_id": "event3",
+      "agent": {
+        "decision": "final",
+        "content": {
+          "app": "assistant",
+          "function": "notify_user",
+          "parameter": {
+            "message": "The kiosk session ESF-883 for Mara Moreno's project was opened at 8:35 AM. Please complete badge activation at the lobby kiosk using this session ID."
+          }
+        },
+        "action_intensity": "L1",
+        "execution_result": {
+          "recipient": "Bianca Helene Quill",
+          "message": "The kiosk session ESF-883 for Mara Moreno's project was opened at 8:35 AM. Please complete badge activation at the lobby kiosk using this session ID.",
+          "timestamp": "2026-10-17T08:36:00-05:00"
+        },
+        "intermediate_round_count": 0,
+        "inspection_trace": [],
+        "model_calls": [
+          {
+            "round": 0,
+            "output_attempt": 1,
+            "raw_text": "{\n  \"decision\": \"final\",\n  \"content\": {\n    \"app\": \"assistant\",\n    \"function\": \"notify_user\",\n    \"parameter\": {\n      \"message\": \"The kiosk session ESF-883 for Mara Moreno's project was opened at 8:35 AM. Please complete badge activation at the lobby kiosk using this session ID.\"\n    }\n  }\n}",
+            "parsed": {
+              "decision": "final",
+              "content": {
+                "app": "assistant",
+                "function": "notify_user",
+                "parameter": {
+                  "message": "The kiosk session ESF-883 for Mara Moreno's project was opened at 8:35 AM. Please complete badge activation at the lobby kiosk using this session ID."
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 3021,
+              "completion_tokens": 91,
+              "reasoning_tokens": 852,
+              "total_tokens": 3964
+            },
+            "endpoint": "gemini/generateContent",
+            "response_id": "96a8atJaqaKMxw_I-cHpDQ"
+          }
+        ]
+      },
+      "metrics": {
+        "input_tokens": 3021,
+        "completion_tokens": 91,
+        "reasoning_tokens": 852,
+        "total_tokens": 3964,
+        "intermediate_round_count": 0,
+        "api_call_count": 1
+      }
+    },
+    {
+      "event_id": "event4",
+      "agent": {
+        "decision": "final",
+        "content": {
+          "app": "assistant",
+          "function": "notify_user",
+          "parameter": {
+            "message": "Mara's STEM fair badge activation is paused because the e-waiver is incomplete for session ESF-883. The kiosk session expires at 9:05 AM. Please ensure the exhibitor profile holder completes it urgently at https://portal.evanstonstemfair.example/waiver using code ESF-883. Talia mentioned she can complete one short portal item before 9:00 AM, so prompt her now."
+          }
+        },
+        "action_intensity": "L1",
+        "execution_result": {
+          "recipient": "Bianca Helene Quill",
+          "message": "Mara's STEM fair badge activation is paused because the e-waiver is incomplete for session ESF-883. The kiosk session expires at 9:05 AM. Please ensure the exhibitor profile holder completes it urgently at https://portal.evanstonstemfair.example/waiver using code ESF-883. Talia mentioned she can complete one short portal item before 9:00 AM, so prompt her now.",
+          "timestamp": "2026-10-17T08:43:00-05:00"
+        },
+        "intermediate_round_count": 0,
+        "inspection_trace": [],
+        "model_calls": [
+          {
+            "round": 0,
+            "output_attempt": 1,
+            "raw_text": "{\n  \"decision\": \"final\",\n  \"content\": {\n    \"app\": \"assistant\",\n    \"function\": \"notify_user\",\n    \"parameter\": {\n      \"message\": \"Mara's STEM fair badge activation is paused because the e-waiver is incomplete for session ESF-883. The kiosk session expires at 9:05 AM. Please ensure the exhibitor profile holder completes it urgently at https://portal.evanstonstemfair.example/waiver using code ESF-883. Talia mentioned she can complete one short portal item before 9:00 AM, so prompt her now.\"\n    }\n  }\n}",
+            "parsed": {
+              "decision": "final",
+              "content": {
+                "app": "assistant",
+                "function": "notify_user",
+                "parameter": {
+                  "message": "Mara's STEM fair badge activation is paused because the e-waiver is incomplete for session ESF-883. The kiosk session expires at 9:05 AM. Please ensure the exhibitor profile holder completes it urgently at https://portal.evanstonstemfair.example/waiver using code ESF-883. Talia mentioned she can complete one short portal item before 9:00 AM, so prompt her now."
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 3284,
+              "completion_tokens": 146,
+              "reasoning_tokens": 1558,
+              "total_tokens": 4988
+            },
+            "endpoint": "gemini/generateContent",
+            "response_id": "_Ka8ap-3INCb9MoPgaPByAU"
+          }
+        ]
+      },
+      "metrics": {
+        "input_tokens": 3284,
+        "completion_tokens": 146,
+        "reasoning_tokens": 1558,
+        "total_tokens": 4988,
+        "intermediate_round_count": 0,
+        "api_call_count": 1
+      }
+    },
+    {
+      "event_id": "event5",
+      "agent": {
+        "decision": "final",
+        "content": {
+          "app": "assistant",
+          "function": "notify_user",
+          "parameter": {
+            "message": "Bianca, I'm sorry to report that Mara's STEM fair kiosk session ESF-883 expired at 9:05 AM because the required e-waiver was not completed. The fair desk is now locked for new exhibitor sessions, which means Mara's project cannot be admitted today. You may want to reach out to the Evanston STEM Fair organizers directly for any possible recourse, or discuss this with Talia and Mara."
+          }
+        },
+        "action_intensity": "L1",
+        "execution_result": {
+          "recipient": "Bianca Helene Quill",
+          "message": "Bianca, I'm sorry to report that Mara's STEM fair kiosk session ESF-883 expired at 9:05 AM because the required e-waiver was not completed. The fair desk is now locked for new exhibitor sessions, which means Mara's project cannot be admitted today. You may want to reach out to the Evanston STEM Fair organizers directly for any possible recourse, or discuss this with Talia and Mara.",
+          "timestamp": "2026-10-17T09:06:00-05:00"
+        },
+        "intermediate_round_count": 0,
+        "inspection_trace": [],
+        "model_calls": [
+          {
+            "round": 0,
+            "output_attempt": 1,
+            "raw_text": "{\n  \"decision\": \"final\",\n  \"content\": {\n    \"app\": \"assistant\",\n    \"function\": \"notify_user\",\n    \"parameter\": {\n      \"message\": \"Bianca, I'm sorry to report that Mara's STEM fair kiosk session ESF-883 expired at 9:05 AM because the required e-waiver was not completed. The fair desk is now locked for new exhibitor sessions, which means Mara's project cannot be admitted today. You may want to reach out to the Evanston STEM Fair organizers directly for any possible recourse, or discuss this with Talia and Mara.\"\n    }\n  }\n}",
+            "parsed": {
+              "decision": "final",
+              "content": {
+                "app": "assistant",
+                "function": "notify_user",
+                "parameter": {
+                  "message": "Bianca, I'm sorry to report that Mara's STEM fair kiosk session ESF-883 expired at 9:05 AM because the required e-waiver was not completed. The fair desk is now locked for new exhibitor sessions, which means Mara's project cannot be admitted today. You may want to reach out to the Evanston STEM Fair organizers directly for any possible recourse, or discuss this with Talia and Mara."
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 3510,
+              "completion_tokens": 144,
+              "reasoning_tokens": 1660,
+              "total_tokens": 5314
+            },
+            "endpoint": "gemini/generateContent",
+            "response_id": "Bae8ari5MJGu1MkPo7_T0A0"
+          }
+        ]
+      },
+      "metrics": {
+        "input_tokens": 3510,
+        "completion_tokens": 144,
+        "reasoning_tokens": 1660,
+        "total_tokens": 5314,
+        "intermediate_round_count": 0,
+        "api_call_count": 1
+      }
+    }
+  ],
+  "totals": {
+    "input_tokens": 27175,
+    "completion_tokens": 951,
+    "reasoning_tokens": 14567,
+    "total_tokens": 42693,
+    "intermediate_round_count": 4,
+    "api_call_count": 9
+  },
+  "averages_per_prefix_action": {
+    "input_tokens": 5435.0,
+    "completion_tokens": 190.2,
+    "reasoning_tokens": 2913.4,
+    "total_tokens": 8538.6,
+    "intermediate_round_count": 0.8,
+    "api_call_count": 1.8
+  },
+  "compatible_input_fingerprints": {
+    "e5592bc2a09c70cc779654b6427d6daf02313013c9aec41b583fbbb2a8d12f7d": {
+      "base_git_commit": "1b3671dd79ae8917cd49cf23768d06c50fb7508c",
+      "source_sha256": {
+        "evaluation/runner.py": "ff11bbc041edad9b7956521f45d91735ae0ce4626fb293cc7783e4bae68c1fa9",
+        "llm_client.py": "8369a6fe70ace983e2bc58b7c0063aa66c2b44c9b61be3b663180cbca337db6b"
+      },
+      "previous_input_fingerprint": "509a1e53e277d83cbd2542149625a833b5bca9d3c509978a60b990eb051073c1",
+      "verified_at": "2026-09-30T16:18:25.627669+00:00",
+      "reason": "Persistence-only revision: successful checkpoints saved incrementally; failure diagnostics moved to logs. Agent policy and independent prefix replay verified unchanged; successful outputs, IDs and episode aggregate metrics preserved."
+    },
+    "7148bbd3b2d672bbfe7f40bccafc6420f70bc73e47bbea1873572aae1ede05e7": {
+      "reason": "Added model-scoped local Responses endpoint configuration; existing model requests and evaluation behavior verified unchanged.",
+      "at_utc": "2026-10-01T17:30:57.763793+00:00",
+      "previous_fingerprint": "e5592bc2a09c70cc779654b6427d6daf02313013c9aec41b583fbbb2a8d12f7d"
+    }
+  }
+}

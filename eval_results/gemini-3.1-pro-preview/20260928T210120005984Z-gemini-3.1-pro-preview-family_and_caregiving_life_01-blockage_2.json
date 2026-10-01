@@ -1,0 +1,1311 @@
+{
+  "run_id": "20260928T210120005984Z-gemini-3.1-pro-preview-family_and_caregiving_life_01-blockage_2",
+  "created_at": "2026-09-28T21:04:01.229975+00:00",
+  "model": "gemini-3.1-pro-preview",
+  "model_settings": {
+    "transport": "gemini/developer",
+    "base_url": "https://generativelanguage.googleapis.com/v1beta",
+    "thinking_level": "high",
+    "max_output_tokens": 16384
+  },
+  "domain_id": "family_and_caregiving_life",
+  "instance_id": "family_and_caregiving_life_01",
+  "scenario_id": "blockage_2",
+  "trigger_type": "blockage",
+  "source_path": "domains/family_and_caregiving_life/instances/family_and_caregiving_life_01/scenarios/blockage/blockage_2.json",
+  "input_fingerprint": "8c2bb4f274d800cf8a8c0c577c5385fd6c142001a220036a9c02f7e9734b2944",
+  "scenario": {
+    "scenario_description": "Objective: Complete an already-started exhibitor check-in for Mara’s STEM fair project before the morning intake window closes.\nEmerging Need: The kiosk session opens successfully, then the badge scan is paused because an online profile-holder e-waiver is missing and no desk override is available.\nDecision Context: Early scheduling and availability notes do not justify interrupting anyone; the pause notice supplies the session code and 09:05 system deadline, while Talia's earlier 09:00 loss of phone access is the practical contact cutoff. A stored portal note identifies the only guardian account that can unblock it.\nConsequence: Timely coordination can resume the same kiosk session; after it expires, the project cannot enter today’s fair.",
+    "events": {
+      "event1": {
+        "time": "2026-10-17T07:10:00-05:00",
+        "app": "calendar",
+        "function": "create_event",
+        "parameter": {
+          "title": "Mara STEM fair project check-in",
+          "start_time": "2026-10-17T08:30:00-05:00",
+          "end_time": "2026-10-17T09:15:00-05:00",
+          "description": "Drop off Mara and her project board at exhibitor intake; badge activation happens at the lobby kiosk.",
+          "location": "Evanston Civic Center lobby, 2100 Ridge Ave",
+          "attendees": [
+            "Bianca Quill",
+            "Mara Moreno"
+          ],
+          "organizer": "Evanston STEM Fair",
+          "status": "confirmed"
+        }
+      },
+      "event2": {
+        "time": "2026-10-17T08:12:00-05:00",
+        "app": "messaging",
+        "function": "create_message",
+        "parameter": {
+          "sender": "Talia Moreno",
+          "recipients": [
+            "Bianca Quill",
+            "Ben Quill"
+          ],
+          "content": "I will be in Noah's orthodontist waiting room from 8:30 until 9:00. I can complete one short portal item during that interval; at 9:00 I go into the appointment and cannot read or act on messages until 9:20. I cannot call the fair desk.",
+          "timestamp": "2026-10-17T08:11:00-05:00"
+        }
+      },
+      "event3": {
+        "time": "2026-10-17T08:36:00-05:00",
+        "app": "email",
+        "function": "create_email",
+        "parameter": {
+          "sender": "checkin@evanstonstemfair.example",
+          "recipients": [
+            "bianca.quill@example.com"
+          ],
+          "subject": "Kiosk session opened for Mara Moreno",
+          "body": "Lobby kiosk session ESF-883 opened at 8:35 AM for Mara Moreno. Project category: Junior Inventions. Keep this session active until badge activation is complete.",
+          "timestamp": "2026-10-17T08:35:30-05:00",
+          "cc": null
+        }
+      },
+      "event4": {
+        "time": "2026-10-17T08:43:00-05:00",
+        "app": "email",
+        "function": "create_email",
+        "parameter": {
+          "sender": "checkin@evanstonstemfair.example",
+          "recipients": [
+            "bianca.quill@example.com"
+          ],
+          "subject": "Badge activation paused for session ESF-883",
+          "body": "Session ESF-883 is PAUSED. The badge scan cannot continue because the exhibitor profile holder has not completed today’s e-waiver. Volunteer override is not available. Use https://portal.evanstonstemfair.example/waiver with code ESF-883 before the kiosk session expires at 9:05 AM; exhibitor intake closes at 9:15 AM.",
+          "timestamp": "2026-10-17T08:42:30-05:00",
+          "cc": null
+        }
+      },
+      "event5": {
+        "time": "2026-10-17T09:06:00-05:00",
+        "app": "email",
+        "function": "create_email",
+        "parameter": {
+          "sender": "checkin@evanstonstemfair.example",
+          "recipients": [
+            "bianca.quill@example.com"
+          ],
+          "subject": "Kiosk session ESF-883 expired",
+          "body": "Kiosk session ESF-883 expired at 9:05 AM without badge activation. New exhibitor sessions are now locked for today’s fair intake, and the desk cannot admit projects that did not activate before the session cutoff.",
+          "timestamp": "2026-10-17T09:05:45-05:00",
+          "cc": null
+        }
+      }
+    }
+  },
+  "instance": {
+    "instance_description": "Setting: During 2026, a Chicago-area family care circle coordinates practical support for relatives across school routines, elder companionship, appointments, family events, and shared coverage.\nScope: Scenarios may involve ride planning, check-in rotations, caregiver handoffs, dependent calendars, message drafting, milestone celebrations, document reminders, and reimbursement tracking.\nResources: Empty SQLite tables support reusable contact, commitment, and handoff records; blank TXT files support notes, templates, and event drafts; one zero-balance wallet is available.\nExclusions: Do not cover residence maintenance, clinical treatment choices, diagnosis advice, or native app state stored inside the database.",
+    "personal_description": "Identity: Bianca Helene Quill is a 38-year-old nonprofit volunteer coordinator living in Evanston, Illinois, and is the user_id for this Instance.\nResponsibilities: She informally organizes practical help for her widowed father, her sister’s two children, and visiting relatives without replacing professional services.\nAuthority: Bianca may schedule family logistics, draft messages, track commitments, coordinate rides, record preferences, and manage small shared reimbursements when relatives agree.\nRestrictions: She cannot make medical treatment decisions, sign legal documents for others, access private accounts without permission, or commit relatives beyond stated availability."
+  },
+  "checkpoints": [
+    {
+      "event_id": "event1",
+      "agent": {
+        "decision": "final",
+        "content": {
+          "app": "assistant",
+          "function": "notify_user",
+          "parameter": {
+            "message": "For Mara's STEM fair check-in this morning, please ensure Talia Moreno has submitted any required fair e-waivers beforehand. According to your standing references, Talia holds the guardian profile with e-waiver permissions, and you cannot accept waivers on her behalf during badge activation at the lobby kiosk."
+          }
+        },
+        "action_intensity": "L1",
+        "execution_result": {
+          "recipient": "Bianca Helene Quill",
+          "message": "For Mara's STEM fair check-in this morning, please ensure Talia Moreno has submitted any required fair e-waivers beforehand. According to your standing references, Talia holds the guardian profile with e-waiver permissions, and you cannot accept waivers on her behalf during badge activation at the lobby kiosk.",
+          "timestamp": "2026-10-17T07:10:00-05:00"
+        },
+        "intermediate_round_count": 1,
+        "inspection_trace": [
+          {
+            "command": {
+              "app": "calendar",
+              "function": "find_conflicts",
+              "parameter": {
+                "start_time": "2026-10-17T08:30:00-05:00",
+                "end_time": "2026-10-17T09:15:00-05:00"
+              }
+            },
+            "result": [
+              {
+                "title": "Mara STEM fair project check-in",
+                "start_time": "2026-10-17T08:30:00-05:00",
+                "end_time": "2026-10-17T09:15:00-05:00",
+                "description": "Drop off Mara and her project board at exhibitor intake; badge activation happens at the lobby kiosk.",
+                "location": "Evanston Civic Center lobby, 2100 Ridge Ave",
+                "attendees": [
+                  "Bianca Quill",
+                  "Mara Moreno"
+                ],
+                "organizer": "Evanston STEM Fair",
+                "status": "confirmed"
+              }
+            ]
+          },
+          {
+            "command": {
+              "app": "messaging",
+              "function": "search_messages",
+              "parameter": {
+                "query": "STEM"
+              }
+            },
+            "result": []
+          },
+          {
+            "command": {
+              "app": "email",
+              "function": "search_emails",
+              "parameter": {
+                "query": "STEM"
+              }
+            },
+            "result": []
+          },
+          {
+            "command": {
+              "app": "files",
+              "function": "search_files",
+              "parameter": {
+                "query": "STEM"
+              }
+            },
+            "result": [
+              {
+                "name": "school_and_visit_templates.txt",
+                "content": "Lincoln Elementary substitute pickup rule, saved from the 2026 family handbook: an adult who is not already on a child’s pickup list can receive the child only if a custodial parent or guardian emails the attendance office before 10:00 AM on the school day. The email must include the adult’s legal name and mobile number. Coordinators may remind or prepare details, but the authorization must come from the guardian.\nTeacher appreciation packet note, Standing reference: Mara's 2026 classroom voucher code is LINC-2B-THANKS; Room 2B voucher summaries go to Priya Raman at priya.raman.room2b@example.com, not the main attendance office.\nEvanston STEM Fair portal note, Standing reference: For Mara Moreno's 2026 exhibitor profile, Talia Moreno is the profile-holder guardian with e-waiver permissions. Ben can view the family schedule but cannot submit fair waivers. Bianca may forward session codes and logistics, but she may not accept waivers for a guardian account.\n"
+              }
+            ]
+          }
+        ],
+        "model_calls": [
+          {
+            "round": 0,
+            "output_attempt": 1,
+            "raw_text": "{\n  \"decision\": \"inspect\",\n  \"content\": [\n    {\n      \"app\": \"calendar\",\n      \"function\": \"find_conflicts\",\n      \"parameter\": {\n        \"start_time\": \"2026-10-17T08:30:00-05:00\",\n        \"end_time\": \"2026-10-17T09:15:00-05:00\"\n      }\n    },\n    {\n      \"app\": \"messaging\",\n      \"function\": \"search_messages\",\n      \"parameter\": {\n        \"query\": \"STEM\"\n      }\n    },\n    {\n      \"app\": \"email\",\n      \"function\": \"search_emails\",\n      \"parameter\": {\n        \"query\": \"STEM\"\n      }\n    },\n    {\n      \"app\": \"files\",\n      \"function\": \"search_files\",\n      \"parameter\": {\n        \"query\": \"STEM\"\n      }\n    }\n  ]\n}",
+            "parsed": {
+              "decision": "inspect",
+              "content": [
+                {
+                  "app": "calendar",
+                  "function": "find_conflicts",
+                  "parameter": {
+                    "start_time": "2026-10-17T08:30:00-05:00",
+                    "end_time": "2026-10-17T09:15:00-05:00"
+                  }
+                },
+                {
+                  "app": "messaging",
+                  "function": "search_messages",
+                  "parameter": {
+                    "query": "STEM"
+                  }
+                },
+                {
+                  "app": "email",
+                  "function": "search_emails",
+                  "parameter": {
+                    "query": "STEM"
+                  }
+                },
+                {
+                  "app": "files",
+                  "function": "search_files",
+                  "parameter": {
+                    "query": "STEM"
+                  }
+                }
+              ]
+            },
+            "usage": {
+              "input_tokens": 2595,
+              "completion_tokens": 245,
+              "reasoning_tokens": 812,
+              "total_tokens": 3652
+            },
+            "latency_ms": 7798.35,
+            "endpoint": "gemini/generateContent",
+            "response_id": "oNW6aru0Be35-8YPo6jN4Q4"
+          },
+          {
+            "round": 1,
+            "output_attempt": 1,
+            "raw_text": "{\n  \"decision\": \"final\",\n  \"content\": {\n    \"app\": \"assistant\",\n    \"function\": \"notify_user\",\n    \"parameter\": {\n      \"message\": \"For Mara's STEM fair check-in this morning, please ensure Talia Moreno has submitted any required fair e-waivers beforehand. According to your standing references, Talia holds the guardian profile with e-waiver permissions, and you cannot accept waivers on her behalf during badge activation at the lobby kiosk.\"\n    }\n  }\n}",
+            "parsed": {
+              "decision": "final",
+              "content": {
+                "app": "assistant",
+                "function": "notify_user",
+                "parameter": {
+                  "message": "For Mara's STEM fair check-in this morning, please ensure Talia Moreno has submitted any required fair e-waivers beforehand. According to your standing references, Talia holds the guardian profile with e-waiver permissions, and you cannot accept waivers on her behalf during badge activation at the lobby kiosk."
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 3315,
+              "completion_tokens": 114,
+              "reasoning_tokens": 1801,
+              "total_tokens": 5230
+            },
+            "latency_ms": 15361.4,
+            "endpoint": "gemini/generateContent",
+            "response_id": "p9W6arSENoCw_PUP98eEWA"
+          }
+        ]
+      },
+      "metrics": {
+        "input_tokens": 5910,
+        "completion_tokens": 359,
+        "reasoning_tokens": 2613,
+        "total_tokens": 8882,
+        "latency_ms": 23159.75,
+        "intermediate_round_count": 1,
+        "api_call_count": 2
+      }
+    },
+    {
+      "event_id": "event2",
+      "agent": {
+        "decision": "final",
+        "content": {
+          "app": "assistant",
+          "function": "notify_user",
+          "parameter": {
+            "message": "Talia is available to complete portal items only between 8:30 AM and 9:00 AM today. Since she is the only profile-holder guardian who can accept STEM fair e-waivers, be sure to forward any required waiver links from the exhibitor intake kiosk to her before 9:00 AM."
+          }
+        },
+        "action_intensity": "L1",
+        "execution_result": {
+          "recipient": "Bianca Helene Quill",
+          "message": "Talia is available to complete portal items only between 8:30 AM and 9:00 AM today. Since she is the only profile-holder guardian who can accept STEM fair e-waivers, be sure to forward any required waiver links from the exhibitor intake kiosk to her before 9:00 AM.",
+          "timestamp": "2026-10-17T08:12:00-05:00"
+        },
+        "intermediate_round_count": 2,
+        "inspection_trace": [
+          {
+            "command": {
+              "app": "files",
+              "function": "list_files",
+              "parameter": {}
+            },
+            "result": [
+              {
+                "name": "care_circle_call_notes.txt"
+              },
+              {
+                "name": "closed_volunteer_receipts_2025.txt"
+              },
+              {
+                "name": "family_event_drafts.txt"
+              },
+              {
+                "name": "school_and_visit_templates.txt"
+              }
+            ]
+          },
+          {
+            "command": {
+              "app": "database",
+              "function": "get_schema",
+              "parameter": {}
+            },
+            "result": {
+              "tables": [
+                {
+                  "name": "care_contacts",
+                  "columns": [
+                    {
+                      "name": "contact_id",
+                      "type": "TEXT",
+                      "not_null": false,
+                      "default_value": null,
+                      "primary_key": true
+                    },
+                    {
+                      "name": "person_name",
+                      "type": "TEXT",
+                      "not_null": false,
+                      "default_value": null,
+                      "primary_key": false
+                    },
+                    {
+                      "name": "relationship",
+                      "type": "TEXT",
+                      "not_null": false,
+                      "default_value": null,
+                      "primary_key": false
+                    },
+                    {
+                      "name": "preferred_channel",
+                      "type": "TEXT",
+                      "not_null": false,
+                      "default_value": null,
+                      "primary_key": false
+                    },
+                    {
+                      "name": "notes",
+                      "type": "TEXT",
+                      "not_null": false,
+                      "default_value": null,
+                      "primary_key": false
+                    }
+                  ]
+                },
+                {
+                  "name": "care_handoffs",
+                  "columns": [
+                    {
+                      "name": "handoff_id",
+                      "type": "TEXT",
+                      "not_null": false,
+                      "default_value": null,
+                      "primary_key": true
+                    },
+                    {
+                      "name": "dependent_name",
+                      "type": "TEXT",
+                      "not_null": false,
+                      "default_value": null,
+                      "primary_key": false
+                    },
+                    {
+                      "name": "handoff_date",
+                      "type": "TEXT",
+                      "not_null": false,
+                      "default_value": null,
+                      "primary_key": false
+                    },
+                    {
+                      "name": "coordinator_name",
+                      "type": "TEXT",
+                      "not_null": false,
+                      "default_value": null,
+                      "primary_key": false
+                    },
+                    {
+                      "name": "summary",
+                      "type": "TEXT",
+                      "not_null": false,
+                      "default_value": null,
+                      "primary_key": false
+                    }
+                  ]
+                },
+                {
+                  "name": "protagonist_commitments",
+                  "columns": [
+                    {
+                      "name": "commitment_id",
+                      "type": "TEXT",
+                      "not_null": false,
+                      "default_value": null,
+                      "primary_key": true
+                    },
+                    {
+                      "name": "user_id",
+                      "type": "TEXT",
+                      "not_null": false,
+                      "default_value": null,
+                      "primary_key": false
+                    },
+                    {
+                      "name": "dependent_name",
+                      "type": "TEXT",
+                      "not_null": false,
+                      "default_value": null,
+                      "primary_key": false
+                    },
+                    {
+                      "name": "activity_area",
+                      "type": "TEXT",
+                      "not_null": false,
+                      "default_value": null,
+                      "primary_key": false
+                    },
+                    {
+                      "name": "status",
+                      "type": "TEXT",
+                      "not_null": false,
+                      "default_value": null,
+                      "primary_key": false
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "command": {
+              "app": "email",
+              "function": "search_emails",
+              "parameter": {
+                "query": "portal"
+              }
+            },
+            "result": []
+          },
+          {
+            "command": {
+              "app": "messaging",
+              "function": "search_messages",
+              "parameter": {
+                "query": "portal"
+              }
+            },
+            "result": [
+              {
+                "sender": "Talia Moreno",
+                "recipients": [
+                  "Bianca Quill",
+                  "Ben Quill"
+                ],
+                "content": "I will be in Noah's orthodontist waiting room from 8:30 until 9:00. I can complete one short portal item during that interval; at 9:00 I go into the appointment and cannot read or act on messages until 9:20. I cannot call the fair desk.",
+                "timestamp": "2026-10-17T08:11:00-05:00"
+              }
+            ]
+          },
+          {
+            "command": {
+              "app": "email",
+              "function": "search_emails",
+              "parameter": {
+                "query": "STEM"
+              }
+            },
+            "result": []
+          },
+          {
+            "command": {
+              "app": "files",
+              "function": "get_file",
+              "parameter": {
+                "name": "care_circle_call_notes.txt"
+              }
+            },
+            "result": {
+              "name": "care_circle_call_notes.txt",
+              "content": "Aunt Lidia visit note, updated 2026-01-18: Lidia can walk short flat distances but cannot safely use station stairs while carrying luggage. For northbound Metra trips, the family uses Main Street station as the accessible fallback if Davis Street elevator access is unavailable.\nElias senior center shuttle note, Standing reference: For North Shore Senior Center van rides, the transportation desk must receive cancellations by 3:00 PM on the previous weekday. Two unexcused no-shows in a calendar month pause Elias's van privileges for the following week. Bianca may relay a cancellation when Elias has said he will not ride.\n"
+            }
+          },
+          {
+            "command": {
+              "app": "files",
+              "function": "get_file",
+              "parameter": {
+                "name": "family_event_drafts.txt"
+              }
+            },
+            "result": {
+              "name": "family_event_drafts.txt",
+              "content": "Father photo-preservation note, Standing reference: Elias wants the Kenosha pier prints scanned only at a free local session where the photos stay with the family; late morning after Saturday groceries is his easiest time, and a 20-minute appointment is his limit.\nCommunity potluck archive note, saved 2025-12-15: Room C key, folding chairs, and leftover paper goods from the December volunteer potluck were returned or shelved. No open reimbursements or follow-up calls remained.\n"
+            }
+          },
+          {
+            "command": {
+              "app": "files",
+              "function": "get_file",
+              "parameter": {
+                "name": "school_and_visit_templates.txt"
+              }
+            },
+            "result": {
+              "name": "school_and_visit_templates.txt",
+              "content": "Lincoln Elementary substitute pickup rule, saved from the 2026 family handbook: an adult who is not already on a child’s pickup list can receive the child only if a custodial parent or guardian emails the attendance office before 10:00 AM on the school day. The email must include the adult’s legal name and mobile number. Coordinators may remind or prepare details, but the authorization must come from the guardian.\nTeacher appreciation packet note, Standing reference: Mara's 2026 classroom voucher code is LINC-2B-THANKS; Room 2B voucher summaries go to Priya Raman at priya.raman.room2b@example.com, not the main attendance office.\nEvanston STEM Fair portal note, Standing reference: For Mara Moreno's 2026 exhibitor profile, Talia Moreno is the profile-holder guardian with e-waiver permissions. Ben can view the family schedule but cannot submit fair waivers. Bianca may forward session codes and logistics, but she may not accept waivers for a guardian account.\n"
+            }
+          }
+        ],
+        "model_calls": [
+          {
+            "round": 0,
+            "output_attempt": 1,
+            "raw_text": "{\n  \"decision\": \"inspect\",\n  \"content\": [\n    {\n      \"app\": \"files\",\n      \"function\": \"list_files\",\n      \"parameter\": {}\n    },\n    {\n      \"app\": \"database\",\n      \"function\": \"get_schema\",\n      \"parameter\": {}\n    },\n    {\n      \"app\": \"email\",\n      \"function\": \"search_emails\",\n      \"parameter\": {\n        \"query\": \"portal\"\n      }\n    },\n    {\n      \"app\": \"messaging\",\n      \"function\": \"search_messages\",\n      \"parameter\": {\n        \"query\": \"portal\"\n      }\n    },\n    {\n      \"app\": \"email\",\n      \"function\": \"search_emails\",\n      \"parameter\": {\n        \"query\": \"STEM\"\n      }\n    }\n  ]\n}",
+            "parsed": {
+              "decision": "inspect",
+              "content": [
+                {
+                  "app": "files",
+                  "function": "list_files",
+                  "parameter": {}
+                },
+                {
+                  "app": "database",
+                  "function": "get_schema",
+                  "parameter": {}
+                },
+                {
+                  "app": "email",
+                  "function": "search_emails",
+                  "parameter": {
+                    "query": "portal"
+                  }
+                },
+                {
+                  "app": "messaging",
+                  "function": "search_messages",
+                  "parameter": {
+                    "query": "portal"
+                  }
+                },
+                {
+                  "app": "email",
+                  "function": "search_emails",
+                  "parameter": {
+                    "query": "STEM"
+                  }
+                }
+              ]
+            },
+            "usage": {
+              "input_tokens": 2809,
+              "completion_tokens": 203,
+              "reasoning_tokens": 683,
+              "total_tokens": 3695
+            },
+            "latency_ms": 7284.71,
+            "endpoint": "gemini/generateContent",
+            "response_id": "t9W6aovgD7GV_uMP86214A4"
+          },
+          {
+            "round": 1,
+            "output_attempt": 1,
+            "raw_text": "{\n  \"decision\": \"inspect\",\n  \"content\": [\n    {\n      \"app\": \"files\",\n      \"function\": \"get_file\",\n      \"parameter\": {\n        \"name\": \"care_circle_call_notes.txt\"\n      }\n    },\n    {\n      \"app\": \"files\",\n      \"function\": \"get_file\",\n      \"parameter\": {\n        \"name\": \"family_event_drafts.txt\"\n      }\n    },\n    {\n      \"app\": \"files\",\n      \"function\": \"get_file\",\n      \"parameter\": {\n        \"name\": \"school_and_visit_templates.txt\"\n      }\n    }\n  ]\n}",
+            "parsed": {
+              "decision": "inspect",
+              "content": [
+                {
+                  "app": "files",
+                  "function": "get_file",
+                  "parameter": {
+                    "name": "care_circle_call_notes.txt"
+                  }
+                },
+                {
+                  "app": "files",
+                  "function": "get_file",
+                  "parameter": {
+                    "name": "family_event_drafts.txt"
+                  }
+                },
+                {
+                  "app": "files",
+                  "function": "get_file",
+                  "parameter": {
+                    "name": "school_and_visit_templates.txt"
+                  }
+                }
+              ]
+            },
+            "usage": {
+              "input_tokens": 4145,
+              "completion_tokens": 166,
+              "reasoning_tokens": 420,
+              "total_tokens": 4731
+            },
+            "latency_ms": 6551.14,
+            "endpoint": "gemini/generateContent",
+            "response_id": "vtW6apCtILbV-sAPgtzKsAg"
+          },
+          {
+            "round": 2,
+            "output_attempt": 1,
+            "raw_text": "{\n  \"decision\": \"final\",\n  \"content\": {\n    \"app\": \"assistant\",\n    \"function\": \"notify_user\",\n    \"parameter\": {\n      \"message\": \"Talia is available to complete portal items only between 8:30 AM and 9:00 AM today. Since she is the only profile-holder guardian who can accept STEM fair e-waivers, be sure to forward any required waiver links from the exhibitor intake kiosk to her before 9:00 AM.\"\n    }\n  }\n}",
+            "parsed": {
+              "decision": "final",
+              "content": {
+                "app": "assistant",
+                "function": "notify_user",
+                "parameter": {
+                  "message": "Talia is available to complete portal items only between 8:30 AM and 9:00 AM today. Since she is the only profile-holder guardian who can accept STEM fair e-waivers, be sure to forward any required waiver links from the exhibitor intake kiosk to her before 9:00 AM."
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 4877,
+              "completion_tokens": 121,
+              "reasoning_tokens": 1981,
+              "total_tokens": 6979
+            },
+            "latency_ms": 15923.37,
+            "endpoint": "gemini/generateContent",
+            "response_id": "xdW6atv_BeOk_PUP0vf00Q8"
+          }
+        ]
+      },
+      "metrics": {
+        "input_tokens": 11831,
+        "completion_tokens": 490,
+        "reasoning_tokens": 3084,
+        "total_tokens": 15405,
+        "latency_ms": 29759.22,
+        "intermediate_round_count": 2,
+        "api_call_count": 3
+      }
+    },
+    {
+      "event_id": "event3",
+      "agent": {
+        "decision": "final",
+        "content": {
+          "app": "messaging",
+          "function": "send_message",
+          "parameter": {
+            "recipients": [
+              "Talia Moreno",
+              "Ben Quill"
+            ],
+            "content": "Mara's STEM fair kiosk session is now open. The session code is ESF-883. Please use this to complete the e-waiver in the portal before your 9:00 AM appointment."
+          }
+        },
+        "action_intensity": "L3",
+        "execution_result": {
+          "sender": "Bianca Quill",
+          "recipients": [
+            "Talia Moreno",
+            "Ben Quill"
+          ],
+          "content": "Mara's STEM fair kiosk session is now open. The session code is ESF-883. Please use this to complete the e-waiver in the portal before your 9:00 AM appointment.",
+          "timestamp": "2026-10-17T08:36:00-05:00"
+        },
+        "intermediate_round_count": 2,
+        "inspection_trace": [
+          {
+            "command": {
+              "app": "files",
+              "function": "list_files",
+              "parameter": {}
+            },
+            "result": [
+              {
+                "name": "care_circle_call_notes.txt"
+              },
+              {
+                "name": "closed_volunteer_receipts_2025.txt"
+              },
+              {
+                "name": "family_event_drafts.txt"
+              },
+              {
+                "name": "school_and_visit_templates.txt"
+              }
+            ]
+          },
+          {
+            "command": {
+              "app": "database",
+              "function": "get_schema",
+              "parameter": {}
+            },
+            "result": {
+              "tables": [
+                {
+                  "name": "care_contacts",
+                  "columns": [
+                    {
+                      "name": "contact_id",
+                      "type": "TEXT",
+                      "not_null": false,
+                      "default_value": null,
+                      "primary_key": true
+                    },
+                    {
+                      "name": "person_name",
+                      "type": "TEXT",
+                      "not_null": false,
+                      "default_value": null,
+                      "primary_key": false
+                    },
+                    {
+                      "name": "relationship",
+                      "type": "TEXT",
+                      "not_null": false,
+                      "default_value": null,
+                      "primary_key": false
+                    },
+                    {
+                      "name": "preferred_channel",
+                      "type": "TEXT",
+                      "not_null": false,
+                      "default_value": null,
+                      "primary_key": false
+                    },
+                    {
+                      "name": "notes",
+                      "type": "TEXT",
+                      "not_null": false,
+                      "default_value": null,
+                      "primary_key": false
+                    }
+                  ]
+                },
+                {
+                  "name": "care_handoffs",
+                  "columns": [
+                    {
+                      "name": "handoff_id",
+                      "type": "TEXT",
+                      "not_null": false,
+                      "default_value": null,
+                      "primary_key": true
+                    },
+                    {
+                      "name": "dependent_name",
+                      "type": "TEXT",
+                      "not_null": false,
+                      "default_value": null,
+                      "primary_key": false
+                    },
+                    {
+                      "name": "handoff_date",
+                      "type": "TEXT",
+                      "not_null": false,
+                      "default_value": null,
+                      "primary_key": false
+                    },
+                    {
+                      "name": "coordinator_name",
+                      "type": "TEXT",
+                      "not_null": false,
+                      "default_value": null,
+                      "primary_key": false
+                    },
+                    {
+                      "name": "summary",
+                      "type": "TEXT",
+                      "not_null": false,
+                      "default_value": null,
+                      "primary_key": false
+                    }
+                  ]
+                },
+                {
+                  "name": "protagonist_commitments",
+                  "columns": [
+                    {
+                      "name": "commitment_id",
+                      "type": "TEXT",
+                      "not_null": false,
+                      "default_value": null,
+                      "primary_key": true
+                    },
+                    {
+                      "name": "user_id",
+                      "type": "TEXT",
+                      "not_null": false,
+                      "default_value": null,
+                      "primary_key": false
+                    },
+                    {
+                      "name": "dependent_name",
+                      "type": "TEXT",
+                      "not_null": false,
+                      "default_value": null,
+                      "primary_key": false
+                    },
+                    {
+                      "name": "activity_area",
+                      "type": "TEXT",
+                      "not_null": false,
+                      "default_value": null,
+                      "primary_key": false
+                    },
+                    {
+                      "name": "status",
+                      "type": "TEXT",
+                      "not_null": false,
+                      "default_value": null,
+                      "primary_key": false
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "command": {
+              "app": "email",
+              "function": "search_emails",
+              "parameter": {
+                "query": "STEM"
+              }
+            },
+            "result": [
+              {
+                "sender": "checkin@evanstonstemfair.example",
+                "recipients": [
+                  "bianca.quill@example.com"
+                ],
+                "subject": "Kiosk session opened for Mara Moreno",
+                "body": "Lobby kiosk session ESF-883 opened at 8:35 AM for Mara Moreno. Project category: Junior Inventions. Keep this session active until badge activation is complete.",
+                "timestamp": "2026-10-17T08:35:30-05:00",
+                "flagged": false
+              }
+            ]
+          },
+          {
+            "command": {
+              "app": "email",
+              "function": "search_emails",
+              "parameter": {
+                "query": "portal"
+              }
+            },
+            "result": []
+          },
+          {
+            "command": {
+              "app": "files",
+              "function": "get_file",
+              "parameter": {
+                "name": "care_circle_call_notes.txt"
+              }
+            },
+            "result": {
+              "name": "care_circle_call_notes.txt",
+              "content": "Aunt Lidia visit note, updated 2026-01-18: Lidia can walk short flat distances but cannot safely use station stairs while carrying luggage. For northbound Metra trips, the family uses Main Street station as the accessible fallback if Davis Street elevator access is unavailable.\nElias senior center shuttle note, Standing reference: For North Shore Senior Center van rides, the transportation desk must receive cancellations by 3:00 PM on the previous weekday. Two unexcused no-shows in a calendar month pause Elias's van privileges for the following week. Bianca may relay a cancellation when Elias has said he will not ride.\n"
+            }
+          },
+          {
+            "command": {
+              "app": "files",
+              "function": "get_file",
+              "parameter": {
+                "name": "school_and_visit_templates.txt"
+              }
+            },
+            "result": {
+              "name": "school_and_visit_templates.txt",
+              "content": "Lincoln Elementary substitute pickup rule, saved from the 2026 family handbook: an adult who is not already on a child’s pickup list can receive the child only if a custodial parent or guardian emails the attendance office before 10:00 AM on the school day. The email must include the adult’s legal name and mobile number. Coordinators may remind or prepare details, but the authorization must come from the guardian.\nTeacher appreciation packet note, Standing reference: Mara's 2026 classroom voucher code is LINC-2B-THANKS; Room 2B voucher summaries go to Priya Raman at priya.raman.room2b@example.com, not the main attendance office.\nEvanston STEM Fair portal note, Standing reference: For Mara Moreno's 2026 exhibitor profile, Talia Moreno is the profile-holder guardian with e-waiver permissions. Ben can view the family schedule but cannot submit fair waivers. Bianca may forward session codes and logistics, but she may not accept waivers for a guardian account.\n"
+            }
+          },
+          {
+            "command": {
+              "app": "files",
+              "function": "get_file",
+              "parameter": {
+                "name": "family_event_drafts.txt"
+              }
+            },
+            "result": {
+              "name": "family_event_drafts.txt",
+              "content": "Father photo-preservation note, Standing reference: Elias wants the Kenosha pier prints scanned only at a free local session where the photos stay with the family; late morning after Saturday groceries is his easiest time, and a 20-minute appointment is his limit.\nCommunity potluck archive note, saved 2025-12-15: Room C key, folding chairs, and leftover paper goods from the December volunteer potluck were returned or shelved. No open reimbursements or follow-up calls remained.\n"
+            }
+          }
+        ],
+        "model_calls": [
+          {
+            "round": 0,
+            "output_attempt": 1,
+            "raw_text": "{\n  \"decision\": \"inspect\",\n  \"content\": [\n    {\n      \"app\": \"files\",\n      \"function\": \"list_files\",\n      \"parameter\": {}\n    },\n    {\n      \"app\": \"database\",\n      \"function\": \"get_schema\",\n      \"parameter\": {}\n    },\n    {\n      \"app\": \"email\",\n      \"function\": \"search_emails\",\n      \"parameter\": {\n        \"query\": \"STEM\"\n      }\n    },\n    {\n      \"app\": \"email\",\n      \"function\": \"search_emails\",\n      \"parameter\": {\n        \"query\": \"portal\"\n      }\n    }\n  ]\n}",
+            "parsed": {
+              "decision": "inspect",
+              "content": [
+                {
+                  "app": "files",
+                  "function": "list_files",
+                  "parameter": {}
+                },
+                {
+                  "app": "database",
+                  "function": "get_schema",
+                  "parameter": {}
+                },
+                {
+                  "app": "email",
+                  "function": "search_emails",
+                  "parameter": {
+                    "query": "STEM"
+                  }
+                },
+                {
+                  "app": "email",
+                  "function": "search_emails",
+                  "parameter": {
+                    "query": "portal"
+                  }
+                }
+              ]
+            },
+            "usage": {
+              "input_tokens": 3021,
+              "completion_tokens": 162,
+              "reasoning_tokens": 1458,
+              "total_tokens": 4641
+            },
+            "latency_ms": 12387.2,
+            "endpoint": "gemini/generateContent",
+            "response_id": "1dW6auD1AZDougeF5dWRBw"
+          },
+          {
+            "round": 1,
+            "output_attempt": 1,
+            "raw_text": "{\n  \"decision\": \"inspect\",\n  \"content\": [\n    {\n      \"app\": \"files\",\n      \"function\": \"get_file\",\n      \"parameter\": {\n        \"name\": \"care_circle_call_notes.txt\"\n      }\n    },\n    {\n      \"app\": \"files\",\n      \"function\": \"get_file\",\n      \"parameter\": {\n        \"name\": \"school_and_visit_templates.txt\"\n      }\n    },\n    {\n      \"app\": \"files\",\n      \"function\": \"get_file\",\n      \"parameter\": {\n        \"name\": \"family_event_drafts.txt\"\n      }\n    }\n  ]\n}",
+            "parsed": {
+              "decision": "inspect",
+              "content": [
+                {
+                  "app": "files",
+                  "function": "get_file",
+                  "parameter": {
+                    "name": "care_circle_call_notes.txt"
+                  }
+                },
+                {
+                  "app": "files",
+                  "function": "get_file",
+                  "parameter": {
+                    "name": "school_and_visit_templates.txt"
+                  }
+                },
+                {
+                  "app": "files",
+                  "function": "get_file",
+                  "parameter": {
+                    "name": "family_event_drafts.txt"
+                  }
+                }
+              ]
+            },
+            "usage": {
+              "input_tokens": 4300,
+              "completion_tokens": 166,
+              "reasoning_tokens": 1494,
+              "total_tokens": 5960
+            },
+            "latency_ms": 12989.57,
+            "endpoint": "gemini/generateContent",
+            "response_id": "4dW6avDOGdLb-8YP5ayj6A4"
+          },
+          {
+            "round": 2,
+            "output_attempt": 1,
+            "raw_text": "{\n  \"decision\": \"final\",\n  \"content\": {\n    \"app\": \"messaging\",\n    \"function\": \"send_message\",\n    \"parameter\": {\n      \"recipients\": [\n        \"Talia Moreno\",\n        \"Ben Quill\"\n      ],\n      \"content\": \"Mara's STEM fair kiosk session is now open. The session code is ESF-883. Please use this to complete the e-waiver in the portal before your 9:00 AM appointment.\"\n    }\n  }\n}",
+            "parsed": {
+              "decision": "final",
+              "content": {
+                "app": "messaging",
+                "function": "send_message",
+                "parameter": {
+                  "recipients": [
+                    "Talia Moreno",
+                    "Ben Quill"
+                  ],
+                  "content": "Mara's STEM fair kiosk session is now open. The session code is ESF-883. Please use this to complete the e-waiver in the portal before your 9:00 AM appointment."
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 5032,
+              "completion_tokens": 121,
+              "reasoning_tokens": 981,
+              "total_tokens": 6134
+            },
+            "latency_ms": 9721.36,
+            "endpoint": "gemini/generateContent",
+            "response_id": "7tW6auPeF-Sy1MkPne6luQg"
+          }
+        ]
+      },
+      "metrics": {
+        "input_tokens": 12353,
+        "completion_tokens": 449,
+        "reasoning_tokens": 3933,
+        "total_tokens": 16735,
+        "latency_ms": 35098.130000000005,
+        "intermediate_round_count": 2,
+        "api_call_count": 3
+      }
+    },
+    {
+      "event_id": "event4",
+      "agent": {
+        "decision": "final",
+        "content": {
+          "app": "messaging",
+          "function": "send_message",
+          "parameter": {
+            "recipients": [
+              "Ben Quill",
+              "Talia Moreno"
+            ],
+            "content": "Talia, Mara's badge activation is paused. Please complete the e-waiver at https://portal.evanstonstemfair.example/waiver using code ESF-883 before 9:00. The kiosk session expires at 9:05 AM."
+          }
+        },
+        "action_intensity": "L3",
+        "execution_result": {
+          "sender": "Bianca Quill",
+          "recipients": [
+            "Ben Quill",
+            "Talia Moreno"
+          ],
+          "content": "Talia, Mara's badge activation is paused. Please complete the e-waiver at https://portal.evanstonstemfair.example/waiver using code ESF-883 before 9:00. The kiosk session expires at 9:05 AM.",
+          "timestamp": "2026-10-17T08:43:00-05:00"
+        },
+        "intermediate_round_count": 0,
+        "inspection_trace": [],
+        "model_calls": [
+          {
+            "round": 0,
+            "output_attempt": 1,
+            "raw_text": "{\n  \"decision\": \"final\",\n  \"content\": {\n    \"app\": \"messaging\",\n    \"function\": \"send_message\",\n    \"parameter\": {\n      \"recipients\": [\n        \"Ben Quill\",\n        \"Talia Moreno\"\n      ],\n      \"content\": \"Talia, Mara's badge activation is paused. Please complete the e-waiver at https://portal.evanstonstemfair.example/waiver using code ESF-883 before 9:00. The kiosk session expires at 9:05 AM.\"\n    }\n  }\n}",
+            "parsed": {
+              "decision": "final",
+              "content": {
+                "app": "messaging",
+                "function": "send_message",
+                "parameter": {
+                  "recipients": [
+                    "Ben Quill",
+                    "Talia Moreno"
+                  ],
+                  "content": "Talia, Mara's badge activation is paused. Please complete the e-waiver at https://portal.evanstonstemfair.example/waiver using code ESF-883 before 9:00. The kiosk session expires at 9:05 AM."
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 3284,
+              "completion_tokens": 135,
+              "reasoning_tokens": 5490,
+              "total_tokens": 8909
+            },
+            "latency_ms": 42293.97,
+            "endpoint": "gemini/generateContent",
+            "response_id": "-NW6avCJBoaX1MkP0frUgAc"
+          }
+        ]
+      },
+      "metrics": {
+        "input_tokens": 3284,
+        "completion_tokens": 135,
+        "reasoning_tokens": 5490,
+        "total_tokens": 8909,
+        "latency_ms": 42293.97,
+        "intermediate_round_count": 0,
+        "api_call_count": 1
+      }
+    },
+    {
+      "event_id": "event5",
+      "agent": {
+        "decision": "final",
+        "content": {
+          "app": "assistant",
+          "function": "notify_user",
+          "parameter": {
+            "message": "Mara's STEM fair kiosk session ESF-883 expired at 9:05 AM because the e-waiver was not signed. The desk has locked new exhibitor sessions and cannot admit her project today. Only Talia has e-waiver permissions, and she is unavailable in an appointment until 9:20 AM."
+          }
+        },
+        "action_intensity": "L1",
+        "execution_result": {
+          "recipient": "Bianca Helene Quill",
+          "message": "Mara's STEM fair kiosk session ESF-883 expired at 9:05 AM because the e-waiver was not signed. The desk has locked new exhibitor sessions and cannot admit her project today. Only Talia has e-waiver permissions, and she is unavailable in an appointment until 9:20 AM.",
+          "timestamp": "2026-10-17T09:06:00-05:00"
+        },
+        "intermediate_round_count": 1,
+        "inspection_trace": [
+          {
+            "command": {
+              "app": "files",
+              "function": "search_files",
+              "parameter": {
+                "query": "STEM"
+              }
+            },
+            "result": [
+              {
+                "name": "school_and_visit_templates.txt",
+                "content": "Lincoln Elementary substitute pickup rule, saved from the 2026 family handbook: an adult who is not already on a child’s pickup list can receive the child only if a custodial parent or guardian emails the attendance office before 10:00 AM on the school day. The email must include the adult’s legal name and mobile number. Coordinators may remind or prepare details, but the authorization must come from the guardian.\nTeacher appreciation packet note, Standing reference: Mara's 2026 classroom voucher code is LINC-2B-THANKS; Room 2B voucher summaries go to Priya Raman at priya.raman.room2b@example.com, not the main attendance office.\nEvanston STEM Fair portal note, Standing reference: For Mara Moreno's 2026 exhibitor profile, Talia Moreno is the profile-holder guardian with e-waiver permissions. Ben can view the family schedule but cannot submit fair waivers. Bianca may forward session codes and logistics, but she may not accept waivers for a guardian account.\n"
+              }
+            ]
+          },
+          {
+            "command": {
+              "app": "email",
+              "function": "search_emails",
+              "parameter": {
+                "query": "STEM"
+              }
+            },
+            "result": [
+              {
+                "sender": "checkin@evanstonstemfair.example",
+                "recipients": [
+                  "bianca.quill@example.com"
+                ],
+                "subject": "Kiosk session opened for Mara Moreno",
+                "body": "Lobby kiosk session ESF-883 opened at 8:35 AM for Mara Moreno. Project category: Junior Inventions. Keep this session active until badge activation is complete.",
+                "timestamp": "2026-10-17T08:35:30-05:00",
+                "flagged": false
+              },
+              {
+                "sender": "checkin@evanstonstemfair.example",
+                "recipients": [
+                  "bianca.quill@example.com"
+                ],
+                "subject": "Badge activation paused for session ESF-883",
+                "body": "Session ESF-883 is PAUSED. The badge scan cannot continue because the exhibitor profile holder has not completed today’s e-waiver. Volunteer override is not available. Use https://portal.evanstonstemfair.example/waiver with code ESF-883 before the kiosk session expires at 9:05 AM; exhibitor intake closes at 9:15 AM.",
+                "timestamp": "2026-10-17T08:42:30-05:00",
+                "flagged": false
+              },
+              {
+                "sender": "checkin@evanstonstemfair.example",
+                "recipients": [
+                  "bianca.quill@example.com"
+                ],
+                "subject": "Kiosk session ESF-883 expired",
+                "body": "Kiosk session ESF-883 expired at 9:05 AM without badge activation. New exhibitor sessions are now locked for today’s fair intake, and the desk cannot admit projects that did not activate before the session cutoff.",
+                "timestamp": "2026-10-17T09:05:45-05:00",
+                "flagged": false
+              }
+            ]
+          },
+          {
+            "command": {
+              "app": "messaging",
+              "function": "search_messages",
+              "parameter": {
+                "query": "STEM"
+              }
+            },
+            "result": []
+          }
+        ],
+        "model_calls": [
+          {
+            "round": 0,
+            "output_attempt": 1,
+            "raw_text": "{\n  \"decision\": \"inspect\",\n  \"content\": [\n    {\n      \"app\": \"files\",\n      \"function\": \"search_files\",\n      \"parameter\": {\n        \"query\": \"STEM\"\n      }\n    },\n    {\n      \"app\": \"email\",\n      \"function\": \"search_emails\",\n      \"parameter\": {\n        \"query\": \"STEM\"\n      }\n    },\n    {\n      \"app\": \"messaging\",\n      \"function\": \"search_messages\",\n      \"parameter\": {\n        \"query\": \"STEM\"\n      }\n    }\n  ]\n}",
+            "parsed": {
+              "decision": "inspect",
+              "content": [
+                {
+                  "app": "files",
+                  "function": "search_files",
+                  "parameter": {
+                    "query": "STEM"
+                  }
+                },
+                {
+                  "app": "email",
+                  "function": "search_emails",
+                  "parameter": {
+                    "query": "STEM"
+                  }
+                },
+                {
+                  "app": "messaging",
+                  "function": "search_messages",
+                  "parameter": {
+                    "query": "STEM"
+                  }
+                }
+              ]
+            },
+            "usage": {
+              "input_tokens": 3510,
+              "completion_tokens": 143,
+              "reasoning_tokens": 1249,
+              "total_tokens": 4902
+            },
+            "latency_ms": 10769.49,
+            "endpoint": "gemini/generateContent",
+            "response_id": "Ita6apiOGtal_PUPr7G9CQ"
+          },
+          {
+            "round": 1,
+            "output_attempt": 1,
+            "raw_text": "{\n  \"decision\": \"final\",\n  \"content\": {\n    \"app\": \"assistant\",\n    \"function\": \"notify_user\",\n    \"parameter\": {\n      \"message\": \"Mara's STEM fair kiosk session ESF-883 expired at 9:05 AM because the e-waiver was not signed. The desk has locked new exhibitor sessions and cannot admit her project today. Only Talia has e-waiver permissions, and she is unavailable in an appointment until 9:20 AM.\"\n    }\n  }\n}",
+            "parsed": {
+              "decision": "final",
+              "content": {
+                "app": "assistant",
+                "function": "notify_user",
+                "parameter": {
+                  "message": "Mara's STEM fair kiosk session ESF-883 expired at 9:05 AM because the e-waiver was not signed. The desk has locked new exhibitor sessions and cannot admit her project today. Only Talia has e-waiver permissions, and she is unavailable in an appointment until 9:20 AM."
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 4430,
+              "completion_tokens": 123,
+              "reasoning_tokens": 2484,
+              "total_tokens": 7037
+            },
+            "latency_ms": 20123.47,
+            "endpoint": "gemini/generateContent",
+            "response_id": "Lda6avesDZ-Z_uMPh5aygA8"
+          }
+        ]
+      },
+      "metrics": {
+        "input_tokens": 7940,
+        "completion_tokens": 266,
+        "reasoning_tokens": 3733,
+        "total_tokens": 11939,
+        "latency_ms": 30892.96,
+        "intermediate_round_count": 1,
+        "api_call_count": 2
+      }
+    }
+  ],
+  "totals": {
+    "input_tokens": 41318,
+    "completion_tokens": 1699,
+    "reasoning_tokens": 18853,
+    "total_tokens": 61870,
+    "intermediate_round_count": 6,
+    "api_call_count": 11
+  },
+  "averages_per_prefix_action": {
+    "input_tokens": 8263.6,
+    "completion_tokens": 339.8,
+    "reasoning_tokens": 3770.6,
+    "total_tokens": 12374.0,
+    "intermediate_round_count": 1.2,
+    "api_call_count": 2.2
+  },
+  "compatible_input_fingerprints": {
+    "b64ee1022fe59e6f271dc13e39575e3314c914490d39fd7e5dc77a7b95d6a3df": {
+      "from_git_commit": "8e64a180479fa1aa1bac388f35fa5c334176b168",
+      "to_git_commit": "1b3671dd79ae8917cd49cf23768d06c50fb7508c",
+      "verified_at": "2026-09-29T16:52:10.475955+00:00",
+      "reason": "Scheduling-only change: six default workers and automatic checkpoint repair; Agent execution and retry semantics verified unchanged."
+    },
+    "0eaccefab492bdd910585c5ce980a86bdcda3aac915ca0443a2c13e5dc4be679": {
+      "base_git_commit": "1b3671dd79ae8917cd49cf23768d06c50fb7508c",
+      "source_sha256": {
+        "evaluation/runner.py": "c867d3d52d96f962dd46b6db23de7059471e2bc823d60db308728fa4155a2e8a",
+        "llm_client.py": "ed5538235adc066ffcc434d65a2242cc49e36469f4deca9ad471158c6dc2163d"
+      },
+      "verified_at": "2026-09-29T17:29:25.934061+00:00",
+      "reason": "Retry code moved into runner; latency collection removed. Request payloads, Agent decisions, token accounting, and retry behavior verified unchanged."
+    },
+    "509a1e53e277d83cbd2542149625a833b5bca9d3c509978a60b990eb051073c1": {
+      "base_git_commit": "1b3671dd79ae8917cd49cf23768d06c50fb7508c",
+      "source_sha256": {
+        "llm_client.py": "8369a6fe70ace983e2bc58b7c0063aa66c2b44c9b61be3b663180cbca337db6b",
+        "evaluation/runner.py": "c867d3d52d96f962dd46b6db23de7059471e2bc823d60db308728fa4155a2e8a"
+      },
+      "previous_input_fingerprint": "0eaccefab492bdd910585c5ce980a86bdcda3aac915ca0443a2c13e5dc4be679",
+      "verified_at": "2026-09-30T04:45:32.366996+00:00",
+      "reason": "Only explicit HTTP 400 OutputTextSensitiveContentDetected is now checkpoint-scoped. Successful request payloads, Agent execution, benchmark inputs, token accounting, and saved checkpoints are unchanged; bounded checkpoint retries remain in runner."
+    },
+    "e5592bc2a09c70cc779654b6427d6daf02313013c9aec41b583fbbb2a8d12f7d": {
+      "base_git_commit": "1b3671dd79ae8917cd49cf23768d06c50fb7508c",
+      "source_sha256": {
+        "evaluation/runner.py": "ff11bbc041edad9b7956521f45d91735ae0ce4626fb293cc7783e4bae68c1fa9",
+        "llm_client.py": "8369a6fe70ace983e2bc58b7c0063aa66c2b44c9b61be3b663180cbca337db6b"
+      },
+      "previous_input_fingerprint": "509a1e53e277d83cbd2542149625a833b5bca9d3c509978a60b990eb051073c1",
+      "verified_at": "2026-09-30T16:18:25.627669+00:00",
+      "reason": "Persistence-only revision: successful checkpoints saved incrementally; failure diagnostics moved to logs. Agent policy and independent prefix replay verified unchanged; successful outputs, IDs and episode aggregate metrics preserved."
+    },
+    "7148bbd3b2d672bbfe7f40bccafc6420f70bc73e47bbea1873572aae1ede05e7": {
+      "reason": "Added model-scoped local Responses endpoint configuration; existing model requests and evaluation behavior verified unchanged.",
+      "at_utc": "2026-10-01T17:30:59.178361+00:00",
+      "previous_fingerprint": "e5592bc2a09c70cc779654b6427d6daf02313013c9aec41b583fbbb2a8d12f7d"
+    }
+  }
+}
