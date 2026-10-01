@@ -6,6 +6,7 @@ import hashlib
 import hmac
 import importlib
 import sys
+import threading
 from pathlib import Path
 
 import streamlit as st
@@ -17,10 +18,24 @@ INITIAL_ADMIN2_PASSWORD_HASH = (
     "pbkdf2_sha256$600000$e983fc7d21e20df94191e12090c5b63d$"
     "6a06af22d1cf83b423560c645e0b05606bdeb3b6de7f75eefff4f15fc2a0053f"
 )
-if str(ROOT_DIR) not in sys.path:
-    sys.path.insert(0, str(ROOT_DIR))
+if str(ROOT_DIR) in sys.path:
+    sys.path.remove(str(ROOT_DIR))
+sys.path.insert(0, str(ROOT_DIR))
 
-from benchmark_catalog import load_benchmark_items  # noqa: E402
+import benchmark_catalog as catalog_module  # noqa: E402
+
+# Cloud reruns can retain an imported module from before a function was renamed.
+# Refresh it from the current checkout before any dependent imports bind names.
+catalog_source_hash = hashlib.sha256(
+    (ROOT_DIR / "benchmark_catalog.py").read_bytes()
+).hexdigest()
+with catalog_module.__dict__.setdefault("_annotation_reload_lock", threading.RLock()):
+    if getattr(catalog_module, "_annotation_source_hash", None) != catalog_source_hash:
+        importlib.invalidate_caches()
+        catalog_module = importlib.reload(catalog_module)
+        catalog_module._annotation_source_hash = catalog_source_hash
+load_benchmark_items = catalog_module.load_benchmark_items
+
 from annotation_app.eval_catalog import load_eval_release  # noqa: E402
 from annotation_app.config import AppConfig  # noqa: E402
 from annotation_app.review_views import (  # noqa: E402
