@@ -139,20 +139,47 @@ def _store(
     return _store_class(config)
 
 
-@st.cache_data(show_spinner="Loading Benchmark Audit items…")
+@st.cache_resource(show_spinner="Loading Benchmark Audit items…")
 def _audit_items(catalog_version: str) -> list[dict]:
+    # Published source data is shared read-only across all review sessions.
     del catalog_version
     return load_benchmark_items()
 
 
-@st.cache_data(show_spinner="Loading Agent Evaluation items…")
+@st.cache_resource(show_spinner="Loading Agent Evaluation items…")
 def _eval_release(catalog_version: str) -> tuple:
+    # Avoid copying the entire frozen release on every widget interaction.
+    # Callers must not mutate items or the account manifest.
     del catalog_version
     return load_eval_release()
 
 
 def _eval_items(catalog_version: str) -> list[dict]:
     return _eval_release(catalog_version)[0]
+
+
+@st.cache_resource(show_spinner=False)
+def _initialize_accounts(
+    config: AppConfig,
+    storage_cache_key: str,
+    store_generation: int,
+    catalog_version: str,
+    _store: AnnotationStore,
+) -> str | None:
+    # Run once per database/store/release, not once per annotator click.
+    # The database migration records still make restarts idempotent.
+    _store.apply_eval_cohort(_eval_release(catalog_version)[1])
+    _store.rename_user_accounts(
+        "human-eval-4000-short-ids-v1",
+        {f"eval4000-{number:02d}": f"eval{number:02d}" for number in range(1, 21)},
+    )
+    try:
+        _store.apply_initial_admin(
+            "create-admin2-2026-09-18", "admin2", INITIAL_ADMIN2_PASSWORD_HASH
+        )
+    except ValueError as error:
+        return f"Could not create admin2: {error}"
+    return None
 
 
 def _login(store: AnnotationStore, config: AppConfig) -> None:
@@ -266,26 +293,16 @@ def main() -> None:
         return
 
     try:
-        # Historical resets and audit repairs have already been deployed.
-        # New releases must not replay them against existing annotations.
-        store.apply_eval_cohort(_eval_release(CATALOG_VERSION)[1])
-        store.rename_user_accounts(
-            "human-eval-4000-short-ids-v1",
-            {f"eval4000-{number:02d}": f"eval{number:02d}" for number in range(1, 21)},
+        setup_warning = _initialize_accounts(
+            config, _storage_cache_key(), id(store), CATALOG_VERSION, store
         )
     except (ValueError, RuntimeError) as error:
         st.title("Eval account setup paused")
         st.error(str(error))
         return
 
-    try:
-        store.apply_initial_admin(
-            "create-admin2-2026-09-18",
-            "admin2",
-            INITIAL_ADMIN2_PASSWORD_HASH,
-        )
-    except ValueError as error:
-        st.warning(f"Could not create admin2: {error}")
+    if setup_warning:
+        st.warning(setup_warning)
 
     assignment_version = CATALOG_VERSION
     if st.session_state.get("cloud_audit_assignment_version") != assignment_version:
@@ -294,7 +311,6 @@ def main() -> None:
                 del st.session_state[key]
         st.session_state["cloud_audit_assignment_version"] = assignment_version
 
-    participant_users = {row["user_id"] for row in store.list_users()}
     user = st.session_state.get("annotation_user")
     if user and user.get("is_admin"):
         active_admin = (
@@ -305,13 +321,6 @@ def main() -> None:
         if not active_admin:
             del st.session_state["annotation_user"]
             st.rerun()
-    if (
-        user
-        and not user.get("is_admin")
-        and user["user_id"] not in participant_users
-    ):
-        del st.session_state["annotation_user"]
-        st.rerun()
     if not user:
         _login(store, config)
         return
@@ -325,12 +334,15 @@ def main() -> None:
         )
         return
 
-    progress = store.progress_for_user(user["user_id"])
+    review_state = store.review_state(user["user_id"])
+    if review_state is None:
+        del st.session_state["annotation_user"]
+        st.rerun()
     review_type = next(
         (
             name
             for name in ("audit", "eval")
-            if progress[name]["assigned"]
+            if review_state[name]["item_ids"]
         ),
         None,
     )
@@ -341,10 +353,10 @@ def main() -> None:
         return
     if review_type == "audit":
         _sidebar(user, "Benchmark Audit")
-        render_audit(store, user, _audit_items(CATALOG_VERSION))
+        render_audit(store, user, _audit_items(CATALOG_VERSION), review_state["audit"])
     else:
         _sidebar(user, "Agent Evaluation")
-        render_eval(store, user, _eval_items(CATALOG_VERSION))
+        render_eval(store, user, _eval_items(CATALOG_VERSION), review_state["eval"])
 
 
 if __name__ == "__main__":

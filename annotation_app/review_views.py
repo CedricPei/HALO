@@ -134,12 +134,17 @@ def _ordered_assigned_items(
     user_id: str,
     review_type: str,
     all_items: list[dict],
+    review_state: dict | None = None,
 ) -> tuple[list[dict], int]:
     by_id = {
         item["item_id"]: {**item, "display_id": display_id}
         for display_id, item in enumerate(all_items, start=1)
     }
-    assigned_ids = store.assignment_ids(user_id, review_type)
+    assigned_ids = (
+        review_state["item_ids"]
+        if review_state is not None
+        else store.assignment_ids(user_id, review_type)
+    )
     items = [by_id[item_id] for item_id in assigned_ids if item_id in by_id]
     return items, len(assigned_ids) - len(items)
 
@@ -159,11 +164,12 @@ def render_audit(
     store: AnnotationStore,
     user: dict,
     all_items: list[dict],
+    review_state: dict | None = None,
 ) -> None:
     _enable_copy_protection()
     user_id = user["user_id"]
     items, missing_count = _ordered_assigned_items(
-        store, user_id, "audit", all_items
+        store, user_id, "audit", all_items, review_state
     )
     st.title("Benchmark Audit")
     if missing_count:
@@ -174,7 +180,11 @@ def render_audit(
         st.info("No Benchmark Audit tasks are assigned to this account.")
         return
 
-    reviewed = store.reviewed_ids(user_id, "audit")
+    reviewed = (
+        review_state["reviewed_ids"]
+        if review_state is not None
+        else store.reviewed_ids(user_id, "audit")
+    )
     position_key = f"cloud_audit_position_{user_id}"
     if position_key not in st.session_state:
         st.session_state[position_key] = _initial_position(items, reviewed)
@@ -197,7 +207,11 @@ def render_audit(
         return
 
     item = items[position]
-    saved = store.get_annotation(user_id, "audit", item["item_id"])
+    saved = (
+        review_state["annotations"].get(item["item_id"])
+        if review_state is not None
+        else store.get_annotation(user_id, "audit", item["item_id"])
+    )
     existing = saved["payload"] if saved else {}
 
     metadata(
@@ -363,10 +377,13 @@ def render_eval(
     store: AnnotationStore,
     user: dict,
     all_items: list[dict],
+    review_state: dict | None = None,
 ) -> None:
     _enable_copy_protection()
     user_id = user["user_id"]
-    items, missing_count = _ordered_assigned_items(store, user_id, "eval", all_items)
+    items, missing_count = _ordered_assigned_items(
+        store, user_id, "eval", all_items, review_state
+    )
     st.title("Evaluation of Agent Action")
     if missing_count:
         st.warning(
@@ -376,7 +393,11 @@ def render_eval(
         st.info("No Agent Evaluation tasks are assigned to this account.")
         return
 
-    reviewed = store.reviewed_ids(user_id, "eval")
+    reviewed = (
+        review_state["reviewed_ids"]
+        if review_state is not None
+        else store.reviewed_ids(user_id, "eval")
+    )
     position_key = f"cloud_eval_position_{user_id}"
     if position_key not in st.session_state:
         st.session_state[position_key] = _initial_position(items, reviewed)
@@ -399,7 +420,11 @@ def render_eval(
         return
 
     item = items[position]
-    saved = store.get_annotation(user_id, "eval", item["item_id"])
+    saved = (
+        review_state["annotations"].get(item["item_id"])
+        if review_state is not None
+        else store.get_annotation(user_id, "eval", item["item_id"])
+    )
     existing = saved["payload"] if saved else {}
     diagnostics = existing.get("diagnostics", {})
 

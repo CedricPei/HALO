@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import atexit
 import hashlib
 import hmac
 import json
@@ -77,26 +78,49 @@ class AnnotationStore:
     def __init__(self, config: AppConfig):
         self.config = config
         self.sqlite = config.database_url.startswith("sqlite:///")
+        self._pool = None
         if self.sqlite:
             self.sqlite_path = Path(config.database_url.removeprefix("sqlite:///"))
             self.sqlite_path.parent.mkdir(parents=True, exist_ok=True)
-        self.ensure_schema()
+        else:
+            try:
+                from psycopg.rows import dict_row
+                from psycopg_pool import ConnectionPool
+            except ImportError as error:
+                raise RuntimeError(
+                    "PostgreSQL mode requires psycopg and psycopg-pool."
+                ) from error
+            self._pool = ConnectionPool(
+                self.config.database_url,
+                kwargs={
+                    "row_factory": dict_row,
+                    "prepare_threshold": None,
+                    "connect_timeout": 10,
+                },
+                min_size=1,
+                max_size=8,
+                timeout=15,
+                check=ConnectionPool.check_connection,
+                open=True,
+            )
+        try:
+            self.ensure_schema()
+        except Exception:
+            self.close()
+            raise
+        if self._pool is not None:
+            atexit.register(self.close)
+
+    def close(self) -> None:
+        if self._pool is not None:
+            self._pool.close()
+            atexit.unregister(self.close)
 
     @contextmanager
     def _connect(self):
         if not self.sqlite:
-            try:
-                import psycopg
-                from psycopg.rows import dict_row
-            except ImportError as error:
-                raise RuntimeError(
-                    "PostgreSQL mode requires the psycopg package."
-                ) from error
-            with psycopg.connect(
-                self.config.database_url,
-                row_factory=dict_row,
-                prepare_threshold=None,
-            ) as connection:
+            # Each checkout owns its transaction; sessions never share one.
+            with self._pool.connection() as connection:
                 yield connection
             return
 
@@ -505,6 +529,48 @@ class AnnotationStore:
                 (user_id, review_type),
             ).fetchall()
         return [row["item_id"] for row in rows]
+
+    def review_state(self, user_id: str) -> dict | None:
+        """Read a participant's current assignments and answers in one query.
+
+        Do not cache this result: revoked accounts, reassigned work, and saved
+        reviews must be visible on the next interaction.
+        """
+        with self._connect() as connection:
+            rows = connection.execute(
+                self._sql(
+                    "SELECT a.review_type, a.item_id, a.status, "
+                    "n.annotation_id, n.payload_json, n.created_at "
+                    "FROM annotation_users u "
+                    "LEFT JOIN annotation_assignments a ON a.user_id=u.user_id "
+                    "LEFT JOIN annotations n ON n.user_id=a.user_id "
+                    "AND n.review_type=a.review_type AND n.item_id=a.item_id "
+                    "WHERE u.user_id=? "
+                    "ORDER BY a.review_type, a.position, a.item_id"
+                ),
+                (user_id,),
+            ).fetchall()
+        if not rows:
+            return None
+        state = {
+            name: {"item_ids": [], "reviewed_ids": set(), "annotations": {}}
+            for name in ("audit", "eval")
+        }
+        for row in rows:
+            if row["review_type"] is None:
+                continue
+            review = state[row["review_type"]]
+            item_id = row["item_id"]
+            review["item_ids"].append(item_id)
+            if row["status"] == "submitted":
+                review["reviewed_ids"].add(item_id)
+            if row["annotation_id"] is not None:
+                review["annotations"][item_id] = {
+                    "annotation_id": row["annotation_id"],
+                    "payload": json.loads(row["payload_json"]),
+                    "created_at": row["created_at"],
+                }
+        return state
 
     def assignment_snapshot(self, review_type: str) -> list[dict]:
         """Read assignment metadata without credentials or annotation content."""
