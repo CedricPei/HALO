@@ -451,7 +451,14 @@ def render_eval(
                 )
 
     with decision_col:
-        detected_intensity = action_intensity(item["agent"]["content"])
+        inference_error = None
+        try:
+            detected_intensity = action_intensity(item["agent"]["content"])
+        except (ValueError, TypeError) as error:
+            # An unsupported or malformed response must remain reviewable.
+            # Do not silently classify an unknown command as inaction (L0).
+            detected_intensity = None
+            inference_error = str(error)
         stored_intensity = diagnostics.get("action_intensity")
         displayed_intensity = (
             stored_intensity
@@ -468,16 +475,27 @@ def render_eval(
                 "- **L2 · Preparation:** The command prepares an unexecuted operation or maintains internal contact information.\n"
                 "- **L3 · Execution:** The command changes an active schedule, communicates externally, or moves money."
             )
-            st.markdown(
-                '<div class="intensity-inference">Automatically inferred: '
-                f"<strong>{INTENSITY_LABELS[detected_intensity]}</strong> from "
-                "the final command.</div>",
-                unsafe_allow_html=True,
-            )
+            if detected_intensity is None:
+                st.warning(
+                    "Automatic intensity detection is unavailable for this response. "
+                    "Review the Agent Action and select an intensity level to continue."
+                )
+            else:
+                st.markdown(
+                    '<div class="intensity-inference">Automatically inferred: '
+                    f"<strong>{INTENSITY_LABELS[detected_intensity]}</strong> from "
+                    "the final command.</div>",
+                    unsafe_allow_html=True,
+                )
             selected_intensity = st.selectbox(
                 "Intensity Check",
                 INTENSITY_LEVELS,
-                index=INTENSITY_LEVELS.index(displayed_intensity),
+                index=(
+                    INTENSITY_LEVELS.index(displayed_intensity)
+                    if displayed_intensity in INTENSITY_LEVELS
+                    else None
+                ),
+                placeholder="Select an intensity level",
                 format_func=INTENSITY_LABELS.get,
                 label_visibility="collapsed",
                 key=f"cloud-intensity-{user_id}-{item['item_id']}",
@@ -523,6 +541,8 @@ def render_eval(
             "detected_action_intensity": detected_intensity,
             "action_intensity": selected_intensity,
         }
+        if inference_error is not None:
+            diagnostics_to_save["intensity_inference_error"] = inference_error
         dimensions = []
         timing = "Timely"
         intensity_error = "Appropriate"
@@ -534,7 +554,7 @@ def render_eval(
             timing = INACTION_ERROR
             intensity_error = ""
             diagnostics_to_save["rejection_dimensions"] = dimensions
-        elif verdict == "unacceptable":
+        elif verdict == "unacceptable" and selected_intensity in INTENSITY_LEVELS:
             stored_dimensions = _stored_dimensions(existing, diagnostics)
             st.markdown(
                 '<div class="rejection-heading">Rejection Reasons</div>',
@@ -644,7 +664,11 @@ def render_eval(
                 "Save and next",
                 type="primary",
                 use_container_width=True,
-                disabled=verdict is None or not diagnostics_complete,
+                disabled=(
+                    verdict is None
+                    or selected_intensity not in INTENSITY_LEVELS
+                    or not diagnostics_complete
+                ),
             )
         if back:
             st.session_state[position_key] -= 1
@@ -652,6 +676,8 @@ def render_eval(
         elif submitted:
             if verdict is None:
                 st.error("Select a verdict before continuing.")
+            elif selected_intensity not in INTENSITY_LEVELS:
+                st.error("Select an intensity level before continuing.")
             elif not diagnostics_complete:
                 st.error("Complete the rejection checks before continuing.")
             else:

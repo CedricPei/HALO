@@ -38,13 +38,34 @@ load_benchmark_items = catalog_module.load_benchmark_items
 
 from annotation_app.eval_catalog import load_eval_release  # noqa: E402
 from annotation_app.config import AppConfig  # noqa: E402
-from annotation_app.review_views import (  # noqa: E402
-    render_audit,
-    render_eval,
-)
+import evaluation.prompt as agent_prompt_module  # noqa: E402
+import evaluation.intensity as intensity_module  # noqa: E402
+import annotation_app.review_views as review_views_module  # noqa: E402
 import annotation_app.storage as storage_module  # noqa: E402
 import annotation_app.assignment as assignment_module  # noqa: E402
 from annotation_app.ui import apply_style  # noqa: E402
+
+
+# A rolling deploy can retain an old action map and the view that imported it.
+# Refresh dependencies first, then rebind the view's imported functions.
+review_source_hash = hashlib.sha256(b"\0".join(
+    (ROOT_DIR / path).read_bytes()
+    for path in (
+        "env/app_surfaces/evaluated_agent.md",
+        "evaluation/prompt.py",
+        "evaluation/intensity.py",
+        "annotation_app/review_views.py",
+    )
+)).hexdigest()
+with review_views_module.__dict__.setdefault("_annotation_reload_lock", threading.RLock()):
+    if getattr(review_views_module, "_annotation_source_hash", None) != review_source_hash:
+        importlib.invalidate_caches()
+        agent_prompt_module = importlib.reload(agent_prompt_module)
+        intensity_module = importlib.reload(intensity_module)
+        review_views_module = importlib.reload(review_views_module)
+        review_views_module._annotation_source_hash = review_source_hash
+    render_audit = review_views_module.render_audit
+    render_eval = review_views_module.render_eval
 
 
 storage_source_hash = hashlib.sha256(
