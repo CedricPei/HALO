@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import gzip
 import hashlib
 import itertools
@@ -21,18 +22,25 @@ SUBSET_ID = "human-eval-4000-2026-10-02"
 SEED = 20261002
 RESULT_PATH = ROOT_DIR / "eval_results/human_eval_4000.json.gz"
 APP_PATH = ROOT_DIR / "annotation_app/data/human_eval_4000.json.gz"
+BATCH2_MODELS = (
+    "claude-opus-5-5", "gemini-3.1-pro-preview", "gpt-oss-20b",
+    "qwen3.5-9b", "qwen3.8-27b",
+)
+BATCH2_SUBSET_ID = "human-eval-4000-batch2-2026-10-07"
+BATCH2_FILENAME = "human_eval_4000_batch2.json.gz"
 
 
-def _select(available: dict[str, dict], events: list[str], rng: random.Random):
+def _select(available: dict[str, dict], events: list[str], rng: random.Random,
+            models: tuple[str, ...] = MODELS):
     """Match two distinct successful events per model to balanced event quotas."""
-    base, extra = divmod(2 * len(MODELS), len(events))
+    base, extra = divmod(2 * len(models), len(events))
     if base < 1:
         raise ValueError("Ten selections cannot cover this scenario's events")
     quotas = list(itertools.combinations(events, extra))
     rng.shuffle(quotas)
     for added in quotas:
         # source -> model (2) -> event (1) -> sink (event quota)
-        sink = 1 + len(MODELS) + len(events)
+        sink = 1 + len(models) + len(events)
         graph = [[] for _ in range(sink + 1)]
 
         def edge(a, b, capacity):
@@ -42,7 +50,7 @@ def _select(available: dict[str, dict], events: list[str], rng: random.Random):
             return forward
 
         choices = []
-        model_order = list(enumerate(MODELS))
+        model_order = list(enumerate(models))
         rng.shuffle(model_order)
         for mi, model in model_order:
             edge(0, 1 + mi, 2)
@@ -50,10 +58,10 @@ def _select(available: dict[str, dict], events: list[str], rng: random.Random):
             rng.shuffle(event_order)
             for ei, event_id in event_order:
                 if event_id in available[model]:
-                    link = edge(1 + mi, 1 + len(MODELS) + ei, 1)
+                    link = edge(1 + mi, 1 + len(models) + ei, 1)
                     choices.append((model, event_id, link))
         for ei, event_id in enumerate(events):
-            edge(1 + len(MODELS) + ei, sink, base + (event_id in added))
+            edge(1 + len(models) + ei, sink, base + (event_id in added))
         flow = 0
         while flow < 10:
             previous = {0: None}
@@ -79,11 +87,14 @@ def _select(available: dict[str, dict], events: list[str], rng: random.Random):
     raise ValueError("Successful responses cannot satisfy the per-scenario quotas")
 
 
-def build_subset() -> dict:
+def build_subset(models: tuple[str, ...] = MODELS,
+                 subset_id: str = SUBSET_ID, seed: int = SEED) -> dict:
+    if len(models) != 5 or len(set(models)) != 5:
+        raise ValueError("A human Eval batch requires five distinct models")
     benchmark = {item["path"]: item for item in load_benchmark_items()}
     runs = defaultdict(dict)
     sources = {}
-    for model in MODELS:
+    for model in models:
         for path in sorted((ROOT_DIR / "eval_results" / model).glob("*.json")):
             raw = path.read_bytes()
             run = json.loads(raw)
@@ -101,10 +112,10 @@ def build_subset() -> dict:
     if set(runs) != set(benchmark):
         raise ValueError("Results do not cover the entire benchmark")
 
-    rng = random.Random(SEED)
+    rng = random.Random(seed)
     selected = []
     for source in sorted(benchmark):
-        if set(runs[source]) != set(MODELS):
+        if set(runs[source]) != set(models):
             raise ValueError(f"Missing a model's scenario: {source}")
         scenario = benchmark[source]["scenario"]
         events = list(scenario["events"])
@@ -114,7 +125,7 @@ def build_subset() -> dict:
             available[model] = {p["event_id"]: p for p in successful}
             if len(available[model]) != len(successful) or set(available[model]) - set(events):
                 raise ValueError(f"Duplicate or unknown event in {model}/{source}")
-        pairs = _select(available, events, rng)
+        pairs = _select(available, events, rng, models)
         rng.shuffle(pairs)
         pairs.sort(key=lambda pair: events.index(pair[1]))
         for model, event_id in pairs:
@@ -142,12 +153,12 @@ def build_subset() -> dict:
     actual = {(item["source_path"], item["event_id"]) for item in selected}
     counts = Counter(item["model"] for item in selected)
     if (len(selected) != 4000 or len({x["item_id"] for x in selected}) != 4000
-            or counts != Counter({model: 800 for model in MODELS})
+            or counts != Counter({model: 800 for model in models})
             or actual != expected or len(expected) != 2160):
         raise ValueError("Subset failed the size, uniqueness, balance or coverage checks")
     return {
-        "schema_version": 1, "subset_id": SUBSET_ID, "seed": SEED,
-        "models": list(MODELS), "items_per_model": dict(counts),
+        "schema_version": 1, "subset_id": subset_id, "seed": seed,
+        "models": list(models), "items_per_model": dict(counts),
         "scenario_count": len(benchmark), "checkpoint_count": len(expected),
         "items_per_scenario": 10, "items_per_model_per_scenario": 2,
         "source_sha256": sources, "items": selected,
@@ -155,13 +166,21 @@ def build_subset() -> dict:
 
 
 def main():
-    subset = build_subset()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--batch2", action="store_true",
+                        help="Build the additional October 7 cohort; preserve batch one")
+    args = parser.parse_args()
+    subset = (build_subset(BATCH2_MODELS, BATCH2_SUBSET_ID) if args.batch2
+              else build_subset())
+    paths = ((ROOT_DIR / "eval_results" / BATCH2_FILENAME,
+              ROOT_DIR / "annotation_app/data" / BATCH2_FILENAME)
+             if args.batch2 else (RESULT_PATH, APP_PATH))
     raw = json.dumps(subset, ensure_ascii=False, separators=(",", ":")).encode()
     compressed = gzip.compress(raw, mtime=0)
-    for path in (RESULT_PATH, APP_PATH):
+    for path in paths:
         if path.exists() and path.read_bytes() != compressed:
             raise SystemExit(f"Refusing to replace a different published subset: {path}")
-    for path in (RESULT_PATH, APP_PATH):
+    for path in paths:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(compressed)
     print(json.dumps({"items": len(subset["items"]), "per_model": subset["items_per_model"],

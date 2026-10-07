@@ -269,11 +269,11 @@ the level selector, while a retrieval-only final response retains it.
 
 ## Construction and annotation
 
-### Human evaluation release (4,000 items)
+### Human evaluation releases (8,000 items)
 
-The frozen human-evaluation subset is stored identically in
+The first frozen human-evaluation subset is stored identically in
 `eval_results/human_eval_4000.json.gz` and
-`annotation_app/data/human_eval_4000.json.gz`. Streamlit loads only the latter;
+`annotation_app/data/human_eval_4000.json.gz`. Streamlit loads the app copy;
 new model runs do not change participants' tasks. The ten complete model result
 directories remain in `eval_results/`, including their unsuccessful or missing
 checkpoint information. Running through all scenarios does not mean that every
@@ -306,6 +306,44 @@ and administrator accounts. Completed historical reset migrations are no
 longer replayed at application startup.
 Existing `eval4000-01`–`eval4000-20` accounts are renamed once to `eval01`–`eval20`,
 preserving their access codes, assignment order, and submitted annotations.
+
+The second batch, `human-eval-4000-batch2-2026-10-07`, adds **800 responses each**
+from `claude-opus-5-5`, `gemini-3.1-pro-preview`, `gpt-oss-20b`, `qwen3.5-9b`,
+and `qwen3.8-27b`, using the same seed (`20261002`) and checkpoint-balancing
+algorithm. It is stored as `human_eval_4000_batch2.json.gz` in both
+`eval_results/` and `annotation_app/data/`. Each model contributes two distinct
+successful event responses per scenario; together the batch covers all 2,160
+scenario/event checkpoints. No first-batch item IDs are repeated.
+
+`annotation_app/data/human_eval_accounts_batch2.json` assigns the new items to
+**eval21–eval40**, each with 200 items, five models × 40, ten domains × 20,
+and four trigger types × 50. The original scenario grouping is reused, mapping
+eval01's scenarios to eval21, and so on. The app appends the new catalog after
+the original one, preserving display IDs 1–4,000 and assigning 4,001–8,000 to
+the new batch. Each batch has a separate, transactional, one-time account
+migration; existing access codes, assignments and submitted reviews are retained.
+
+Rebuild the second subset on the evaluation host with its preserved raw runs
+(currently `/data/wenqi/ProActCal` on pro6k):
+
+```bash
+python -B -m evaluation.human_subset --batch2
+```
+
+The release retains source-file hashes, original run IDs and model-call traces.
+The second batch's source runs remain on the evaluation host. Generate its
+account manifest **only before first publication**, delivering codes to a new
+private file outside the repository:
+
+```bash
+python -B -m evaluation.human_cohort --credentials-output /private/path/eval-batch2-codes.txt
+```
+
+Both commands refuse to overwrite a different published artifact. Streamlit
+reloads the release module when its source changes, and versions the shared
+catalog and initialization caches by loader generation and release-file metadata.
+Ordinary interactions reuse the loaded catalogs; extending a batch does not
+change the original catalog identity or reset users' current positions.
 
 Only salted password hashes are included in the deployment manifest. Access
 codes are delivered separately and cannot be recovered from the administrator

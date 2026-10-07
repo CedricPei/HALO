@@ -36,7 +36,7 @@ with catalog_module.__dict__.setdefault("_annotation_reload_lock", threading.RLo
         catalog_module._annotation_source_hash = catalog_source_hash
 load_benchmark_items = catalog_module.load_benchmark_items
 
-from annotation_app.eval_catalog import load_eval_release  # noqa: E402
+import annotation_app.eval_catalog as eval_catalog_module  # noqa: E402
 from annotation_app.config import AppConfig  # noqa: E402
 import evaluation.prompt as agent_prompt_module  # noqa: E402
 import evaluation.intensity as intensity_module  # noqa: E402
@@ -44,6 +44,21 @@ import annotation_app.review_views as review_views_module  # noqa: E402
 import annotation_app.storage as storage_module  # noqa: E402
 import annotation_app.assignment as assignment_module  # noqa: E402
 from annotation_app.ui import apply_style  # noqa: E402
+
+
+# Reload the release loader before binding it, then version only its caches.
+# Keep the first batch's catalog/migration identity and session positions intact.
+eval_source_hash = hashlib.sha256(
+    (ROOT_DIR / "annotation_app/eval_catalog.py").read_bytes()
+).hexdigest()
+with eval_catalog_module.__dict__.setdefault("_annotation_reload_lock", threading.RLock()):
+    if getattr(eval_catalog_module, "_annotation_source_hash", None) != eval_source_hash:
+        importlib.invalidate_caches()
+        eval_catalog_module = importlib.reload(eval_catalog_module)
+        eval_catalog_module._annotation_source_hash = eval_source_hash
+    load_eval_release = eval_catalog_module.load_eval_release
+    eval_release_key = (eval_source_hash, id(load_eval_release),
+                        eval_catalog_module.release_signature())
 
 
 # A rolling deploy can retain an old action map and the view that imported it.
@@ -147,15 +162,15 @@ def _audit_items(catalog_version: str) -> list[dict]:
 
 
 @st.cache_resource(show_spinner="Loading Agent Evaluation items…")
-def _eval_release(catalog_version: str) -> tuple:
+def _eval_release(catalog_version: str, release_key: tuple) -> tuple:
     # Avoid copying the entire frozen release on every widget interaction.
     # Callers must not mutate items or the account manifest.
-    del catalog_version
+    del catalog_version, release_key
     return load_eval_release()
 
 
 def _eval_items(catalog_version: str) -> list[dict]:
-    return _eval_release(catalog_version)[0]
+    return _eval_release(catalog_version, eval_release_key)[0]
 
 
 @st.cache_resource(show_spinner=False)
@@ -164,11 +179,13 @@ def _initialize_accounts(
     storage_cache_key: str,
     store_generation: int,
     catalog_version: str,
+    release_key: tuple,
     _store: AnnotationStore,
 ) -> str | None:
     # Run once per database/store/release, not once per annotator click.
     # The database migration records still make restarts idempotent.
-    _store.apply_eval_cohort(_eval_release(catalog_version)[1])
+    for cohort in _eval_release(catalog_version, release_key)[1]:
+        _store.apply_eval_cohort(cohort)
     _store.rename_user_accounts(
         "human-eval-4000-short-ids-v1",
         {f"eval4000-{number:02d}": f"eval{number:02d}" for number in range(1, 21)},
@@ -294,7 +311,8 @@ def main() -> None:
 
     try:
         setup_warning = _initialize_accounts(
-            config, _storage_cache_key(), id(store), CATALOG_VERSION, store
+            config, _storage_cache_key(), id(store), CATALOG_VERSION,
+            eval_release_key, store
         )
     except (ValueError, RuntimeError) as error:
         st.title("Eval account setup paused")
