@@ -1,0 +1,154 @@
+{
+  "trainer": {
+    "pid": 3820272,
+    "uid": 1001,
+    "pgrp": 3820266,
+    "start_ticks": "390933023",
+    "command": "/data/wenqi/model-training/qwen3.5-9b-judge/venv/bin/python -B -m evaluation.judge_bench.train_sft --model-path /data/wenqi/model-serving/qwen3.5-9b/models/Qwen3.5-9B --input-chat /data/wenqi/ProActCal/outputs/judge_bench_v3/training/chat.jsonl --manifest /data/wenqi/ProActCal/outputs/judge_bench_v3/training/training_manifest.json --output-dir /data/wenqi/ProActCal/outputs/judge_bench_v3/training/qwen3.5-9b-lora --base-model-manifest /data/wenqi/ProActCal/outputs/judge_bench_v3/serving_config.json --gpu-index 0 --epochs 2 --batch-size 8 --gradient-accumulation-steps 2 --learning-rate 0.00005 --lora-r 32 --lora-alpha 64 --max-sequence-length 16384 --eval-steps 100 --logging-steps 1 --train-all --supervision-protocol nonthinking-weighted-v3"
+  },
+  "training_supervisor": {
+    "pid": 3820266,
+    "uid": 1001,
+    "pgrp": 3820266,
+    "start_ticks": "390933012",
+    "command": "/data/wenqi/model-serving/qwen3.8-27b/venv/bin/python -B -m evaluation.judge_bench.training_job --launch-config /data/wenqi/ProActCal/outputs/judge_bench_v3/training/launch.json"
+  },
+  "post_supervisor": {
+    "pid": 3820267,
+    "uid": 1001,
+    "pgrp": 3820267,
+    "start_ticks": "390933012",
+    "command": "/data/wenqi/model-serving/qwen3.8-27b/venv/bin/python -B -m evaluation.judge_bench.post_training_job --config /data/wenqi/ProActCal/outputs/judge_bench_v3/post_training_launch.json"
+  },
+  "output_dir": "/data/wenqi/ProActCal/outputs/judge_bench_v3/training/epoch_cap_job",
+  "training_dir": "/data/wenqi/ProActCal/outputs/judge_bench_v3/training/qwen3.5-9b-lora",
+  "post_dir": "/data/wenqi/ProActCal/outputs/judge_bench_v3/post_training_job",
+  "training_log": "/data/wenqi/ProActCal/outputs/judge_bench_v3/training/supervisor.log",
+  "requested_epochs": 1,
+  "target_step": 450,
+  "original_steps": 900,
+  "gpu_uuid": "GPU-2f2d52c3-ac94-9a81-79ef-eafbfa586e93",
+  "original_training_config": {
+    "input_sha256": "a961a3bf416b579ec5ff8a0e0d59927f1f5675438cb61a0f4a59845022465ba3",
+    "manifest_sha256": "4ac395803107f9bcb9927b1fac1fc1657b153a2253d50eeeba39b402f9b5277d",
+    "prompt_sha256": "ac25ada20f64f6862e469d8f7238439b24de746c5689597fc0063c529b9df015",
+    "model_path": "/data/wenqi/model-serving/qwen3.5-9b/models/Qwen3.5-9B",
+    "epochs": 2.0,
+    "batch_size": 8,
+    "gradient_accumulation_steps": 2,
+    "effective_batch_size": 16,
+    "learning_rate": 5e-05,
+    "lora_r": 32,
+    "lora_alpha": 64,
+    "lora_dropout": 0.05,
+    "max_sequence_length": 16384,
+    "warmup_ratio": 0.03,
+    "warmup_steps": 27,
+    "weight_decay": 0.0,
+    "seed": 20261011,
+    "train_all": true,
+    "max_steps": -1,
+    "effective_max_steps": 900,
+    "base_dtype": "bfloat16",
+    "optimizer": "adamw_torch_fused",
+    "scheduler": "cosine",
+    "attn_implementation": "sdpa",
+    "chat_template_enable_thinking": false,
+    "supervision_protocol": "nonthinking-weighted-v3",
+    "mask_policy": "Official thinking=false prefix masked; label values, JSON structure and assistant end supervised; only absent/long rationale contents masked.",
+    "logits_policy": "Preceding supervised positions only; class-weighted per-field token-length-normalized causal CE.",
+    "class_balance": {
+      "computed_from": "all 7200 training labels only",
+      "field_loss_budgets": {
+        "action_intensity": 1.0,
+        "assistant_protocol": 1.0,
+        "intensity": 3.0,
+        "json_structure": 1.0,
+        "other_issue": 1.0,
+        "rationale": 0.1,
+        "rejection_dimensions": 1.0,
+        "timing": 3.0,
+        "verdict": 3.0
+      },
+      "fields": {
+        "action_intensity": {
+          "counts": {
+            "L0": 965,
+            "L1": 4843,
+            "L2": 290,
+            "L3": 1102
+          },
+          "maximum_to_minimum_weight_ratio": 4.08656334834051,
+          "weights": {
+            "L0": 1.536143306403671,
+            "L1": 0.6857063242217764,
+            "L2": 2.802182332290006,
+            "L3": 1.4374892057625168
+          }
+        },
+        "intensity": {
+          "counts": {
+            "Appropriate": 5387,
+            "Excessive": 1051,
+            "Insufficient": 504,
+            "__null__": 258
+          },
+          "maximum_to_minimum_weight_ratio": 4.569446898831445,
+          "weights": {
+            "Appropriate": 0.6796878462975495,
+            "Excessive": 1.538798073786563,
+            "Insufficient": 2.222121103004923,
+            "__null__": 3.1057975214377613
+          }
+        },
+        "timing": {
+          "counts": {
+            "Belated": 530,
+            "Inaction": 258,
+            "Premature": 1547,
+            "Timely": 4865
+          },
+          "maximum_to_minimum_weight_ratio": 4.342417431257251,
+          "weights": {
+            "Belated": 2.1108007307631333,
+            "Inaction": 3.025347858943742,
+            "Premature": 1.2354922167344369,
+            "Timely": 0.6966966918396463
+          }
+        },
+        "verdict": {
+          "counts": {
+            "acceptable": 4003,
+            "unacceptable": 3197
+          },
+          "maximum_to_minimum_weight_ratio": 1.1189778167572157,
+          "weights": {
+            "acceptable": 0.9498214499037959,
+            "unacceptable": 1.0628291323225227
+          }
+        }
+      },
+      "method": "sqrt(maximum class count / class count), capped at 5, then normalized to frequency-weighted mean 1",
+      "ratio_cap": 5.0,
+      "sampler": "Every training item once per epoch; no minority duplication or dropped majority items",
+      "token_length_normalization": "Each field's budget is divided across that field's supervised tokens per example"
+    },
+    "training_scenarios": 400,
+    "sampler": "Seeded per-epoch length buckets; every fit item exactly once, longest example first",
+    "length_bucket_size": 800,
+    "test_set_used": false
+  },
+  "frozen_files": {
+    "/data/wenqi/ProActCal/evaluation/judge_bench/train_sft.py": "fe018616c06fc2218a6dd620774a8dc869436f06ebd16cb7201ed8b2b7fa63a7",
+    "/data/wenqi/ProActCal/evaluation/judge_bench/training_job.py": "97a129d31b72be305be92ae4e412c5935f9e0924ca937754588066bb2b8aa2fd",
+    "/data/wenqi/ProActCal/evaluation/judge_bench/supervision_v3.py": "d89a1be080a7fb5ada03305b26a4ee358d75b121f3ab40774190b3fd76ecea22",
+    "/data/wenqi/ProActCal/evaluation/judge_bench/post_training_job.py": "2d6e8abf4814481b58f1fa0c9721c71cbdad6cffe16d2eb5b62ae4f9e05fa7c9",
+    "/data/wenqi/ProActCal/outputs/judge_bench_v3/training/launch.json": "f035e1735c205094bf40696cb5011f0fd5d666b45689f2b357cbda8ae8eb84f4",
+    "/data/wenqi/ProActCal/outputs/judge_bench_v3/training/chat.jsonl": "a961a3bf416b579ec5ff8a0e0d59927f1f5675438cb61a0f4a59845022465ba3",
+    "/data/wenqi/ProActCal/outputs/judge_bench_v3/training/training_manifest.json": "4ac395803107f9bcb9927b1fac1fc1657b153a2253d50eeeba39b402f9b5277d",
+    "/data/wenqi/ProActCal/outputs/judge_bench_v3/post_training_launch.json": "77c317fe396cd85ad1580a2c74b079a77cc717e52b71e69fb7d36fa0e4c926ab",
+    "/data/wenqi/ProActCal/outputs/judge_bench_v3/serving_config.json": "309022b7c1fe225a7da9df2bf75d2bdb858bc95bd72a51695f21648190250006"
+  },
+  "requested_utc": "2026-10-11T03:49:52.227145+00:00",
+  "authorization": "Human user: 能否改成只训练一个epoch呢 为啥要训练两个epoch 你能说服我妈"
+}
