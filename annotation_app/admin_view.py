@@ -20,9 +20,6 @@ from annotation_app.storage import (
     generate_admin_password,
 )
 
-ADMIN_VIEW_VERSION = "2026-10-02-human-eval-cohort"
-
-
 EXPORT_BASE_FIELDS = ("annotation_id", "user_id", "item_id")
 EXPORT_PAYLOAD_FIELDS = {
     "audit": ("verdict", "comment"),
@@ -106,7 +103,7 @@ def _export_archive(records: list[dict]) -> bytes:
                 record for record in records if record["review_type"] == review_type
             ]
             bundle.writestr(
-                f"proact-anno-{review_type}-annotations.csv",
+                f"HALO-{review_type}-annotations.csv",
                 _export_csv(matching_records, review_type),
             )
     return archive.getvalue()
@@ -153,7 +150,7 @@ def _show_credentials(state_key: str, message: str, button_key: str) -> None:
     st.download_button(
         "Download account codes",
         data=_credentials_csv(records),
-        file_name="proact-anno-accounts.csv",
+        file_name="HALO-accounts.csv",
         mime="text/csv",
         type="primary",
         use_container_width=True,
@@ -336,7 +333,7 @@ def _render_manage(store: AnnotationStore) -> None:
     st.download_button(
         "Download codes",
         data=_credentials_csv(accounts),
-        file_name="proact-anno-accounts.csv",
+        file_name="HALO-accounts.csv",
         mime="text/csv",
         type="primary",
         use_container_width=True,
@@ -474,7 +471,7 @@ def _export_button(records: list[dict]) -> None:
     st.download_button(
         "Download annotations",
         data=_export_archive(records),
-        file_name="proact-anno-annotations.zip",
+        file_name="HALO-annotations.zip",
         mime="application/zip",
         type="primary",
         disabled=not records,

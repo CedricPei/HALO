@@ -1,1 +1,1 @@
-"""Proactive Agent Benchmark cloud annotation application."""
+"""HALO cloud annotation application."""

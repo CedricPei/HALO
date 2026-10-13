@@ -66,6 +66,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--credentials-output", type=Path, required=True,
                         help="New private text file outside the repository")
+    parser.add_argument("--app-url", default=os.getenv("HALO_ANNOTATION_URL", ""),
+                        help="Annotation deployment URL to include in the handout")
     args = parser.parse_args()
     credentials_path = args.credentials_output.expanduser().resolve()
     if credentials_path == ROOT_DIR or ROOT_DIR in credentials_path.parents:
@@ -83,8 +85,10 @@ def main():
     # Save the only plaintext copy first, with owner-only permissions.
     fd = os.open(credentials_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     with os.fdopen(fd, "w", encoding="utf-8") as handle:
-        handle.write("ProActCal — Eval batch 2\nhttps://proact-anno.streamlit.app/\n"
-                     "Each account has 200 assigned items.\n\nParticipant ID\tAccess code\n")
+        handle.write("HALO — Eval batch 2\n")
+        if args.app_url:
+            handle.write(args.app_url.strip() + "\n")
+        handle.write("Each account has 200 assigned items.\n\nParticipant ID\tAccess code\n")
         for entry in credentials:
             handle.write(f"{entry['user_id']}\t{entry['access_code']}\n")
     with manifest_path.open("x", encoding="utf-8") as handle:

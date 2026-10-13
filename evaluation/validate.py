@@ -123,7 +123,7 @@ def verify():
 
         events = list(item["scenario"]["events"].items())
         for length in range(1, len(events) + 1):
-            with tempfile.TemporaryDirectory(prefix="proact-validate-") as temporary:
+            with tempfile.TemporaryDirectory(prefix="HALO-validate-") as temporary:
                 parser = None
                 try:
                     branch = Path(temporary) / instance.name

@@ -96,15 +96,21 @@ if not hasattr(assignment_module, "quota_audit_assignment_plan"):
     assignment_module = importlib.reload(assignment_module)
 import annotation_app.admin_view as admin_view_module  # noqa: E402
 
-if getattr(admin_view_module, "ADMIN_VIEW_VERSION", None) != (
-    "2026-10-02-human-eval-cohort"
-):
-    admin_view_module = importlib.reload(admin_view_module)
-render_admin = admin_view_module.render_admin
+# Refresh the admin view only when its source changes so rolling deploys also
+# update export names without invalidating catalogs or database resources.
+admin_source_hash = hashlib.sha256(
+    (ROOT_DIR / "annotation_app/admin_view.py").read_bytes()
+).hexdigest()
+with admin_view_module.__dict__.setdefault("_annotation_reload_lock", threading.RLock()):
+    if getattr(admin_view_module, "_annotation_source_hash", None) != admin_source_hash:
+        importlib.invalidate_caches()
+        admin_view_module = importlib.reload(admin_view_module)
+        admin_view_module._annotation_source_hash = admin_source_hash
+    render_admin = admin_view_module.render_admin
 
 
 st.set_page_config(
-    page_title="Proactive Agent Benchmark Annotation Interface",
+    page_title="HALO Annotation",
     page_icon="✓",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -200,7 +206,7 @@ def _initialize_accounts(
 
 
 def _login(store: AnnotationStore, config: AppConfig) -> None:
-    st.title("Proactive Agent Benchmark Annotation Interface")
+    st.title("HALO Annotation")
     with st.form("annotation-login"):
         user_id = st.text_input("Participant ID")
         access_code = st.text_input("Access code", type="password")
@@ -267,7 +273,7 @@ def _sidebar_overview(task_label: str) -> None:
 
 def _sidebar(user: dict, task_label: str) -> None:
     with st.sidebar:
-        st.markdown("## Proactive Agent Benchmark Annotation Interface")
+        st.markdown("## HALO Annotation")
         st.caption(user["user_id"])
         st.markdown(f"**Task: {task_label}**")
         st.divider()
@@ -289,7 +295,7 @@ def main() -> None:
     config = AppConfig.load()
     missing = config.missing_secrets()
     if missing:
-        st.title("Proactive Agent Benchmark Annotation Interface setup")
+        st.title("HALO Annotation setup")
         st.error("Missing required secret(s): " + ", ".join(missing))
         st.markdown(
             "Add them to Streamlit Community Cloud Secrets. "

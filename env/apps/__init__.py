@@ -1,4 +1,4 @@
-"""Lightweight simulated apps for the Proactive Agent Benchmark."""
+"""Lightweight simulated apps for HALO."""
 
 from .Calendar import Calendar
 from .Contacts import Contacts

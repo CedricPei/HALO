@@ -29,7 +29,7 @@ def retry_checkpoint(runner, item, model, event_id):
     prefix = [{"event_id": key, **event} for key, event in events[:index + 1]]
     instance_dir = (ROOT_DIR / item["path"]).parents[2]
     started = time.monotonic()
-    with tempfile.TemporaryDirectory(prefix="proact-retry-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="HALO-retry-") as temporary:
         episode = Path(temporary) / item["instance_id"]
         episode.mkdir()
         shutil.copy2(instance_dir / "profile.json", episode / "profile.json")
@@ -42,7 +42,7 @@ def retry_checkpoint(runner, item, model, event_id):
                                         for key in ("app", "function", "parameter")})
 
             def execute_final(command):
-                with tempfile.TemporaryDirectory(prefix="proact-retry-action-") as action_temporary:
+                with tempfile.TemporaryDirectory(prefix="HALO-retry-action-") as action_temporary:
                     action_dir = Path(action_temporary) / item["instance_id"]
                     shutil.copytree(episode, action_dir)
                     action_parser = CommandParser.for_instance(action_dir, item["instance_id"])
