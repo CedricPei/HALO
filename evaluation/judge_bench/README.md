@@ -71,3 +71,19 @@ python -B -m evaluation.judge_bench.report \
   --run-dir outputs/judge_bench_v1/runs/qwen3.5-9b \
   --output outputs/judge_bench_v1/report.html
 ```
+
+## Saved experiments
+
+Versioned splits, predictions, raw responses and completed training evidence are
+backed up under [`outputs/`](../../outputs/README.md). JSONL snapshots use gzip;
+unpack the files needed by a command with `gzip -dk <file.jsonl.gz>`.
+
+The current `annotations/eval-annotations.csv` is the 8,000-row export with
+`E0001`–`E8000` IDs and presentation column names. The historical v1 builder
+expects the earlier raw annotation schema and catalog IDs. Use the preserved v1
+split snapshots to reproduce the recorded experiments; their original annotations
+remain embedded in `gold.human_annotation`.
+
+See [training protocols](TRAINING.md) for the historical fits and the v4
+7,600/400 validation comparison. Shared preparation and token supervision live
+in `_supervision.py`; versioned modules retain their own policies and settings.

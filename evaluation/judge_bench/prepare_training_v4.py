@@ -14,10 +14,11 @@ import json
 from pathlib import Path
 
 from . import prompt
+from ._supervision import prepare_weighted_row
 from .dataset import _distribution as source_distribution, _hash_overlap
-from .prepare_training import LABEL_FIELDS, _distribution, _file_hash, _hash, _json, _prepare_row
+from .prepare_training import LABEL_FIELDS, _distribution, _file_hash, _hash, _json
 from .resplit import select_test_ids
-from .supervision_v3 import FIELD_BUDGETS, PROTOCOL, class_balance, label_key
+from .supervision_v3 import FIELD_BUDGETS, PROTOCOL, class_balance
 
 
 DATASET_ID = "judge-bench-v4-sft-7600-validation400-20261013"
@@ -48,21 +49,11 @@ def prepare(rows: list[dict], seed: int) -> tuple[dict[str, list[dict]], list[di
     prepared = []
     for split, members in partitions.items():
         for source in members:
-            row = _prepare_row(source, split)
-            previous = row["supervision"]
-            row.update(schema_version=3, dataset_id=DATASET_ID, input_context=source["input_context"])
-            row["supervision"] = {
-                "protocol": PROTOCOL, "chat_template_enable_thinking": False,
-                "rationale_supervised": previous["rationale_supervised"],
-                "rationale_source": previous["rationale_source"],
-                "placeholder": previous["placeholder"],
-                "human_comment_characters": previous["human_comment_characters"],
-                "mask_rationale_value": not previous["rationale_supervised"],
-                "json_suffix_supervised": True, "assistant_terminator_supervised": True,
-                "thinking_end_supervised": False, "field_loss_budgets": FIELD_BUDGETS,
-                "class_loss_weights": {field: info["weights"][label_key(source["gold"][field])]
-                                       for field, info in balance["fields"].items()},
-            }
+            row = prepare_weighted_row(
+                source, split, schema_version=3, dataset_id=DATASET_ID,
+                protocol=PROTOCOL, enable_thinking=False,
+                field_budgets=FIELD_BUDGETS, balance=balance,
+            )
             prepared.append(row)
     manifest = {
         "schema_version": 3, "dataset_id": DATASET_ID, "seed": seed,

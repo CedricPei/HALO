@@ -11,6 +11,8 @@ personal environments and human judgments of their responses.
 
 Environments are in [`domains/`](domains/). Frozen response catalogs are in
 [`annotation_app/data/`](annotation_app/data/).
+Judge evaluation and LoRA training tools are in
+[`evaluation/judge_bench/`](evaluation/judge_bench/README.md).
 
 ## Setup
 

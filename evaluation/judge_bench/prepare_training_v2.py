@@ -13,8 +13,9 @@ from pathlib import Path
 from typing import Any
 
 from . import prompt
-from .prepare_training import LABEL_FIELDS, _distribution, _file_hash, _hash, _json, _prepare_row
-from .supervision_v2 import FIELD_BUDGETS, PROTOCOL, class_balance, label_key
+from ._supervision import prepare_weighted_row
+from .prepare_training import LABEL_FIELDS, _distribution, _file_hash, _hash, _json
+from .supervision_v2 import FIELD_BUDGETS, PROTOCOL, class_balance
 
 
 DATASET_ID = "judge-bench-v2-sft-all7200-20261011"
@@ -34,21 +35,11 @@ def prepare(rows: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], dict[str,
     balance = class_balance(rows)
     prepared = []
     for source in rows:
-        row = _prepare_row(source, "train")
-        previous = row["supervision"]
-        row.update(schema_version=2, dataset_id=DATASET_ID, input_context=source["input_context"])
-        row["supervision"] = {
-            "protocol": PROTOCOL, "chat_template_enable_thinking": True,
-            "rationale_supervised": previous["rationale_supervised"],
-            "rationale_source": previous["rationale_source"],
-            "placeholder": previous["placeholder"],
-            "human_comment_characters": previous["human_comment_characters"],
-            "mask_rationale_value": not previous["rationale_supervised"],
-            "json_suffix_supervised": True, "assistant_terminator_supervised": True,
-            "thinking_end_supervised": True, "field_loss_budgets": FIELD_BUDGETS,
-            "class_loss_weights": {field: info["weights"][label_key(source["gold"][field])]
-                                   for field, info in balance["fields"].items()},
-        }
+        row = prepare_weighted_row(
+            source, "train", schema_version=2, dataset_id=DATASET_ID,
+            protocol=PROTOCOL, enable_thinking=True,
+            field_budgets=FIELD_BUDGETS, balance=balance,
+        )
         prepared.append(row)
     source_groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for row in prepared:
