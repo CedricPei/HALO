@@ -1,73 +1,60 @@
-# ProActCal
+# HALO
 
-ProActCal evaluates whether an Agent recognizes when help is needed, gathers
-relevant evidence, and responds at the right time with an appropriate action.
-The active benchmark contains **10 domains, 50 instances, 400 scenarios, and
-2,160 event checkpoints per model**.
+**Human-Grounded Granular Evaluation of Proactive Agents**
 
-## Data and repository layout
+HALO evaluates whether an agent recognizes a need for help, retrieves relevant
+evidence, and intervenes at an appropriate time and level. It combines an
+executable environment with human judgments of proactive assistance.
+
+| Component | Description | Scale |
+|---|---|---|
+| **HALO-Arena** | Simulated personal apps, SQLite databases, and text files for evidence retrieval and agent actions | 10 domains, 50 personal environments, 400 scenarios, 2,160 event checkpoints |
+| **HALO-8K** | Sampled agent responses assessed for action level, acceptability, and reasons for rejection | 8,000 responses from 10 models; 800 responses per model |
+
+The four proactive need types are **Dependency**, **Blockage**, **Risk**, and
+**Opportunity**. Each personal environment has two scenarios per need type.
+HALO-8K samples two distinct successful checkpoints per model in each scenario;
+it does not contain every model–checkpoint combination.
+
+## Repository layout
 
 ```text
-proactive_agent_benchmark/
-├── README.md                  # Project documentation
-├── annotations/               # Original human audit: 800 annotation records
-├── domains/                   # Revised benchmark used for evaluation
+HALO/
+├── domains/                   # HALO-Arena environments and scenarios
 │   └── <domain>/
 │       ├── domain.json
 │       └── instances/<instance>/
 │           ├── profile.json
-│           ├── data/          # SQLite database and text files
-│           ├── app/           # Shared initial App state, including noise
+│           ├── data/          # SQLite database and text evidence
+│           ├── app/           # Shared initial simulated app state
 │           └── scenarios/<trigger>/*.json
-├── evaluation/                # Agent runner, prompts and local validation
-├── annotation_app/            # Annotation interface
-├── env/                       # Simulated Apps and their API surfaces
+├── evaluation/                # Agent runner, validation, export, and sampling
+├── eval_results/              # Saved runs and frozen response catalogs
+├── annotation_app/            # Streamlit annotation interface and catalogs
+├── annotations/               # Benchmark-construction audit annotations
+├── env/                       # Simulated apps and command definitions
 ├── creators/                  # Benchmark construction pipeline
 ├── benchmark_plan.json        # Domain definitions and planned scale
-├── benchmark_catalog.py       # Dataset and evaluation-result loaders
-├── build_benchmark.py         # Construction/resume and current-data audit
-├── command_parser.py          # Local App command execution
-├── llm_client.py               # HTTP(S) model clients
+├── benchmark_catalog.py       # Environment and result loaders
+├── build_benchmark.py         # Construction, resume, and dataset audit
+├── command_parser.py          # Local command execution
+├── llm_client.py              # HTTP(S) model clients
 └── requirements.txt
 ```
 
-Each instance has **one shared initial environment** (`profile.json`, `data/`,
-`app/`) for all eight scenarios: two each for `blockage`, `dependency`,
-`opportunity`, and `risk`. Scenarios are independent branches. Each evaluation
-checkpoint copies that same initial environment and replays only the available
-event prefix. Background noise is already materialized in the shared state;
-archived construction/noise commands must not be reapplied for evaluation.
-Public scenario JSON contains only `scenario_description` and `events`.
+Each instance shares one initial environment across its eight independent
+scenarios. At every checkpoint, the runner resets that environment and replays
+only the observed event prefix. Earlier agent interventions do not carry over
+to another checkpoint. Background records are already included in the initial
+state and must not be replayed as construction commands.
 
-The original human audit and adjudication retained 289 scenarios and selected
-111 for revision. Revision and subsequent AI acceptance covered all 400;
-179 public scenarios and 48 shared instance environments differ from raw.
-These are AI acceptance results, not new human votes. The original 800 human
-votes and comments are retained in `annotations/proact-anno-audit-annotations.csv`.
-The historical raw archive has been removed; `domains/` is the active dataset.
-
-Local credentials and the existing design documents remain in their original
-locations. Evaluation creates `eval_results/` when needed; it is not a dataset.
-
-## Initial construction pass rates
-
-These counts describe persisted, parseable candidates from the **initial
-construction**, before human audit and benchmark revision.
-
-| Stage | Passed / evaluated | Pass rate | Rejected |
-|---|---:|---:|---:|
-| Validator | 509 / 568 | 89.61% | 59 |
-| Reviewer, after Validator passed | 400 / 509 | 78.59% | 109 |
-| Complete pipeline | 400 / 568 | 70.42% | 168 |
-
-Revised candidates count as separate candidates. These are candidate acceptance
-rates, not API-request success rates; network retries and unparseable model
-outputs are not included. These statistics were recorded before the historical
-construction archive was removed.
+The response catalogs contain selected actions, inspection traces, execution
+results, and model-call records. They are separate from human annotation
+exports and from the construction audit in `annotations/`.
 
 ## Setup
 
-Use Python 3.11 or later:
+Use Python 3.11 or later. From the repository root:
 
 ```bash
 python3 -m venv .venv
@@ -76,55 +63,40 @@ python -m pip install -r requirements.txt
 cp .env.example .env
 ```
 
-Keep `.env` local. `llm_client.py` reads it from the repository root; existing
-shell variables take precedence. Model calls use HTTP(S).
+Configure the provider and credentials in your local `.env`, following
+`.env.example`. Shell environment variables take precedence. Model calls use
+HTTP(S) request/response; the client does not require WebSocket transport.
 
-For the OpenAI-compatible Responses endpoint:
+For an OpenAI-compatible provider, set `OPENAI_API_KEY` and
+`OPENAI_RESPONSES_URL`. The URL must be the complete Responses endpoint.
+For Gemini, set `GEMINI_API_KEY` and the corresponding Gemini settings in the
+example file. Evaluation selects its model with `--model`, separately from the
+construction model.
 
-```dotenv
-CREATOR_LLM_PROVIDER=openai
-OPENAI_API_KEY=...
-OPENAI_RESPONSES_URL=https://api.openai.com/v1/responses
-OPENAI_REASONING_EFFORT=xhigh
-```
+Keep real credentials in local environment variables or a private secrets
+store. `.env` and `.streamlit/secrets.toml` are excluded from version control;
+example configuration files must contain placeholders only.
 
-`OPENAI_RESPONSES_URL` is the complete endpoint; no path is appended. The
-construction model configured in code is `gpt-5.6-sol`. Evaluation selects its
-model separately with `--model` and does not inherit the construction reasoning
-setting.
+## Validate HALO-Arena
 
-For the Gemini Developer API:
-
-```dotenv
-CREATOR_LLM_PROVIDER=gemini
-GEMINI_API_KEY=...
-GEMINI_BASE_URL=https://generativelanguage.googleapis.com/v1beta
-GEMINI_MODEL=...
-GEMINI_THINKING_LEVEL=high
-EVALUATION_GEMINI_TRANSPORT=developer
-```
-
-## Validate the published dataset
-
-Run local checks without calling a model or writing reports:
-
-```bash
-python -B -m evaluation.validate
-```
-
-This checks the shared-state structure, database integrity, initial record
-timing and wallet consistency, and replays all 2,160 independent event prefixes
-across 400 scenarios and 50 databases. Temporary states are removed and all
-published source files must remain unchanged. This verifies local execution;
-semantic quality and model performance require separate evaluation.
-
-A lighter current-data audit is available:
+Run the lighter dataset audit without model calls or generated reports:
 
 ```bash
 python -B build_benchmark.py --audit-only
 ```
 
-## Agent evaluation
+For full local execution checks:
+
+```bash
+python -B -m evaluation.validate
+```
+
+The full check validates the shared states and databases and replays all 2,160
+independent event prefixes across 400 scenarios. Temporary states are removed,
+and source dataset files must remain unchanged. These checks establish local
+executability; they do not replace human assessment of response quality.
+
+## Evaluate an agent
 
 Start with one scenario:
 
@@ -136,234 +108,120 @@ python -B -m evaluation.runner \
   --workers 1
 ```
 
-Then evaluate the complete dataset:
+Evaluate the complete arena:
 
 ```bash
 python -B -m evaluation.runner --model <model-id>
 ```
 
-Each checkpoint lets the Agent inspect read-only App state and return either
-no action or one final command, executed in a disposable state copy. Independent
-`(model, scenario)` jobs run in parallel; checkpoints within a scenario are
-serial. Both evaluation and checkpoint repair default to **6 workers per process**;
-use `--workers` to override this. `--model` and `--instance` may be repeated. Model IDs beginning with
+The agent may repeatedly inspect read-only evidence, then return no action or
+one final command executed in a disposable state copy. All operational apps
+are simulated. `assistant.notify_user(message)` records a one-way simulated
+notification; it does not supply a user reply or approval.
+
+Independent model–scenario jobs run concurrently, with checkpoints within a
+scenario processed in order. The default is six workers; use `--workers` to
+adjust it. `--model` and `--instance` may be repeated. Model IDs beginning with
 `gemini` use the configured Gemini transport; other IDs use the Responses
 endpoint.
 
 Runs are saved under `eval_results/<model>/`, with aggregate metrics in
-`eval_results/summary.json`. A successful run is reused only when its input
-fingerprint matches the current scenario, shared environment and execution
-code and model request settings. Runs retain scenario/profile snapshots for
-review; results without these snapshots must be rerun. Old runs are retained
-but excluded from current summary metrics when their fingerprints or settings
-no longer match.
-An explicitly verified scheduling-only revision may be recorded under
-`compatible_input_fingerprints`, with its Git revision and reason. The original
-fingerprint and checkpoint records remain intact; unrelated code or data
-changes still invalidate reuse.
+`eval_results/summary.json`. Successful checkpoints are reused only when the
+recorded input and execution settings remain compatible. Rerunning the same
+command repairs failed checkpoints and skips completed scenarios.
 
-Progress and API retries are logged both to the console and to
-`evaluation/evaluation.log`; use `--log-file <path>` for separate model logs.
-Logs include checkpoint completion, scenario counts, failures, and a heartbeat
-while requests are pending. Normal evaluation automatically gives each failed
-checkpoint up to **three additional full attempts**, stopping on success
-(at most four full attempts including the initial run). A run still containing
-failures exits nonzero. Rerunning the same command repairs only failed checkpoints
-in saved scenarios and skips completed scenarios; successful checkpoints are reused.
-HTTP 400/401/403/404 errors stop immediately; transient errors use bounded retries.
-
-To retry only failed checkpoints with the same Agent policy and model settings:
+Normal evaluation gives failed checkpoints up to three additional full
+attempts. A run with unresolved failures exits nonzero. To retry only failed
+checkpoints under the same model settings:
 
 ```bash
-python -u -B -m evaluation.retry --model gemini-3.1-pro-preview --max-attempts 3
+python -B -m evaluation.retry --model <model-id> --max-attempts 3
 ```
 
-Each invocation gives every currently failed checkpoint up to three new full
-attempts (the default), stopping as soon as it succeeds. Each attempt replays
-the original independent prefix. This is separate from the three output/tool
-attempts already allowed per Agent round. Successful checkpoints and annotation
-IDs stay unchanged. Each attempt atomically updates the existing result file,
-preserving all preceding failures under `retry_history`; exhausted failures
-remain visible. The retry module does not change the execution fingerprint.
+Retries preserve earlier failures in `retry_history`. Report initial failure
+rates separately from completion after retries. Logs are written to
+`evaluation/evaluation.log`; use `--log-file <path>` to choose another location.
+Inspect logs and result exports for sensitive content before sharing them.
 
-Every model call records input, visible completion, reasoning and total tokens,
-plus `latency_ms` for that HTTP response. Checkpoint and scenario metrics sum
-their recorded calls, including output/tool retries within the Agent loop.
-Latency excludes network-failure backoff, local tool execution and queue time;
-it is not wall-clock duration or time to first token. `summary.json` aggregates
-the currently selected successful checkpoints, excluding failed checkpoints.
-After checkpoint repair, `totals_including_retry_history` additionally counts
-the preceding failed attempts; ordinary `totals` describes the selected results.
-Keep the first-attempt failures when reporting benchmark reliability separately
-from completion after retries.
-
-Export an English summary with per-checkpoint averages (CSV, readable directly in Excel):
+Export a CSV summary:
 
 ```bash
 python -B -m evaluation.export
 ```
 
-This writes only `eval_results/evaluation_summary.csv`.
-Only current successful checkpoints contribute; earlier failed attempts are
-excluded. `all_success` uses each model's successful points; `common_success`
-uses only points successful for every selected model (`--model` is repeatable).
-Means weight each checkpoint equally. Latency is the sum of its recorded API
-response times in seconds. `retrieval_rounds` counts completed inspect rounds,
-not individual tool commands; `api_calls` also counts output retries within
-the successful episode.
-Token columns separate `input_tokens`, `completion_tokens` (visible output,
-excluding reasoning), and `reasoning_tokens`. Each successful checkpoint's
-recorded API calls are summed before averaging across checkpoints, without
-dataset-wide token consumption totals.
+The export is saved as `eval_results/evaluation_summary.csv`. `all_success`
+uses each model's successful checkpoints; `common_success` uses only
+checkpoints successful for every selected model. Resource metrics include
+input, visible completion, and reasoning tokens, plus retrieval rounds and
+recorded API response time. API response time excludes queueing, local tool
+execution, and network-failure backoff.
 
-To run both Gemini models concurrently in the background, use separate processes
-and moderate concurrency (four scenarios per model):
+## HALO-8K and human evaluation
 
-```bash
-mkdir -p eval_results/logs
-nohup python -u -B -m evaluation.runner --model gemini-3.8-flash --workers 4 \
-  --log-file eval_results/logs/gemini-3.8-flash.log >/dev/null 2>&1 &
-nohup python -u -B -m evaluation.runner --model gemini-3.1-pro-preview --workers 4 \
-  --log-file eval_results/logs/gemini-3.1-pro-preview.log >/dev/null 2>&1 &
-tail -f eval_results/logs/gemini-3.8-flash.log
-```
+The frozen response catalogs are stored in both `eval_results/` and
+`annotation_app/data/`:
 
-The evaluated Agent can also use `assistant.notify_user(message)` to present
-a non-empty, one-way notification to the instance user. The runner fixes the
-recipient and simulation timestamp and saves the record as
-`agent.execution_result`. This evaluation-only action is unavailable to
-construction, Scenario Events and shared initialization. It supplies no user
-reply or approval, sends nothing to third parties, and does not perform the
-operations described in its text. It still uses the single final-command slot.
-Execution verifies the simulated action; it does not prove that a real user
-read the message or followed its advice, or that the response is acceptable.
+- `human_eval_4000.json.gz`: 4,000 responses from five models.
+- `human_eval_4000_batch2.json.gz`: 4,000 responses from five additional models.
 
-### Action levels and evaluation labels
+Together they contain 8,000 distinct responses from 10 models. Each model
+contributes 800 responses across all 400 scenarios. Sampling balances event
+positions without filtering on action choice or response quality, using seed
+`20261002`. The catalogs preserve source-file hashes and original item IDs;
+new evaluation runs do not change the frozen annotation tasks.
 
-| Level | Meaning | Examples |
-|---|---|---|
-| L0 | No action or retrieval | `null`, a retrieval-only final response |
-| L1 | Attention | Notify the user, create a reminder, flag an item |
-| L2 | Preparation | Prepare a draft, create or update an internal contact |
-| L3 | Execution | Send a message, change an active schedule, make a payment |
-
-The interface infers the action level and lets the annotator correct it.
-The level describes what the Agent did; **intensity appropriateness** judges
-whether that level fits the current need. Higher intensity is not inherently
-better. Notifications need evidence and practical value: generic advice,
-restating Events, or claiming unperformed operations is insufficient.
-
-The verdict is **Acceptable / Unacceptable**. For an unacceptable non-L0
-response, the interface asks:
-
-| Check | Options |
-|---|---|
-| Timing | Premature / Appropriate / Belated |
-| Intensity appropriateness | Insufficient / Appropriate / Excessive |
-
-Timing **Appropriate** is stored as `Timely`. Other issues can also be recorded
-as Unsupported Evidence, Irrelevant Action, Factual Contradiction, or Others.
-An unacceptable L0 response automatically records **Timing / Inaction**;
-Inaction is not a separate selectable timing option. A `null` response hides
-the level selector, while a retrieval-only final response retains it.
-
-## Construction and annotation
-
-### Human evaluation releases (8,000 items)
-
-The first frozen human-evaluation subset is stored identically in
-`eval_results/human_eval_4000.json.gz` and
-`annotation_app/data/human_eval_4000.json.gz`. Streamlit loads the app copy;
-new model runs do not change participants' tasks. The ten complete model result
-directories remain in `eval_results/`, including their unsuccessful or missing
-checkpoint information. Running through all scenarios does not mean that every
-checkpoint succeeded.
-
-The subset contains exactly **800 successful responses from each** of
-`deepseek-v4-pro`, `gemini-3.8-flash`, `glm-5.3-flash`, `gpt-5.6-luna`, and
-`grok-4.7`. Each of the 400 scenarios contributes ten responses (two per model),
-covering **all 2,160 distinct scenario/event checkpoints**. Events within each
-scenario receive counts differing by at most one. Selection uses seed
-`20261002`, without filtering on the action or its quality. Original item IDs,
-event prefixes, actions, inspection traces, and model-call records are retained;
-the release records SHA-256 hashes of all source result files.
-
-Reproduce the subset from the preserved result directories:
+To reproduce the catalogs when all corresponding source runs are available:
 
 ```bash
 python -B -m evaluation.human_subset
-```
-
-The command refuses to overwrite a different published release. Keep the
-catalog and its account-assignment manifest together when deploying.
-
-`eval01` through `eval20` each receive **200 items**: 20 complete
-scenario groups, 40 items per model, 20 per domain, and 50 per trigger type.
-Every selected response is assigned once, consistent with the existing Eval
-workflow. Deployment provisions accounts and assignments in one transaction,
-once; subsequent restarts preserve submitted work, existing Audit accounts,
-and administrator accounts. Completed historical reset migrations are no
-longer replayed at application startup.
-Existing `eval4000-01`–`eval4000-20` accounts are renamed once to `eval01`–`eval20`,
-preserving their access codes, assignment order, and submitted annotations.
-
-The second batch, `human-eval-4000-batch2-2026-10-07`, adds **800 responses each**
-from `claude-opus-5-5`, `gemini-3.1-pro-preview`, `gpt-oss-20b`, `qwen3.5-9b`,
-and `qwen3.8-27b`, using the same seed (`20261002`) and checkpoint-balancing
-algorithm. It is stored as `human_eval_4000_batch2.json.gz` in both
-`eval_results/` and `annotation_app/data/`. Each model contributes two distinct
-successful event responses per scenario; together the batch covers all 2,160
-scenario/event checkpoints. No first-batch item IDs are repeated.
-
-`annotation_app/data/human_eval_accounts_batch2.json` assigns the new items to
-**eval21–eval40**, each with 200 items, five models × 40, ten domains × 20,
-and four trigger types × 50. The original scenario grouping is reused, mapping
-eval01's scenarios to eval21, and so on. The app appends the new catalog after
-the original one, preserving display IDs 1–4,000 and assigning 4,001–8,000 to
-the new batch. Each batch has a separate, transactional, one-time account
-migration; existing access codes, assignments and submitted reviews are retained.
-
-Rebuild the second subset on the evaluation host with its preserved raw runs
-(currently `/data/wenqi/ProActCal` on pro6k):
-
-```bash
 python -B -m evaluation.human_subset --batch2
 ```
 
-The release retains source-file hashes, original run IDs and model-call traces.
-The second batch's source runs remain on the evaluation host. Generate its
-account manifest **only before first publication**, delivering codes to a new
-private file outside the repository:
+These commands refuse to overwrite a different published release. The
+catalogs are included independently of whether every original source run is
+available in this checkout. Human acceptability results require the separate
+annotation exports; runner summaries alone are not human quality scores.
 
-```bash
-python -B -m evaluation.human_cohort --credentials-output /private/path/eval-batch2-codes.txt
-```
+### Annotation labels
 
-Both commands refuse to overwrite a different published artifact. Streamlit
-reloads the release module when its source changes, and versions the shared
-catalog and initialization caches by loader generation and release-file metadata.
-Ordinary interactions reuse the loaded catalogs; extending a batch does not
-change the original catalog identity or reset users' current positions.
+| Action level | Meaning |
+|---|---|
+| **L0 — Observation** | Observe or retrieve information without initiating an intervention |
+| **L1 — Attention** | Draw attention to relevant information or a need |
+| **L2 — Preparation** | Prepare an intervention or organize internal information without an external commitment |
+| **L3 — Execution** | Carry out an intervention that changes active commitments or creates external effects |
 
-Only salted password hashes are included in the deployment manifest. Access
-codes are delivered separately and cannot be recovered from the administrator
-CSV export (those fields are blank). The cloud app continues to use its existing
-`DATABASE_URL`, `ADMIN_USERNAME`, and `ADMIN_PASSWORD` secrets.
+Annotators confirm or correct the inferred action level and assign an
+**Acceptable / Unacceptable** verdict. Higher action levels do not imply
+better assistance; restraint can be acceptable when intervention is unwarranted.
 
-Start the annotation application with:
+Rejected L0 responses are labeled **Inaction**. Rejected L1–L3 responses receive
+separate timing judgments (**Premature / Appropriate / Belated**) and intensity
+judgments (**Insufficient / Appropriate / Excessive**). Optional other issues
+are **Unsupported Evidence**, **Irrelevant Action**, **Factual Contradiction**,
+and **Others**, with a written explanation for Others.
+
+### Run the annotation interface
+
+Configure `DATABASE_URL`, `ADMIN_USERNAME`, and `ADMIN_PASSWORD` privately using
+environment variables or Streamlit Secrets, following
+`annotation_app/secrets.example.toml`. Then run:
 
 ```bash
 streamlit run annotation_app/app.py
 ```
 
-`python -B build_benchmark.py` constructs or resumes the planned benchmark.
-Use `--domain <domain-id>` and optionally `--instance <instance-id>` to limit
-scope. Complete published instances are validated and skipped; removing archived
-construction logs does not rerun initialization or noise. New construction can
-create working outputs and logs for unfinished instances.
+Use a separate database and private credentials for your own deployment.
+Participant access codes, administrator credentials, account assignments, and
+identifying annotation exports must be handled privately. Preserve frozen
+catalog IDs and saved annotations when updating an existing deployment.
 
-The annotation interface lives in `annotation_app/`. The original administrator
-uses `ADMIN_USERNAME` and `ADMIN_PASSWORD` from Streamlit Secrets. Additional
-accounts can be created or revoked under **Administration → Manage →
-Administrator accounts**. Generated passwords are shown once and stored as
-salted hashes; revoked accounts lose access on their next page load.
+## Construct new environments
+
+```bash
+python -B build_benchmark.py --domain <domain-id> --instance <instance-id>
+```
+
+Construction requires configured model access. Complete published instances
+are validated and skipped. Use `--audit-only` to inspect the existing arena;
+construction is not required to run evaluation on it.
