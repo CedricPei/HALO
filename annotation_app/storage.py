@@ -206,6 +206,27 @@ class AnnotationStore:
             )
         connection.execute("DROP TABLE annotation_revisions")
 
+    def reset_platform_once(self, reset_id: str) -> bool:
+        """Apply an explicitly requested reset atomically, once per database."""
+        if not reset_id:
+            raise ValueError("A platform reset must have a permanent identifier")
+        with self._connect() as connection:
+            claimed = connection.execute(
+                self._sql(
+                    "INSERT INTO annotation_migrations (migration_id, applied_at) "
+                    "VALUES (?, ?) ON CONFLICT(migration_id) DO NOTHING"
+                ),
+                (reset_id, utc_now()),
+            ).rowcount
+            if not claimed:
+                return False
+            for table in (
+                "annotations", "annotation_assignments", "annotation_assignment_repairs",
+                "annotation_admins", "annotation_users",
+            ):
+                connection.execute(f"DELETE FROM {table}")
+        return True
+
     def create_user(
         self,
         user_id: str,

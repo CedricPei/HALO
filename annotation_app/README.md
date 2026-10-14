@@ -1,19 +1,27 @@
 # HALO Annotation
 
-Human annotation is complete. [`data/`](data/) preserves **8,000 Eval
-annotations** and **800 Audit reviews**. Platform screenshots appear in the
-[project README](../README.md#human-annotation).
+The Streamlit platform retains its original login, administrator and Audit/Eval
+pages. [`data/`](data/) also preserves the exported **8,000 Eval annotations** and
+**800 Audit reviews** used in the research; those CSVs are independent of the
+platform's current sample files and database.
 
-The platform implementation is retained as a reference. `app.py` now displays
-a completion page without login, task assignment or annotation controls. It
-does not connect to the database; existing accounts, assignments and saved
-judgments remain untouched.
+This release clears the old database accounts, assignments, saved reviews and
+assignment repair records once, using the permanent reset marker
+`user-requested-empty-platform-2026-10-14`. Later restarts, cache refreshes and
+code updates do not repeat this reset. The administrator configured through
+Streamlit Secrets remains available to create new accounts.
 
-The two former human-evaluation sample catalogs have been removed. The exported
-annotation CSVs retain their original contents.
+Sample lists start empty. Supply `audit-items.json` and/or `eval-items.json`
+under `data/` (gzip files with `.json.gz` are also supported), or set
+`ANNOTATION_DATA_DIR` to an external directory. Each file accepts the original
+item dictionaries as a JSON list or an object containing an `items` list.
+The exported annotation CSVs are never loaded as samples.
 
-On its first rerun after this update, each existing Streamlit session clears the
-old platform caches and login state once for the retirement version. Later
-reruns retain that version marker. A cloud process must load the updated
-entrypoint before the completion page takes effect; restart it if deployment
-does not trigger a rerun.
+Database and administrator configuration still use
+[`secrets.example.toml`](secrets.example.toml). Keep real credentials outside Git.
+Run from the repository root with `streamlit run annotation_app/app.py`.
+
+Changed code and sample-file signatures invalidate affected caches; widget
+reruns keep the shared resources. Existing sessions discard old login state on
+loading this entrypoint version. A cloud process must load the new code for the
+restored pages and one-time reset to take effect.
