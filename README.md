@@ -77,9 +77,9 @@ starts from an independent copy of the simulated environment.
 | Executable personal environments | [`domains/`](domains/) |
 | HALO-8K human judgments | [`Eval annotations`](annotation_app/results/eval-annotations.csv) |
 | Scenario audit judgments | [`Audit annotations`](annotation_app/results/audit-annotations.csv) |
-| Frozen responses and model runs | [`eval_results/`](eval_results/) |
+| Model evaluation runs | [`eval_results/`](eval_results/) |
 | Judge evaluation and LoRA training | [`evaluation/judge_bench/`](evaluation/judge_bench/README.md) |
-| Saved experiments and restoration guide | [`outputs/`](outputs/README.md) |
+| Frozen judge datasets and saved experiments | [`outputs/`](outputs/README.md) |
 
 ## Human annotation
 

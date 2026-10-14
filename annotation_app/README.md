@@ -1,26 +1,20 @@
 # HALO Annotation
 
-This directory contains the Streamlit application and [`results/`](results/),
-with 8,000 exported Eval annotations and 800 Audit reviews.
+Human annotation is complete. [`results/`](results/) preserves **8,000 Eval
+annotations** and **800 Audit reviews**. Platform screenshots appear in the
+[project README](../README.md#human-annotation).
 
-The app reads the two original frozen response batches from
-[`eval_results/`](../eval_results/). Accounts, credentials, task assignments and
-live judgments are stored in the database configured by `DATABASE_URL`. Account
-setup is managed through the administrator page; restarting the app does not
-recreate the old participant accounts or replay their initialization migrations.
-The result CSVs are snapshots of human judgments.
+The platform implementation is retained as a reference. `app.py` now displays
+a completion page without login, task assignment or annotation controls. It
+does not connect to the database; existing accounts, assignments and saved
+judgments remain untouched.
 
-Configure the app through environment variables or Streamlit Secrets using
-[`secrets.example.toml`](secrets.example.toml). Keep real database credentials,
-administrator passwords and participant handouts outside Git.
+The two former human-evaluation sample catalogs have been removed. Frozen judge
+datasets, including model inputs and human labels, remain in
+[`outputs/`](../outputs/README.md).
 
-Run from the repository root:
-
-```bash
-streamlit run annotation_app/app.py
-```
-
-Frozen response IDs, their display order and result CSV contents remain
-unchanged. The app versions its release cache by loader source and file signature,
-so a changed loader reloads on the next Streamlit rerun without reloading the
-responses on every click.
+On its first rerun after this update, each existing Streamlit session clears the
+old platform caches and login state once for the retirement version. Later
+reruns retain that version marker. A cloud process must load the updated
+entrypoint before the completion page takes effect; restart it if deployment
+does not trigger a rerun.

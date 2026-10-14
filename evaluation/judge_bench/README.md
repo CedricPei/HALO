@@ -1,6 +1,6 @@
 # HALO JudgeBench v1
 
-This release holds out **800** of the **8,000** completed human annotations for judge evaluation and retains **7,200** for training. The two frozen human-evaluation catalogs and the original annotation CSV remain unchanged.
+This release holds out **800** of the **8,000** completed human annotations for judge evaluation and retains **7,200** for training. The frozen split snapshots preserve the original model inputs and human labels.
 
 ## Split
 
@@ -14,8 +14,14 @@ The builder uses seed `20261010` to select one complete scenario in each of the 
 Scenarios and complete model inputs do not overlap. User instances can overlap: this evaluates held-out scenarios within the existing instance settings. `split_manifest.json` records selection, distributions, source/output hashes, input duplication and annotation conflicts. Human labels are preserved, including empty diagnostic values normalized to JSON null. Each response has one human annotation; these labels are not adjudicated consensus.
 
 ```bash
-python -B -m evaluation.judge_bench.dataset --output-dir outputs/judge_bench_v1
+gzip -dk outputs/judge_bench_v1/train.jsonl.gz
+gzip -dk outputs/judge_bench_v1/test.jsonl.gz
 ```
+
+These commands restore the recorded splits directly. The historical builder
+requires externally supplied original catalogs (`--catalog`, repeated for each
+cohort) and the matching raw annotation CSV (`--annotations`); the former sample
+catalogs are no longer included in this repository.
 
 ## Evidence and prompt
 

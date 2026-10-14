@@ -22,11 +22,6 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 BENCHMARK_ID = "judge-bench-v1-20261010"
 SCHEMA_VERSION = 1
 SEED = 20261010
-CATALOG_PATHS = (
-    ROOT_DIR / "eval_results/human_eval_4000.json.gz",
-    ROOT_DIR / "eval_results/human_eval_4000_batch2.json.gz",
-)
-ANNOTATIONS_PATH = ROOT_DIR / "annotation_app/results/eval-annotations.csv"
 DEFAULT_OUTPUT_DIR = ROOT_DIR / "outputs/judge_bench_v1"
 
 
@@ -300,8 +295,8 @@ def _duplicate_annotation_audit(rows: list[dict]) -> dict:
 
 
 def build_dataset(
-    catalog_paths: tuple[Path, ...] = CATALOG_PATHS,
-    annotations_path: Path = ANNOTATIONS_PATH,
+    catalog_paths: tuple[Path, ...],
+    annotations_path: Path,
     seed: int = SEED,
 ) -> tuple[list[dict], list[dict], dict]:
     items, origins, sources = [], {}, []
@@ -439,9 +434,17 @@ def _write_jsonl(path: Path, rows: list[dict]) -> None:
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--catalog", type=Path, action="append", required=True,
+        help="Original frozen catalog (.json.gz); repeat for each cohort",
+    )
+    parser.add_argument(
+        "--annotations", type=Path, required=True,
+        help="Original raw annotation CSV matching the catalog IDs and schema",
+    )
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     args = parser.parse_args(argv)
-    test, train, manifest = build_dataset()
+    test, train, manifest = build_dataset(tuple(args.catalog), args.annotations)
     args.output_dir.mkdir(parents=True, exist_ok=True)
     for name, rows in (("test", test), ("train", train)):
         path = args.output_dir / f"{name}.jsonl"
