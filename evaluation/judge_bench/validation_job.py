@@ -19,9 +19,9 @@ import socket
 import subprocess
 import time
 from .lora_job import gpu_state, gpu_admitted
-from .post_training_job import _owned_server, _proc, stop_owned_server
+from ._jobs import _owned_server, _proc, stop_owned_server
 from .runner import _get_api_key, _parse_response, _read_jsonl, _rewrite_jsonl
-from .training_job import wait_serving
+from ._jobs import wait_serving
 
 
 def utc():return datetime.now(timezone.utc).isoformat()

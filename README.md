@@ -20,7 +20,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/assets/halo-overview.png" width="100%" alt="HALO overview: personal app environments, evidence retrieval and proactive intervention, followed by human verdicts and diagnosis.">
+  <img src="assets/halo-overview.png" width="100%" alt="HALO overview: personal app environments, evidence retrieval and proactive intervention, followed by human verdicts and diagnosis.">
 </p>
 
 <p align="center">
@@ -75,22 +75,20 @@ starts from an independent copy of the simulated environment.
 | Resource | Location |
 | --- | --- |
 | Executable personal environments | [`domains/`](domains/) |
-| HALO-8K human judgments | [`Eval annotations`](annotation_app/results/eval-annotations.csv) |
-| Scenario audit judgments | [`Audit annotations`](annotation_app/results/audit-annotations.csv) |
+| HALO-8K human judgments | [`Eval annotations`](annotation_app/data/eval-annotations.csv) |
+| Scenario audit judgments | [`Audit annotations`](annotation_app/data/audit-annotations.csv) |
 | Model evaluation runs | [`eval_results/`](eval_results/) |
-| Judge evaluation and LoRA training | [`evaluation/judge_bench/`](evaluation/judge_bench/README.md) |
-| Frozen judge datasets and saved experiments | [`outputs/`](outputs/README.md) |
 
 ## Human annotation
 
 <p align="center">
-  <img src="docs/assets/annotation-audit.png" width="100%" alt="HALO annotation platform: scenario audit workspace.">
+  <img src="assets/annotation-audit.png" width="100%" alt="HALO annotation platform: scenario audit workspace.">
 </p>
 
 <p align="center"><sub>Scenario audit</sub></p>
 
 <p align="center">
-  <img src="docs/assets/annotation-eval.png" width="100%" alt="HALO annotation platform: agent response evaluation workspace.">
+  <img src="assets/annotation-eval.png" width="100%" alt="HALO annotation platform: agent response evaluation workspace.">
 </p>
 
 <p align="center"><sub>Agent response evaluation</sub></p>

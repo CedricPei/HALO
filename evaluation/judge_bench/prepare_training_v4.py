@@ -14,18 +14,19 @@ import json
 from pathlib import Path
 
 from . import prompt
-from ._supervision import prepare_weighted_row
-from .dataset import _distribution as source_distribution, _hash_overlap
-from .prepare_training import LABEL_FIELDS, _distribution, _file_hash, _hash, _json
-from .resplit import select_test_ids
-from .supervision_v3 import FIELD_BUDGETS, PROTOCOL, class_balance
+from ._data import (
+    LABEL_FIELDS, _file_hash, _hash, _hash_overlap, _json, _prepare_row,
+    read_frozen_split, select_validation_ids, source_distribution,
+    training_distribution as _distribution,
+)
+from .supervision_v3 import FIELD_BUDGETS, PROTOCOL, class_balance, label_key
 
 
 DATASET_ID = "judge-bench-v4-sft-7600-validation400-20261013"
 
 
 def prepare(rows: list[dict], seed: int) -> tuple[dict[str, list[dict]], list[dict], dict]:
-    selected = select_test_ids(rows, seed, holdout_per_scenario=1)
+    selected = select_validation_ids(rows, seed, holdout_per_scenario=1)
     partitions: dict[str, list[dict]] = {"train": [], "validation": []}
     for source in sorted(rows, key=lambda row: row["item_id"]):
         row = deepcopy(source)
@@ -49,11 +50,21 @@ def prepare(rows: list[dict], seed: int) -> tuple[dict[str, list[dict]], list[di
     prepared = []
     for split, members in partitions.items():
         for source in members:
-            row = prepare_weighted_row(
-                source, split, schema_version=3, dataset_id=DATASET_ID,
-                protocol=PROTOCOL, enable_thinking=False,
-                field_budgets=FIELD_BUDGETS, balance=balance,
-            )
+            row = _prepare_row(source, split)
+            previous = row["supervision"]
+            row.update(schema_version=3, dataset_id=DATASET_ID, input_context=source["input_context"])
+            row["supervision"] = {
+                "protocol": PROTOCOL, "chat_template_enable_thinking": False,
+                "rationale_supervised": previous["rationale_supervised"],
+                "rationale_source": previous["rationale_source"],
+                "placeholder": previous["placeholder"],
+                "human_comment_characters": previous["human_comment_characters"],
+                "mask_rationale_value": not previous["rationale_supervised"],
+                "json_suffix_supervised": True, "assistant_terminator_supervised": True,
+                "thinking_end_supervised": False, "field_loss_budgets": FIELD_BUDGETS,
+                "class_loss_weights": {field: info["weights"][label_key(source["gold"][field])]
+                                       for field, info in balance["fields"].items()},
+            }
             prepared.append(row)
     manifest = {
         "schema_version": 3, "dataset_id": DATASET_ID, "seed": seed,
@@ -95,22 +106,27 @@ def prepare(rows: list[dict], seed: int) -> tuple[dict[str, list[dict]], list[di
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--source-dir", type=Path, default=Path("outputs/judge_bench_v1"))
-    parser.add_argument("--output-dir", type=Path, default=Path("outputs/judge_bench_v4"))
+    parser.add_argument("--source-dir", type=Path, default=Path("outputs/judge_bench_v4"))
+    parser.add_argument("--output-dir", type=Path, default=Path("outputs/judge_bench_v4_rebuilt"))
     parser.add_argument("--seed", type=int, default=20261013)
     args = parser.parse_args()
     if args.output_dir.exists() and any(args.output_dir.iterdir()):
         parser.error("Use a new empty output directory; existing artifacts are immutable")
-    paths = [args.source_dir / (split + ".jsonl") for split in ("train", "test")]
     old_manifest = json.loads((args.source_dir / "split_manifest.json").read_text())
-    for split, path in zip(("train", "test"), paths):
-        if _file_hash(path) != old_manifest["outputs"][split]["sha256"]:
-            raise ValueError("An original frozen source changed")
-    rows = [json.loads(line) for path in paths for line in path.open(encoding="utf-8") if line.strip()]
+    rows, paths = [], []
+    for split in ("train", "validation"):
+        members, path = read_frozen_split(
+            args.source_dir / (split + ".jsonl"), old_manifest["outputs"][split]["sha256"]
+        )
+        paths.append(path)
+        for row in members:
+            # Restore original provenance before reproducing the frozen v4 split.
+            row.update(row.pop("source_partition"))
+            rows.append(row)
     partitions, prepared, manifest = prepare(rows, args.seed)
     manifest["sources"] = [{"path": str(path.resolve()), "sha256": _file_hash(path)} for path in paths]
     manifest["preparation_source_sha256"] = _file_hash(Path(__file__))
-    manifest["selection_source_sha256"] = _file_hash(Path(__file__).with_name("resplit.py"))
+    manifest["selection_source_sha256"] = _file_hash(Path(__file__).with_name("_data.py"))
     manifest["supervision_source_sha256"] = _file_hash(Path(__file__).with_name("supervision_v3.py"))
     training = args.output_dir / "training"
     training.mkdir(parents=True)

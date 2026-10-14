@@ -3,7 +3,7 @@
 import streamlit as st
 
 
-RETIREMENT_VERSION = "completed-2026-10-14"
+RETIREMENT_VERSION = "completed-2026-10-14-data"
 
 st.set_page_config(page_title="HALO Annotation", page_icon="✓", layout="centered")
 
@@ -19,5 +19,5 @@ st.title("HALO Annotation")
 st.info("Human annotation is complete. This platform is now closed.")
 st.markdown(
     "The completed Eval and Audit annotations are preserved in the "
-    "[HALO repository](https://github.com/CedricPei/HALO/tree/main/annotation_app/results)."
+    "[HALO repository](https://github.com/CedricPei/HALO/tree/main/annotation_app/data)."
 )

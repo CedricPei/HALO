@@ -21,11 +21,9 @@ gzip -dk outputs/judge_bench_v1/test.jsonl.gz
 gzip -dk outputs/judge_bench_v4/validation.jsonl.gz
 ```
 
-Generated training chats for v1–v3 were verified byte-for-byte against the
-corresponding preparation code before removal. Rebuild them with
-`evaluation.judge_bench.prepare_training`, `prepare_training_v2` or
-`prepare_training_v3`, using a new output directory. Their original manifests
-retain the expected output hashes.
+Historical v1–v3 preparation and evaluation code is available at commit
+`7a1ac5d`; their original manifests retain the expected output hashes. The current
+`evaluation/judge_bench/` package contains the server's 7,600/400 workflow.
 
 The original v4 training chat is preserved as `training/chat.jsonl.gz` because
 rebuilding can introduce tiny floating-point differences in class weights.
@@ -39,7 +37,7 @@ remain on their training servers.
 Historical manifests retain the original source paths, including the former
 human-evaluation catalogs that have now been removed. The split snapshots
 preserve the complete model inputs and human labels used in the experiments.
-Current annotation exports live in `annotation_app/results/`; those CSVs and
+Current annotation exports live in `annotation_app/data/`; those CSVs and
 the historical split artifacts remain unchanged.
 
 Plain JSONL working copies, per-item resume caches, runtime logs and exploratory

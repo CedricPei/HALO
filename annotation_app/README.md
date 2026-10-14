@@ -1,6 +1,6 @@
 # HALO Annotation
 
-Human annotation is complete. [`results/`](results/) preserves **8,000 Eval
+Human annotation is complete. [`data/`](data/) preserves **8,000 Eval
 annotations** and **800 Audit reviews**. Platform screenshots appear in the
 [project README](../README.md#human-annotation).
 
@@ -9,9 +9,8 @@ a completion page without login, task assignment or annotation controls. It
 does not connect to the database; existing accounts, assignments and saved
 judgments remain untouched.
 
-The two former human-evaluation sample catalogs have been removed. Frozen judge
-datasets, including model inputs and human labels, remain in
-[`outputs/`](../outputs/README.md).
+The two former human-evaluation sample catalogs have been removed. The exported
+annotation CSVs retain their original contents.
 
 On its first rerun after this update, each existing Streamlit session clears the
 old platform caches and login state once for the retirement version. Later

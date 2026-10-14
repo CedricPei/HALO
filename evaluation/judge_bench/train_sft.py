@@ -15,7 +15,6 @@ import os
 import random
 import tempfile
 import time
-from array import array
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
@@ -80,60 +79,12 @@ def kernel_dispatch(function: Any) -> dict[str, Any]:
 
 
 def encode_example(row: dict[str, Any], tokenizer: Any, max_length: int) -> dict[str, Any]:
-    """Align Unicode character supervision boundaries to complete tokenizer tokens."""
-    if row.get("schema_version") == 3:
-        from .supervision_v3 import encode_example as encode_v3
-        return encode_v3(row, tokenizer, max_length)
-    if row.get("schema_version") == 2:
-        from .supervision_v2 import encode_example as encode_v2
-        return encode_v2(row, tokenizer, max_length)
-    messages, completion = row["messages"], row["completion"]
-    if [message.get("role") for message in messages] != ["system", "user", "assistant"]:
-        raise ValueError("Each training row must have exactly system/user/assistant messages")
-    if messages[0]["content"] != prompt.SYSTEM_PROMPT or messages[2]["content"] != completion:
-        raise ValueError("Training row does not match the frozen prompt or assistant completion")
-    if set(json.loads(messages[1]["content"])) != {
-        "background", "checkpoint_prefix", "retrieval_rounds", "candidate_action"
-    }:
-        raise ValueError("Training user message has unexpected evidence fields")
-    policy = row["supervision"]
-    boundary = policy["loss_prefix_end"]
-    if not isinstance(boundary, int) or not 0 < boundary <= len(completion):
-        raise ValueError("Invalid completion character supervision boundary")
-    supervised_rationale = policy["rationale_supervised"]
-    if supervised_rationale != (not policy["mask_completion_suffix"]):
-        raise ValueError("Contradictory rationale masking policy")
-    if supervised_rationale and boundary != len(completion):
-        raise ValueError("A human rationale must supervise the full assistant completion")
-    # Use the official generation prefix. No prompt/template/thinking token has loss.
-    prefix = tokenizer.apply_chat_template(
-        messages[:-1], tokenize=False, add_generation_prompt=True, enable_thinking=False
-    )
-    tokenized = tokenizer(
-        prefix + completion, add_special_tokens=False, return_offsets_mapping=True,
-        truncation=False,
-    )
-    ids = list(tokenized["input_ids"])
-    start, end = len(prefix), len(prefix) + boundary
-    labels = [
-        token if left >= start and right <= end and right > left else -100
-        for token, (left, right) in zip(ids, tokenized["offset_mapping"])
-    ]
-    # Qwen's assistant terminator differs from the generic end-of-text token.
-    end_id = tokenizer.convert_tokens_to_ids("<|im_end|>")
-    if end_id is None or end_id == tokenizer.unk_token_id:
-        raise ValueError("Official Qwen tokenizer lacks the assistant <|im_end|> terminator")
-    ids.append(end_id)
-    labels.append(end_id if supervised_rationale else -100)
-    if len(ids) > max_length:
-        raise ValueError(f"{row['item_id']}: {len(ids)} tokens exceeds --max-sequence-length {max_length}; evidence was not truncated")
-    label_count = sum(label != -100 for label in labels)
-    if not label_count:
-        raise ValueError(f"{row['item_id']}: no supervised tokens remain")
-    return {
-        "input_ids": array("I", ids), "labels": array("i", labels), "length": len(ids),
-        "supervised_tokens": label_count, "item_id": row["item_id"],
-    }
+    """Encode only the frozen non-thinking, class-balanced training protocol."""
+    from .supervision_v3 import encode_example as encode_weighted
+
+    if row.get("schema_version") != 3:
+        raise ValueError("Requires the 7,600/400 split's version-3 supervision schema")
+    return encode_weighted(row, tokenizer, max_length)
 
 
 class EncodedDataset:
@@ -208,8 +159,8 @@ def _length_summary(examples: list[dict[str, Any]]) -> dict[str, Any]:
 
 def _arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--input-chat", type=Path, default=Path("outputs/judge_bench_v1/training/chat.jsonl"))
-    parser.add_argument("--manifest", type=Path, default=Path("outputs/judge_bench_v1/training/training_manifest.json"))
+    parser.add_argument("--input-chat", type=Path, default=Path("outputs/judge_bench_v4/training/chat.jsonl"))
+    parser.add_argument("--manifest", type=Path, default=Path("outputs/judge_bench_v4/training/training_manifest.json"))
     parser.add_argument("--model-path", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--base-model-manifest", type=Path)
@@ -230,11 +181,10 @@ def _arguments() -> argparse.Namespace:
     parser.add_argument("--eval-steps", type=int, default=100)
     parser.add_argument("--save-total-limit", type=int, default=2)
     parser.add_argument("--max-steps", type=int, default=-1)
-    parser.add_argument("--seed", type=int, default=20261011)
+    parser.add_argument("--seed", type=int, default=20261013)
     parser.add_argument("--resume-from-checkpoint", type=Path)
     parser.add_argument("--attn-implementation", choices=("sdpa", "flash_attention_2", "eager"), default="sdpa")
-    parser.add_argument("--train-all", action="store_true", help="Fixed final refit on all prepared rows; no internal validation")
-    parser.add_argument("--supervision-protocol", choices=("legacy-v1", "thinking-weighted-v2", "nonthinking-weighted-v3"), default="legacy-v1")
+    parser.add_argument("--supervision-protocol", choices=("nonthinking-weighted-v3",), default="nonthinking-weighted-v3")
     parser.add_argument("--probe", action="store_true", help="Real short update(s), temporary output, no saved checkpoint or retained logs")
     parser.add_argument("--no-save", action="store_true")
     parser.add_argument("--tokenize-only", action="store_true", help="Validate all masks/lengths without loading model weights")
@@ -273,20 +223,13 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     from .runner import GPUMonitor
 
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
-    weighted = args.supervision_protocol != "legacy-v1"
-    thinking = args.supervision_protocol == "thinking-weighted-v2"
-    row_schema = 2 if thinking else 3 if weighted else 1
     validation_policy = manifest.get("internal_validation", {})
-    if weighted:
-        if manifest.get("training_protocol") != args.supervision_protocol:
-            raise ValueError("Weighted training requires its matching supervision manifest")
-        if validation_policy.get("enabled") is True:
-            if args.train_all:
-                raise ValueError("--train-all would consume the declared validation holdout")
-        elif validation_policy.get("enabled") is not False or not args.train_all:
-            raise ValueError("A weighted no-validation manifest requires --train-all")
-    if not weighted and manifest.get("schema_version") != 1:
-        raise ValueError("Legacy supervision requires a version-1 training manifest")
+    if (manifest.get("schema_version") != 3
+            or manifest.get("training_protocol") != args.supervision_protocol
+            or validation_policy.get("enabled") is not True
+            or validation_policy.get("items") != 400
+            or manifest.get("distributions", {}).get("train", {}).get("items") != 7600):
+        raise ValueError("Requires the frozen 7,600/400 non-thinking supervision manifest")
     input_sha = _sha(args.input_chat)
     if manifest.get("test_set_used") is not False or manifest["prompt"]["sha256"] != prompt.PROMPT_SHA256:
         raise ValueError("Training manifest uses test data or differs from the frozen judge prompt")
@@ -309,7 +252,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     with args.input_chat.open(encoding="utf-8") as handle:
         for line in handle:
             row = json.loads(line)
-            if row.get("schema_version") != row_schema:
+            if row.get("schema_version") != 3:
                 raise ValueError("Training row differs from the declared supervision protocol")
             if row["item_id"] in seen_ids or row["training_split"] not in split_scenarios:
                 raise ValueError("Duplicate training item ID or invalid split")
@@ -319,7 +262,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             split_counts[row["training_split"]] += 1
             encoded = encode_example(row, tokenizer, args.max_sequence_length)
             rationale_sources[row["supervision"]["rationale_source"]] += 1
-            (validation if row["training_split"] == "validation" and not args.train_all else fit).append(encoded)
+            (validation if row["training_split"] == "validation" else fit).append(encoded)
     if len(seen_ids) != manifest["rows"]:
         raise ValueError("Training row count differs from the manifest")
     if split_inputs["train"] & split_inputs["validation"]:
@@ -327,10 +270,10 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     if (split_scenarios["train"] & split_scenarios["validation"]
             and validation_policy.get("allow_shared_scenarios") is not True):
         raise ValueError("Internal validation scenarios overlap fit scenarios without an item-holdout policy")
-    if weighted and any(split_counts[name] != manifest["distributions"][name]["items"]
+    if any(split_counts[name] != manifest["distributions"][name]["items"]
                         for name in ("train", "validation")):
         raise ValueError("Fit/validation counts differ from the weighted manifest")
-    if not fit or (not args.train_all and not validation):
+    if len(fit) != 7600 or len(validation) != 400:
         raise ValueError("The fit/internal-validation split is empty")
     summary = {
         "event": "tokenization_complete", "fit": _length_summary(fit),
@@ -422,18 +365,12 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             # Compute exactly the same masked causal CE as full logits, avoiding
             # the large vocabulary projection for every prompt position.
             selected_labels = shifted[:, positions]
-            if weighted:
-                selected_weights = inputs["loss_weights"][:, 1:][:, positions]
-                token_loss = F.cross_entropy(
-                    outputs.logits.float().reshape(-1, outputs.logits.shape[-1]),
-                    selected_labels.reshape(-1), ignore_index=-100, reduction="none",
-                ).reshape_as(selected_weights)
-                loss = (token_loss * selected_weights).sum() / selected_weights.sum()
-            else:
-                loss = F.cross_entropy(
-                    outputs.logits.float().reshape(-1, outputs.logits.shape[-1]),
-                    selected_labels.reshape(-1), ignore_index=-100,
-                )
+            selected_weights = inputs["loss_weights"][:, 1:][:, positions]
+            token_loss = F.cross_entropy(
+                outputs.logits.float().reshape(-1, outputs.logits.shape[-1]),
+                selected_labels.reshape(-1), ignore_index=-100, reduction="none",
+            ).reshape_as(selected_weights)
+            loss = (token_loss * selected_weights).sum() / selected_weights.sum()
             if not torch.isfinite(loss).item():
                 raise FloatingPointError("Non-finite supervised causal loss")
             return (loss, outputs) if return_outputs else loss
@@ -475,17 +412,14 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         "lora_dropout": args.lora_dropout, "max_sequence_length": args.max_sequence_length,
         "warmup_ratio": args.warmup_ratio, "warmup_steps": warmup_steps,
         "weight_decay": args.weight_decay,
-        "seed": args.seed, "train_all": args.train_all, "max_steps": args.max_steps,
+        "seed": args.seed, "train_all": False, "max_steps": args.max_steps,
         "effective_max_steps": effective_max_steps,
         "base_dtype": "bfloat16", "optimizer": "adamw_torch_fused", "scheduler": "cosine",
-        "attn_implementation": args.attn_implementation, "chat_template_enable_thinking": thinking,
+        "attn_implementation": args.attn_implementation, "chat_template_enable_thinking": False,
         "supervision_protocol": args.supervision_protocol,
-        "mask_policy": ("Official thinking=false prefix masked; label values, JSON structure and assistant end supervised; only absent/long rationale contents masked."
-                        if weighted and not thinking else "Official thinking=true prefix masked; thinking closure, JSON structure and assistant end supervised; only absent/long rationale contents masked."
-                        if weighted else "Prompt and partial boundary tokens masked; human-comment completion/EOS supervised, absent/long rationale suffix and EOS masked."),
-        "logits_policy": ("Preceding supervised positions only; class-weighted per-field token-length-normalized causal CE."
-                          if weighted else "Only preceding positions of supervised labels; exact masked causal cross entropy."),
-        "class_balance": manifest.get("class_balance") if weighted else None,
+        "mask_policy": "Official thinking=false prefix masked; label values, JSON structure and assistant end supervised; only absent/long rationale contents masked.",
+        "logits_policy": "Preceding supervised positions only; class-weighted per-field token-length-normalized causal CE.",
+        "class_balance": manifest["class_balance"],
         "training_scenarios": manifest.get("distributions", {}).get("train", {}).get("scenarios"),
         "sampler": "Seeded per-epoch length buckets; every fit item exactly once, longest example first",
         "length_bucket_size": args.batch_size * args.gradient_accumulation_steps * 50,
@@ -503,7 +437,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         "started_utc": _utc(), "config": config, "data": summary,
         "status": "running", "probe": args.probe, "checkpoints_saved": not args.no_save,
         "trainer_source_sha256": _sha(Path(__file__)), "target_modules": targets,
-        "supervision_source_sha256": _sha(Path(__file__).with_name("supervision_v2.py" if thinking else "supervision_v3.py")) if weighted else None,
+        "supervision_source_sha256": _sha(Path(__file__).with_name("supervision_v3.py")),
         "total_parameters": sum(parameter.numel() for parameter in model.parameters()),
         "trainable_parameters": sum(parameter.numel() for parameter in model.parameters() if parameter.requires_grad),
         "trainable_dtypes": dict(Counter(str(p.dtype) for p in model.parameters() if p.requires_grad)),

@@ -1,7 +1,7 @@
 """Concurrent, resumable HTTP(S) JudgeBench inference against OpenAI-compatible APIs.
 
 Example:
-    python -m evaluation.judge_bench.runner --input test.jsonl --output-dir run \
+    python -m evaluation.judge_bench.runner --input validation.jsonl --output-dir run \
         --base-url http://127.0.0.1:8003/v1 --model qwen3.5-9b \
         --api-key-env QWEN35_LOCAL_API_KEY --concurrency 64 --thinking true \
         --structured-output true --max-tokens 8192
@@ -480,8 +480,8 @@ def _arguments() -> argparse.Namespace:
 def run(args: argparse.Namespace) -> dict[str, Any]:
     input_bytes = args.input.read_bytes()
     rows = _read_jsonl(args.input)
-    if not rows:
-        raise ValueError("Benchmark input contains no rows")
+    if len(rows) != 400 or any(row.get("split") != "validation" for row in rows):
+        raise ValueError("Requires the frozen 400-item validation split")
     item_ids = [row["item_id"] for row in rows]
     if len(item_ids) != len(set(item_ids)):
         raise ValueError("Benchmark input has duplicate item IDs")
