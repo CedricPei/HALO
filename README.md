@@ -83,15 +83,14 @@ starts from an independent copy of the simulated environment.
 
 ## Human annotation
 
-The [annotation platform](annotation_app/README.md) supports scenario audits,
-agent evaluation, account management, and result exports. Configure
-`DATABASE_URL`, `ADMIN_USERNAME`, and `ADMIN_PASSWORD` using
-[`secrets.example.toml`](annotation_app/secrets.example.toml), then start the app:
+<p align="center">
+  <img src="docs/assets/annotation-audit.png" width="100%" alt="HALO annotation platform: scenario audit workspace.">
+</p>
 
-```bash
-streamlit run annotation_app/app.py
-```
+<p align="center"><sub>Scenario audit</sub></p>
 
-Accounts, assignments, and live judgments are stored in the configured database.
-Exported annotation CSVs are in [`annotation_app/results/`](annotation_app/results/).
-Keep credentials and participant access codes private.
+<p align="center">
+  <img src="docs/assets/annotation-eval.png" width="100%" alt="HALO annotation platform: agent response evaluation workspace.">
+</p>
+
+<p align="center"><sub>Agent response evaluation</sub></p>
