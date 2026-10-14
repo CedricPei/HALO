@@ -36,5 +36,10 @@ Historical job files describe completed runs and their original server paths;
 adapt paths and create a fresh job configuration for a new run. Model weights
 remain on their training servers.
 
+Historical manifests retain the original source paths. Frozen responses are
+shared from `eval_results/` and current annotation exports live in
+`annotation_app/results/`. Their contents and the historical split artifacts
+remain unchanged.
+
 Plain JSONL working copies, per-item resume caches, runtime logs and exploratory
 figure folders stay local and are excluded from Git.

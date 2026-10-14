@@ -3,58 +3,47 @@
 import gzip
 import hashlib
 import json
-from collections import Counter
 from pathlib import Path
 
 
-DATA_DIR = Path(__file__).with_name("data")
-CATALOG_PATH = DATA_DIR / "human_eval_4000.json.gz"
-COHORT_PATH = DATA_DIR / "human_eval_accounts.json"
+RESULTS_DIR = Path(__file__).resolve().parents[1] / "eval_results"
 RELEASE_PATHS = (
-    (CATALOG_PATH, COHORT_PATH),
-    (DATA_DIR / "human_eval_4000_batch2.json.gz",
-     DATA_DIR / "human_eval_accounts_batch2.json"),
+    RESULTS_DIR / "human_eval_4000.json.gz",
+    RESULTS_DIR / "human_eval_4000_batch2.json.gz",
+)
+RELEASE_SHA256 = (
+    "085f4f13d6bf34f38b65ebae5c661bf2c668648beea1a0cc111100d8553e4ad8",
+    "d69d8336a20b0772450156fa96c3e3fcb462b536cd8d6ff9bf9fadf27bc7fc96",
 )
 
 
 def release_signature() -> tuple:
     """Cheap file-version key; do not decompress shared catalogs on reruns."""
     return tuple((path.name, path.stat().st_mtime_ns, path.stat().st_size)
-                 for pair in RELEASE_PATHS for path in pair)
+                 for path in RELEASE_PATHS)
 
 
-def _load_batch(catalog_path: Path, cohort_path: Path):
+def _load_batch(catalog_path: Path, expected_sha256: str):
     raw = catalog_path.read_bytes()
     catalog = json.loads(gzip.decompress(raw))
-    cohort = json.loads(cohort_path.read_text())
     items = catalog["items"]
     item_ids = {item["item_id"] for item in items}
-    assigned = [item_id for account in cohort["accounts"] for item_id in account["item_ids"]]
-    if (hashlib.sha256(raw).hexdigest() != cohort["catalog_sha256"]
-            or catalog["subset_id"] != cohort["subset_id"]
-            or len(items) != 4000 or len(item_ids) != 4000
-            or Counter(assigned) != Counter(item_ids)
-            or len(cohort["accounts"]) != 20
-            or len({a["user_id"] for a in cohort["accounts"]}) != 20
-            or any(len(a["item_ids"]) != 200 for a in cohort["accounts"])):
-        raise ValueError("The human Eval catalog and account assignments do not match")
-    return items, cohort
+    if (hashlib.sha256(raw).hexdigest() != expected_sha256
+            or len(items) != 4000 or len(item_ids) != 4000):
+        raise ValueError("The human Eval batch differs from the frozen release")
+    return items, catalog["subset_id"]
 
 
 def load_eval_release():
     """Append frozen batches in publication order, keeping existing display IDs."""
-    items, cohorts = [], []
-    seen_items, seen_users, seen_batches = set(), set(), set()
-    for catalog_path, cohort_path in RELEASE_PATHS:
-        batch, cohort = _load_batch(catalog_path, cohort_path)
+    items = []
+    seen_items, seen_batches = set(), set()
+    for catalog_path, expected_sha256 in zip(RELEASE_PATHS, RELEASE_SHA256):
+        batch, subset_id = _load_batch(catalog_path, expected_sha256)
         item_ids = {item["item_id"] for item in batch}
-        user_ids = {account["user_id"] for account in cohort["accounts"]}
-        if (seen_items & item_ids or seen_users & user_ids
-                or cohort["subset_id"] in seen_batches):
-            raise ValueError("Human Eval batches must have distinct items, accounts and IDs")
+        if seen_items & item_ids or subset_id in seen_batches:
+            raise ValueError("Human Eval batches must have distinct items and IDs")
         seen_items.update(item_ids)
-        seen_users.update(user_ids)
-        seen_batches.add(cohort["subset_id"])
+        seen_batches.add(subset_id)
         items.extend(batch)
-        cohorts.append(cohort)
-    return items, cohorts
+    return items

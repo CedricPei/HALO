@@ -23,10 +23,10 @@ BENCHMARK_ID = "judge-bench-v1-20261010"
 SCHEMA_VERSION = 1
 SEED = 20261010
 CATALOG_PATHS = (
-    ROOT_DIR / "annotation_app/data/human_eval_4000.json.gz",
-    ROOT_DIR / "annotation_app/data/human_eval_4000_batch2.json.gz",
+    ROOT_DIR / "eval_results/human_eval_4000.json.gz",
+    ROOT_DIR / "eval_results/human_eval_4000_batch2.json.gz",
 )
-ANNOTATIONS_PATH = ROOT_DIR / "annotations/eval-annotations.csv"
+ANNOTATIONS_PATH = ROOT_DIR / "annotation_app/results/eval-annotations.csv"
 DEFAULT_OUTPUT_DIR = ROOT_DIR / "outputs/judge_bench_v1"
 
 

@@ -21,7 +21,6 @@ MODELS = (
 SUBSET_ID = "human-eval-4000-2026-10-02"
 SEED = 20261002
 RESULT_PATH = ROOT_DIR / "eval_results/human_eval_4000.json.gz"
-APP_PATH = ROOT_DIR / "annotation_app/data/human_eval_4000.json.gz"
 BATCH2_MODELS = (
     "claude-opus-5-5", "gemini-3.1-pro-preview", "gpt-oss-20b",
     "qwen3.5-9b", "qwen3.8-27b",
@@ -172,17 +171,14 @@ def main():
     args = parser.parse_args()
     subset = (build_subset(BATCH2_MODELS, BATCH2_SUBSET_ID) if args.batch2
               else build_subset())
-    paths = ((ROOT_DIR / "eval_results" / BATCH2_FILENAME,
-              ROOT_DIR / "annotation_app/data" / BATCH2_FILENAME)
-             if args.batch2 else (RESULT_PATH, APP_PATH))
+    path = (ROOT_DIR / "eval_results" / BATCH2_FILENAME
+            if args.batch2 else RESULT_PATH)
     raw = json.dumps(subset, ensure_ascii=False, separators=(",", ":")).encode()
     compressed = gzip.compress(raw, mtime=0)
-    for path in paths:
-        if path.exists() and path.read_bytes() != compressed:
-            raise SystemExit(f"Refusing to replace a different published subset: {path}")
-    for path in paths:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(compressed)
+    if path.exists() and path.read_bytes() != compressed:
+        raise SystemExit(f"Refusing to replace a different published subset: {path}")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(compressed)
     print(json.dumps({"items": len(subset["items"]), "per_model": subset["items_per_model"],
                       "checkpoints": subset["checkpoint_count"], "bytes": len(compressed),
                       "sha256": hashlib.sha256(compressed).hexdigest()}))

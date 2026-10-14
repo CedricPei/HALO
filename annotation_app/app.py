@@ -8,105 +8,84 @@ import importlib
 import sys
 import threading
 from pathlib import Path
+from types import ModuleType
 
 import streamlit as st
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 CATALOG_VERSION = "human-eval-4000-2026-10-02-short-ids-v1"
-INITIAL_ADMIN2_PASSWORD_HASH = (
-    "pbkdf2_sha256$600000$e983fc7d21e20df94191e12090c5b63d$"
-    "6a06af22d1cf83b423560c645e0b05606bdeb3b6de7f75eefff4f15fc2a0053f"
-)
 if str(ROOT_DIR) in sys.path:
     sys.path.remove(str(ROOT_DIR))
 sys.path.insert(0, str(ROOT_DIR))
 
+
+def _refresh_module(module: ModuleType, *dependencies: str) -> tuple[ModuleType, str]:
+    """Reload changed code before dependent views bind its functions."""
+    paths = [ROOT_DIR / path for path in dependencies] + [Path(module.__file__)]
+    source_hash = hashlib.sha256(b"\0".join(path.read_bytes() for path in paths)).hexdigest()
+    with module.__dict__.setdefault("_annotation_reload_lock", threading.RLock()):
+        if getattr(module, "_annotation_source_hash", None) != source_hash:
+            importlib.invalidate_caches()
+            module = importlib.reload(module)
+            module._annotation_source_hash = source_hash
+    return module, source_hash
+
+
 import benchmark_catalog as catalog_module  # noqa: E402
 
-# Cloud reruns can retain an imported module from before a function was renamed.
-# Refresh it from the current checkout before any dependent imports bind names.
-catalog_source_hash = hashlib.sha256(
-    (ROOT_DIR / "benchmark_catalog.py").read_bytes()
-).hexdigest()
-with catalog_module.__dict__.setdefault("_annotation_reload_lock", threading.RLock()):
-    if getattr(catalog_module, "_annotation_source_hash", None) != catalog_source_hash:
-        importlib.invalidate_caches()
-        catalog_module = importlib.reload(catalog_module)
-        catalog_module._annotation_source_hash = catalog_source_hash
+catalog_module, catalog_source_hash = _refresh_module(catalog_module)
 load_benchmark_items = catalog_module.load_benchmark_items
+audit_release_key = (catalog_source_hash, id(load_benchmark_items))
 
-import annotation_app.eval_catalog as eval_catalog_module  # noqa: E402
 from annotation_app.config import AppConfig  # noqa: E402
+
+# Refresh dependencies first; file signatures keep widget reruns inexpensive.
 import evaluation.prompt as agent_prompt_module  # noqa: E402
+
+agent_prompt_module, _ = _refresh_module(
+    agent_prompt_module, "env/app_surfaces/evaluated_agent.md"
+)
 import evaluation.intensity as intensity_module  # noqa: E402
-import annotation_app.review_views as review_views_module  # noqa: E402
+
+intensity_module, _ = _refresh_module(
+    intensity_module, "env/app_surfaces/evaluated_agent.md", "evaluation/prompt.py"
+)
 import annotation_app.storage as storage_module  # noqa: E402
+
+storage_module, storage_source_hash = _refresh_module(
+    storage_module, "annotation_app/schema.sql"
+)
 import annotation_app.assignment as assignment_module  # noqa: E402
-from annotation_app.ui import apply_style  # noqa: E402
 
+assignment_module, _ = _refresh_module(assignment_module, "benchmark_catalog.py")
+import annotation_app.ui as ui_module  # noqa: E402
 
-# Reload the release loader before binding it, then version only its caches.
-# Keep the first batch's catalog/migration identity and session positions intact.
-eval_source_hash = hashlib.sha256(
-    (ROOT_DIR / "annotation_app/eval_catalog.py").read_bytes()
-).hexdigest()
-with eval_catalog_module.__dict__.setdefault("_annotation_reload_lock", threading.RLock()):
-    if getattr(eval_catalog_module, "_annotation_source_hash", None) != eval_source_hash:
-        importlib.invalidate_caches()
-        eval_catalog_module = importlib.reload(eval_catalog_module)
-        eval_catalog_module._annotation_source_hash = eval_source_hash
-    load_eval_release = eval_catalog_module.load_eval_release
-    eval_release_key = (eval_source_hash, id(load_eval_release),
-                        eval_catalog_module.release_signature())
+ui_module, _ = _refresh_module(ui_module)
+import annotation_app.eval_catalog as eval_catalog_module  # noqa: E402
 
+eval_catalog_module, eval_source_hash = _refresh_module(eval_catalog_module)
+import annotation_app.review_views as review_views_module  # noqa: E402
 
-# A rolling deploy can retain an old action map and the view that imported it.
-# Refresh dependencies first, then rebind the view's imported functions.
-review_source_hash = hashlib.sha256(b"\0".join(
-    (ROOT_DIR / path).read_bytes()
-    for path in (
-        "env/app_surfaces/evaluated_agent.md",
-        "evaluation/prompt.py",
-        "evaluation/intensity.py",
-        "annotation_app/review_views.py",
-    )
-)).hexdigest()
-with review_views_module.__dict__.setdefault("_annotation_reload_lock", threading.RLock()):
-    if getattr(review_views_module, "_annotation_source_hash", None) != review_source_hash:
-        importlib.invalidate_caches()
-        agent_prompt_module = importlib.reload(agent_prompt_module)
-        intensity_module = importlib.reload(intensity_module)
-        review_views_module = importlib.reload(review_views_module)
-        review_views_module._annotation_source_hash = review_source_hash
-    render_audit = review_views_module.render_audit
-    render_eval = review_views_module.render_eval
-
-
-storage_source_hash = hashlib.sha256(
-    (ROOT_DIR / "annotation_app" / "storage.py").read_bytes()
-).hexdigest()
-with storage_module.__dict__.setdefault("_annotation_reload_lock", threading.RLock()):
-    if getattr(storage_module, "_annotation_source_hash", None) != storage_source_hash:
-        importlib.invalidate_caches()
-        storage_module = importlib.reload(storage_module)
-        storage_module._annotation_source_hash = storage_source_hash
-    AnnotationStore = storage_module.AnnotationStore
-if not hasattr(assignment_module, "quota_audit_assignment_plan"):
-    assignment_module = importlib.reload(assignment_module)
+review_views_module, _ = _refresh_module(
+    review_views_module, "env/app_surfaces/evaluated_agent.md", "evaluation/prompt.py",
+    "evaluation/intensity.py", "annotation_app/storage.py", "annotation_app/ui.py"
+)
 import annotation_app.admin_view as admin_view_module  # noqa: E402
 
-# Refresh the admin view only when its source changes so rolling deploys also
-# update export names without invalidating catalogs or database resources.
-admin_source_hash = hashlib.sha256(
-    (ROOT_DIR / "annotation_app/admin_view.py").read_bytes()
-).hexdigest()
-with admin_view_module.__dict__.setdefault("_annotation_reload_lock", threading.RLock()):
-    if getattr(admin_view_module, "_annotation_source_hash", None) != admin_source_hash:
-        importlib.invalidate_caches()
-        admin_view_module = importlib.reload(admin_view_module)
-        admin_view_module._annotation_source_hash = admin_source_hash
-    render_admin = admin_view_module.render_admin
+admin_view_module, _ = _refresh_module(
+    admin_view_module, "annotation_app/storage.py", "annotation_app/assignment.py",
+    "benchmark_catalog.py"
+)
+
+AnnotationStore = storage_module.AnnotationStore
+load_eval_release = eval_catalog_module.load_eval_release
+eval_release_key = (eval_source_hash, id(load_eval_release),
+                    eval_catalog_module.release_signature())
+apply_style = ui_module.apply_style
+render_audit = review_views_module.render_audit
+render_eval = review_views_module.render_eval
+render_admin = admin_view_module.render_admin
 
 
 st.set_page_config(
@@ -142,11 +121,6 @@ st.markdown(
 )
 
 
-def _storage_cache_key() -> str:
-    source = Path(__file__).with_name("storage.py").read_bytes()
-    return hashlib.sha256(source).hexdigest() + ":participant-purge-v1"
-
-
 @st.cache_resource(show_spinner=False)
 def _store(
     config: AppConfig,
@@ -161,48 +135,18 @@ def _store(
 
 
 @st.cache_resource(show_spinner="Loading Benchmark Audit items…")
-def _audit_items(catalog_version: str) -> list[dict]:
+def _audit_items(catalog_version: str, source_key: tuple) -> list[dict]:
     # Published source data is shared read-only across all review sessions.
-    del catalog_version
+    del catalog_version, source_key
     return load_benchmark_items()
 
 
 @st.cache_resource(show_spinner="Loading Agent Evaluation items…")
-def _eval_release(catalog_version: str, release_key: tuple) -> tuple:
+def _eval_items(catalog_version: str, release_key: tuple) -> list[dict]:
     # Avoid copying the entire frozen release on every widget interaction.
-    # Callers must not mutate items or the account manifest.
+    # Callers must not mutate the shared items.
     del catalog_version, release_key
     return load_eval_release()
-
-
-def _eval_items(catalog_version: str) -> list[dict]:
-    return _eval_release(catalog_version, eval_release_key)[0]
-
-
-@st.cache_resource(show_spinner=False)
-def _initialize_accounts(
-    config: AppConfig,
-    storage_cache_key: str,
-    store_generation: int,
-    catalog_version: str,
-    release_key: tuple,
-    _store: AnnotationStore,
-) -> str | None:
-    # Run once per database/store/release, not once per annotator click.
-    # The database migration records still make restarts idempotent.
-    for cohort in _eval_release(catalog_version, release_key)[1]:
-        _store.apply_eval_cohort(cohort)
-    _store.rename_user_accounts(
-        "human-eval-4000-short-ids-v1",
-        {f"eval4000-{number:02d}": f"eval{number:02d}" for number in range(1, 21)},
-    )
-    try:
-        _store.apply_initial_admin(
-            "create-admin2-2026-09-18", "admin2", INITIAL_ADMIN2_PASSWORD_HASH
-        )
-    except ValueError as error:
-        return f"Could not create admin2: {error}"
-    return None
 
 
 def _login(store: AnnotationStore, config: AppConfig) -> None:
@@ -304,7 +248,7 @@ def main() -> None:
         return
     try:
         store = _store(
-            config, _storage_cache_key(), id(AnnotationStore), AnnotationStore
+            config, storage_source_hash, id(AnnotationStore), AnnotationStore
         )
     except Exception as error:
         st.title("Database connection failed")
@@ -314,19 +258,6 @@ def main() -> None:
             f"connection string. Error type: {type(error).__name__}."
         )
         return
-
-    try:
-        setup_warning = _initialize_accounts(
-            config, _storage_cache_key(), id(store), CATALOG_VERSION,
-            eval_release_key, store
-        )
-    except (ValueError, RuntimeError) as error:
-        st.title("Eval account setup paused")
-        st.error(str(error))
-        return
-
-    if setup_warning:
-        st.warning(setup_warning)
 
     assignment_version = CATALOG_VERSION
     if st.session_state.get("cloud_audit_assignment_version") != assignment_version:
@@ -353,8 +284,8 @@ def main() -> None:
         _sidebar(user, "Administration")
         render_admin(
             store,
-            _audit_items(CATALOG_VERSION),
-            _eval_items(CATALOG_VERSION),
+            _audit_items(CATALOG_VERSION, audit_release_key),
+            _eval_items(CATALOG_VERSION, eval_release_key),
         )
         return
 
@@ -377,10 +308,14 @@ def main() -> None:
         return
     if review_type == "audit":
         _sidebar(user, "Benchmark Audit")
-        render_audit(store, user, _audit_items(CATALOG_VERSION), review_state["audit"])
+        render_audit(
+            store, user, _audit_items(CATALOG_VERSION, audit_release_key), review_state["audit"]
+        )
     else:
         _sidebar(user, "Agent Evaluation")
-        render_eval(store, user, _eval_items(CATALOG_VERSION), review_state["eval"])
+        render_eval(
+            store, user, _eval_items(CATALOG_VERSION, eval_release_key), review_state["eval"]
+        )
 
 
 if __name__ == "__main__":

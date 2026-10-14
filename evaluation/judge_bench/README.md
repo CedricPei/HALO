@@ -78,7 +78,7 @@ Versioned splits, predictions, raw responses and completed training evidence are
 backed up under [`outputs/`](../../outputs/README.md). JSONL snapshots use gzip;
 unpack the files needed by a command with `gzip -dk <file.jsonl.gz>`.
 
-The current `annotations/eval-annotations.csv` is the 8,000-row export with
+The current `annotation_app/results/eval-annotations.csv` is the 8,000-row export with
 `E0001`–`E8000` IDs and presentation column names. The historical v1 builder
 expects the earlier raw annotation schema and catalog IDs. Use the preserved v1
 split snapshots to reproduce the recorded experiments; their original annotations
