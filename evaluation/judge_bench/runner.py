@@ -201,8 +201,6 @@ def _infer(
             "type": "json_schema",
             "json_schema": {"name": "judge_bench", "strict": True, "schema": prompt.JUDGE_SCHEMA},
         }
-    record_latency = getattr(args, "record_latency", True)
-    started = time.perf_counter() if record_latency else None
     record: dict[str, Any] = {
         "item_id": row["item_id"], "status": "transport_error", "prediction": None,
         "messages_sha256": _hash(messages),
@@ -232,7 +230,6 @@ def _infer(
         for field in ("error", "diagnostic_consistency", "diagnostic_consistency_error", "response_id"):
             record.pop(field, None)
         record.update(prediction=None, usage={}, finish_reason=None)
-        attempt_started = time.perf_counter() if record_latency else None
         attempt_raw: dict[str, Any] = {
             "attempt": attempt + 1, "seed_ordinal": ordinal, "seed": seed,
             "request_sha256": request_sha, "started_utc": _utc(), "retry_reason": retry_reason,
@@ -276,8 +273,6 @@ def _infer(
         for field in ("error", "finish_reason", "response_id", "diagnostic_consistency", "diagnostic_consistency_error"):
             if field in record:
                 attempt_raw[field] = record[field]
-        if record_latency:
-            attempt_raw["latency_seconds"] = time.perf_counter() - attempt_started
         attempt_raw["finished_utc"] = _utc()
         raw["attempts"].append(attempt_raw)
         if structural and structure_retries < max_structure_retries:
@@ -290,13 +285,9 @@ def _infer(
             time.sleep(min(16.0, 2 ** (transport_retries - 1)) + rng.random())
             continue
         break
-    if record_latency:
-        record["latency_seconds"] = time.perf_counter() - started
     record["finished_utc"] = _utc()
     record.update(cumulative_attempts=prior_attempts + record["attempts"],
                   structure_retries=structure_retries, transport_retries=transport_retries)
-    if record_latency:
-        raw["latency_seconds"] = record["latency_seconds"]
     return record, raw
 
 
@@ -407,19 +398,12 @@ def _performance(
             else:
                 status = "api_error" if "http_status" in attempt else "transport_error"
         statuses[status] += 1
-    request_latencies = _distribution([a["latency_seconds"] for a in attempts if "latency_seconds" in a])
     return {
-        "accounting": "Usage, request counts and request latency include every persisted raw HTTP attempt across all sessions, including discarded and failed attempts.",
+        "accounting": "Usage and request counts include every persisted raw HTTP attempt across all sessions, including discarded and failed attempts.",
         "active_wall_seconds": duration, "completed_requests": len(attempts),
         "request_attempts": len(attempts), "items_with_final_predictions": len(predictions),
-        "requests_per_second": len(attempts) / duration if duration else None,
-        "items_per_second": len(predictions) / duration if duration else None,
-        "completion_tokens_per_second": completion_tokens / duration if duration else None,
-        "total_tokens_per_second": total_tokens / duration if duration else None,
         "tokens": {"prompt_tokens": prompt_tokens, "completion_tokens": completion_tokens,
                   "reasoning_tokens": reasoning_tokens, "total_tokens": total_tokens},
-        "latency_seconds": request_latencies, "request_latency_seconds": request_latencies,
-        "final_item_latency_seconds": _distribution([p["latency_seconds"] for p in predictions if "latency_seconds" in p]),
         "finish_reason_counts": dict(finish_reasons), "attempt_status_counts": dict(statuses),
         "final_finish_reason_counts": dict(Counter(str(p.get("finish_reason")) for p in predictions)),
         "attempts_with_reported_usage": usage_available,
@@ -446,7 +430,6 @@ def _arguments() -> argparse.Namespace:
     parser.add_argument("--env-file", type=Path, default=Path(".env"))
     parser.add_argument("--server-config", type=Path, help="JSON object containing served settings and model artifact hashes")
     parser.add_argument("--concurrency", type=int, default=64)
-    parser.add_argument("--record-latency", type=_boolean, default=True, help="Disable per-request/item latency measurement and output when false")
     parser.add_argument("--max-tokens", type=int, default=4096)
     parser.add_argument("--temperature", type=float, default=0.0)
     parser.add_argument("--top-p", type=float, default=1.0)
@@ -509,11 +492,10 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         "scoring_policy": "structural validity gates scoring; cross-field diagnostic consistency reported separately without repair",
         "transport": "HTTP(S) request/response; no WebSocket",
     }
-    if not getattr(args, "record_latency", True):
-        config["record_latency"] = False
     resuming = metadata_path.exists()
     if resuming:
         metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        metadata["config"].pop("record_latency", None)
         if metadata["config"] != config:
             differing = [key for key in config if config[key] != metadata["config"].get(key)]
             raise ValueError("Resume configuration differs: " + ", ".join(differing) + "; use a new output directory")
@@ -646,11 +628,6 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         metadata["completed_predictions"] = len(predictions)
         metadata["complete"] = len(predictions) == len(rows)
         metadata["performance"] = _performance(predictions, metadata["active_wall_seconds"], raw_history)
-        if not getattr(args, "record_latency", True):
-            for name in list(metadata["performance"]):
-                if "latency" in name or name.endswith("per_second"):
-                    metadata["performance"].pop(name)
-            metadata["performance"]["accounting"] = "Usage and request counts cover every persisted HTTP attempt; per-request/item latency is neither measured nor recorded."
         _atomic_json(metadata_path, metadata)
         report = compute_metrics(rows, predictions, bootstrap_repeats=args.bootstrap_repeats, seed=args.seed)
         report["performance"] = metadata["performance"]

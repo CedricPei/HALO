@@ -101,7 +101,7 @@ def _state_path(output: Path, item_id: str) -> Path:
 def _result(item: dict, attempt: dict, cumulative: int) -> dict:
     fields = ("status", "prediction", "error", "finish_reason", "response_id", "usage",
               "diagnostic_consistency", "diagnostic_consistency_error", "seed", "seed_ordinal",
-              "request_sha256", "started_utc", "finished_utc", "latency_seconds", "returned_model")
+              "request_sha256", "started_utc", "finished_utc", "returned_model")
     return {"item_id": item["item_id"], "messages_sha256": item["messages_sha256"],
             "input_context_sha256": item["input_context_sha256"],
             "cumulative_attempts": cumulative, **{key: attempt[key] for key in fields if key in attempt}}
@@ -152,7 +152,6 @@ def _evaluate_item(item: dict, phase: str, output: Path, config: dict, key: str)
         state["attempts"].append(attempt)
         attempts.append(attempt)
         _save(path, state)  # Reserve before sending, including on process interruption.
-        started = time.perf_counter()
         attempt.update(transient=False, structural=False)
         try:
             response = runner._request(config["endpoint"], key, payload=payload,
@@ -185,7 +184,7 @@ def _evaluate_item(item: dict, phase: str, output: Path, config: dict, key: str)
             attempt.update(status="schema_error", structural=True, error=f"{type(error).__name__}: {error}")
             if isinstance(error, runner._ResponseShapeError):
                 attempt["raw_body"] = error.raw_body.replace(key, "[redacted]")
-        attempt.update(latency_seconds=time.perf_counter() - started, finished_utc=runner._utc())
+        attempt.update(finished_utc=runner._utc())
         _save(path, state)
         if attempt.get("fatal"):
             progress.update(done=True, result=_result(item, attempt, len(state["attempts"])))

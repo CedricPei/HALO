@@ -13,7 +13,7 @@ from .runner import RESULTS_DIR, _current_runs
 TOKEN_FIELDS = ("input_tokens", "completion_tokens", "reasoning_tokens")
 SUMMARY_FIELDS = (
     "snapshot_utc", "model", "scope", "successful_checkpoints",
-    "mean_latency_seconds", "mean_retrieval_rounds", "mean_api_calls",
+    "mean_retrieval_rounds", "mean_api_calls",
     *(f"mean_{field}" for field in TOKEN_FIELDS),
 )
 
@@ -37,7 +37,6 @@ def build_summary(runs, snapshot_utc):
                 "model": run["model"],
                 "source_path": run["source_path"],
                 "event_id": checkpoint["event_id"],
-                "latency_seconds": checkpoint["metrics"]["latency_ms"] / 1000,
                 "retrieval_rounds": checkpoint["metrics"]["intermediate_round_count"],
                 "api_calls": len(checkpoint["agent"]["model_calls"]),
                 **{field: checkpoint["metrics"][field] for field in TOKEN_FIELDS},
@@ -59,7 +58,7 @@ def build_summary(runs, snapshot_utc):
                 "successful_checkpoints": len(selected),
                 **{f"mean_{metric}": round(fmean(row[metric] for row in selected), 6)
                    if selected else ""
-                   for metric in ("latency_seconds", "retrieval_rounds", "api_calls", *TOKEN_FIELDS)},
+                   for metric in ("retrieval_rounds", "api_calls", *TOKEN_FIELDS)},
             })
     return summary
 

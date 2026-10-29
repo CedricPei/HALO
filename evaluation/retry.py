@@ -9,7 +9,6 @@ import logging
 from pathlib import Path
 import shutil
 import tempfile
-import time
 
 from benchmark_catalog import ROOT_DIR, input_fingerprint, load_benchmark_items
 from command_parser import CommandParser
@@ -28,7 +27,6 @@ def retry_checkpoint(runner, item, model, event_id):
     index = [key for key, _ in events].index(event_id)
     prefix = [{"event_id": key, **event} for key, event in events[:index + 1]]
     instance_dir = (ROOT_DIR / item["path"]).parents[2]
-    started = time.monotonic()
     with tempfile.TemporaryDirectory(prefix="HALO-retry-") as temporary:
         episode = Path(temporary) / item["instance_id"]
         episode.mkdir()
@@ -60,10 +58,8 @@ def retry_checkpoint(runner, item, model, event_id):
         "agent": agent,
         "metrics": {
             **{key: sum(call["usage"][key] for call in calls) for key in TOKEN_METRICS},
-            "latency_ms": sum(call["latency_ms"] for call in calls),
             "intermediate_round_count": agent["intermediate_round_count"],
         },
-        "retry_wall_ms": round((time.monotonic() - started) * 1000, 2),
     }
 
 
@@ -135,10 +131,9 @@ def retry_run(path, item, max_attempts=3):
                 raise ValueError("Benchmark inputs changed during retry; result not saved")
             run, expected_bytes = save_retry(path, run, index, replacement, expected_bytes)
             success = replacement["agent"]["decision"] == "final"
-            LOGGER.info("CHECKPOINT [%s/%s] %s attempt=%s/%s status=%s latency_ms=%.0f",
+            LOGGER.info("CHECKPOINT [%s/%s] %s attempt=%s/%s status=%s",
                         run["model"], item["item_id"], event_id, attempt, max_attempts,
-                        "repaired" if success else "still_failed",
-                        replacement["metrics"]["latency_ms"])
+                        "repaired" if success else "still_failed")
             if success:
                 repaired += 1
                 break

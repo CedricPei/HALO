@@ -156,7 +156,6 @@ TOKEN_METRICS = (
 )
 PREFIX_METRICS = (
     *TOKEN_METRICS,
-    "latency_ms",
     "intermediate_round_count",
 )
 
@@ -327,7 +326,6 @@ class EvaluationRunner:
                         "raw_text": call["raw_text"],
                         "parsed": call["parsed"],
                         "usage": call["usage"],
-                        "latency_ms": call["latency_ms"],
                         "endpoint": call["endpoint"],
                         "response_id": call["response_id"],
                     }
@@ -457,7 +455,6 @@ class EvaluationRunner:
                         key: sum(call["usage"][key] for call in calls)
                         for key in TOKEN_METRICS
                     },
-                    "latency_ms": sum(call["latency_ms"] for call in calls),
                     "intermediate_round_count": agent["intermediate_round_count"],
                 }
                 checkpoints.append({
@@ -466,10 +463,10 @@ class EvaluationRunner:
                     "metrics": metrics,
                 })
                 LOGGER.info(
-                    "[%s/%s] checkpoint %s/%s finished: %s level=%s calls=%s tokens=%s latency=%.1fs",
+                    "[%s/%s] checkpoint %s/%s finished: %s level=%s calls=%s tokens=%s",
                     model, item["item_id"], checkpoint_index + 1, len(events),
                     agent["decision"], agent["action_intensity"], len(calls),
-                    metrics["total_tokens"], metrics["latency_ms"] / 1000,
+                    metrics["total_tokens"],
                 )
         totals = {
             key: sum(checkpoint["metrics"][key] for checkpoint in checkpoints)

@@ -124,7 +124,7 @@ def run(path):
             manifest_path=output/('serving_'+label+'.json')
             if manifest_path.exists() and read(manifest_path)!=manifest:raise ValueError('Serving lineage changed')
             if not manifest_path.exists():write(manifest_path,manifest)
-            base=[config['serving_python'],'-B','-m','evaluation.judge_bench.runner','--input',config['validation_input'],'--output-dir',str(folder),'--base-url',config['base_url'],'--model',config['model'],'--api-key-env',config['api_key_env'],'--env-file',config['env_file'],'--server-config',str(manifest_path),'--gpu-index',str(config['gpu_index']),'--record-latency','false']
+            base=[config['serving_python'],'-B','-m','evaluation.judge_bench.runner','--input',config['validation_input'],'--output-dir',str(folder),'--base-url',config['base_url'],'--model',config['model'],'--api-key-env',config['api_key_env'],'--env-file',config['env_file'],'--server-config',str(manifest_path),'--gpu-index',str(config['gpu_index'])]
             for name,value in config['inference'].items():base.extend(['--'+name,str(value)])
             first=label+'_first_pass'
             if first not in state['completed_stages']:

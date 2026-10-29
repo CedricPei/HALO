@@ -235,7 +235,7 @@ class LLMClient:
         return call["raw_text"]
 
     def generate_json(self, prompt, model):
-        """Return normalized JSON plus usage and latency for an evaluated Agent."""
+        """Return normalized JSON and usage for an evaluated Agent."""
         if model.startswith("gemini") and self.gemini_transport == "developer":
             operation = lambda: self._gemini(model, prompt, 1.0)
         elif model.startswith("gemini"):
@@ -300,7 +300,6 @@ class LLMClient:
             headers=headers,
             method="POST",
         )
-        started = time.perf_counter()
         try:
             with urllib.request.urlopen(request, timeout=self.timeout) as response:
                 data = json.loads(response.read().decode("utf-8"))
@@ -318,7 +317,7 @@ class LLMClient:
             json.JSONDecodeError,
         ) as error:
             raise LLMTransportError(str(error)) from error
-        return data, round((time.perf_counter() - started) * 1000, 2)
+        return data
 
     @staticmethod
     def _openai_usage(data):
@@ -357,11 +356,10 @@ class LLMClient:
         }
 
     @staticmethod
-    def _call(text, usage, latency, endpoint, response_id):
+    def _call(text, usage, endpoint, response_id):
         return {
             "raw_text": text,
             "usage": usage,
-            "latency_ms": latency,
             "endpoint": endpoint,
             "response_id": response_id,
         }
@@ -383,7 +381,7 @@ class LLMClient:
             payload["reasoning"] = {"effort": reasoning_effort}
         if temperature is not None:
             payload["temperature"] = temperature
-        data, latency = self._post(
+        data = self._post(
             self.openai_responses_url,
             payload,
             {
@@ -396,11 +394,11 @@ class LLMClient:
             text = _extract_openai_text(data)
         except LLMProtocolError as error:
             error.call = self._call(
-                None, usage, latency, "openai/responses", data.get("id")
+                None, usage, "openai/responses", data.get("id")
             )
             raise
         return self._call(
-            text, usage, latency, "openai/responses", data.get("id")
+            text, usage, "openai/responses", data.get("id")
         )
 
     def _openai_chat(self, model, prompt, temperature):
@@ -408,7 +406,7 @@ class LLMClient:
             raise ValueError(
                 "OPENAI_API_KEY and OPENAI_CHAT_COMPLETIONS_URL are required"
             )
-        data, latency = self._post(
+        data = self._post(
             self.openai_chat_completions_url,
             {
                 "model": model,
@@ -429,13 +427,12 @@ class LLMClient:
                 "Chat Completions response did not contain output text"
             )
             protocol_error.call = self._call(
-                None, usage, latency, "openai/chat_completions", data.get("id")
+                None, usage, "openai/chat_completions", data.get("id")
             )
             raise protocol_error from error
         return self._call(
             text,
             usage,
-            latency,
             "openai/chat_completions",
             data.get("id"),
         )
@@ -462,7 +459,7 @@ class LLMClient:
                 "thinkingBudget": budgets[self.thinking_level]
             }
         model_path = urllib.parse.quote(model, safe="-._")
-        data, latency = self._post(
+        data = self._post(
             f"{self.gemini_base_url}/models/{model_path}:generateContent",
             {
                 "contents": [{"role": "user", "parts": [{"text": prompt}]}],
@@ -480,7 +477,6 @@ class LLMClient:
             error.call = self._call(
                 None,
                 usage,
-                latency,
                 "gemini/generateContent",
                 data.get("responseId"),
             )
@@ -488,7 +484,6 @@ class LLMClient:
         return self._call(
             text,
             usage,
-            latency,
             "gemini/generateContent",
             data.get("responseId"),
         )
