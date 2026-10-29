@@ -13,6 +13,7 @@
 </p>
 
 <p align="center">
+  <a href="https://huggingface.co/datasets/CedPei/HALO-8K">🤗 Hugging Face</a> &nbsp;&middot;&nbsp;
   <a href="#overview">Overview</a> &nbsp;&middot;&nbsp;
   <a href="#quick-start">Quick start</a> &nbsp;&middot;&nbsp;
   <a href="#data-and-tools">Data and tools</a> &nbsp;&middot;&nbsp;
@@ -74,6 +75,7 @@ starts from an independent copy of the simulated environment.
 
 | Resource | Location |
 | --- | --- |
+| HALO-8K response dataset | [Hugging Face](https://huggingface.co/datasets/CedPei/HALO-8K) |
 | Executable personal environments | [`domains/`](domains/) |
 | HALO-8K human judgments | [`Eval annotations`](annotation_app/data/eval-annotations.csv) |
 | Scenario audit judgments | [`Audit annotations`](annotation_app/data/audit-annotations.csv) |
