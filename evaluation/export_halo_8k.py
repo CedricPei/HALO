@@ -262,7 +262,7 @@ action = json.loads(data[0]["final_action_json"])
 
 ## Data format
 
-Each row in `data/halo_8k.jsonl` is one annotated response.
+Each row is one annotated response.
 
 | Fields | Content |
 | --- | --- |
