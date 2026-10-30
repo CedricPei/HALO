@@ -25,7 +25,7 @@
   <sub>HALO-Arena &rarr; Proactive Agent Intervention &rarr; HALO-8K</sub>
 </p>
 
-## Overview
+## 🔍 Overview
 
 HALO studies proactive assistance in executable personal environments. Agents
 observe events, retrieve evidence from personal apps, and decide whether an
@@ -40,7 +40,7 @@ timing, and intensity, including when restraint is appropriate.
 The scenarios cover four proactive needs: **Dependency**, **Blockage**, **Risk**,
 and **Opportunity**. Agents can observe, notify, prepare, or execute an action.
 
-## Quick start
+## 🚀 Quick Start
 
 **Requirements:** Python 3.11 or later.
 
@@ -68,17 +68,19 @@ python -B -m evaluation.export
 Runs and summaries are saved in [`eval_results/`](eval_results/). Each checkpoint
 starts from an independent copy of the simulated environment.
 
-## Data and tools
+## 🗂️ Code Structure
 
-| Resource | Location |
+| Path | Purpose |
 | --- | --- |
-| HALO-8K response dataset | [Hugging Face](https://huggingface.co/datasets/CedPei/HALO-8K) |
-| Executable personal environments | [`domains/`](domains/) |
-| HALO-8K human judgments | [`Eval annotations`](annotation_app/data/eval-annotations.csv) |
-| Scenario audit judgments | [`Audit annotations`](annotation_app/data/audit-annotations.csv) |
-| Model evaluation runs | [`eval_results/`](eval_results/) |
+| [`domains/`](domains/) | Personal environments, app stores, documents, and scenarios. |
+| [`env/`](env/) | App interfaces and execution backends. |
+| [`creators/`](creators/) | Environment and scenario construction. |
+| [`evaluation/`](evaluation/) | Agent evaluation and result export. |
+| [`annotation_app/`](annotation_app/) | Human annotation platform and exported judgments. |
+| [`eval_results/`](eval_results/) | Saved model runs and evaluation summaries. |
+| [`build_benchmark.py`](build_benchmark.py) | Benchmark construction and validation entry point. |
 
-## Human annotation
+## 📝 Human Annotation
 
 <p align="center">
   <img src="assets/annotation-audit.png" width="100%" alt="HALO annotation platform: scenario audit workspace.">
@@ -91,3 +93,18 @@ starts from an independent copy of the simulated environment.
 </p>
 
 <p align="center"><sub>Agent response evaluation</sub></p>
+
+## 📖 Citation
+
+```bibtex
+@misc{pei2026halohumangroundedgranularevaluation,
+  title={HALO: Human-Grounded Granular Evaluation of Proactive Agents},
+  author={Wenqi Pei and Xinyu Wang and Jinrui Liu and Cynthia Zhuge and
+          Jie Sheng and Zihan Wang and Tenghao Huang and Muhao Chen},
+  year={2026},
+  eprint={2610.39086},
+  archivePrefix={arXiv},
+  primaryClass={cs.CL},
+  url={https://arxiv.org/abs/2610.39086},
+}
+```

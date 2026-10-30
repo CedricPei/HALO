@@ -225,7 +225,7 @@ dataset_info:
 
 <strong><span style="color: #386B9D">H</span>uman-Grounded Gr<span style="color: #C98446">A</span>nular Eva<span style="color: #4B9672">L</span>uation of Pr<span style="color: #8671B1">O</span>active Agents</strong>
 
-[HALO-Arena](https://github.com/CedricPei/HALO/) · [Data format](docs/data_format.md)
+[📄 Paper](https://arxiv.org/abs/2610.39086) · [HALO-Arena](https://github.com/CedricPei/HALO/) · [Data format](docs/data_format.md)
 
 HALO-8K is a human-annotated dataset for evaluating when and how proactive
 agents should help. Built on HALO-Arena, it captures agents retrieving evidence
@@ -268,12 +268,15 @@ for field definitions and annotation notes.
 <summary>Citation</summary>
 
 ```bibtex
-@misc{{pei2026halo,
-  title={{HALO: Human-Grounded GrAnular EvaLuation of PrOactive Agents}},
-  author={{Pei, Wenqi and Wang, Xinyu and Liu, Jinrui and Zhuge, Cynthia and
-          Sheng, Jie and Wang, Zihan and Huang, Tenghao and Chen, Muhao}},
+@misc{{pei2026halohumangroundedgranularevaluation,
+  title={{HALO: Human-Grounded Granular Evaluation of Proactive Agents}},
+  author={{Wenqi Pei and Xinyu Wang and Jinrui Liu and Cynthia Zhuge and
+          Jie Sheng and Zihan Wang and Tenghao Huang and Muhao Chen}},
   year={{2026}},
-  url={{https://github.com/CedricPei/HALO/}}
+  eprint={{2610.39086}},
+  archivePrefix={{arXiv}},
+  primaryClass={{cs.CL}},
+  url={{https://arxiv.org/abs/2610.39086}},
 }}
 ```
 
