@@ -225,7 +225,7 @@ dataset_info:
 
 <strong><span style="color: #386B9D">H</span>uman-Grounded Gr<span style="color: #C98446">A</span>nular Eva<span style="color: #4B9672">L</span>uation of Pr<span style="color: #8671B1">O</span>active Agents</strong>
 
-[📄 Paper](https://arxiv.org/abs/2610.39086) · [HALO-Arena](https://github.com/CedricPei/HALO/) · [Data format](docs/data_format.md)
+[📄 Paper](https://arxiv.org/abs/2610.39086) · [HALO-Arena](https://github.com/CedricPei/HALO/)
 
 HALO-8K is a human-annotated dataset for evaluating when and how proactive
 agents should help. Built on HALO-Arena, it captures agents retrieving evidence
@@ -260,9 +260,32 @@ retrieval = json.loads(data[0]["inspection_trace_json"])
 action = json.loads(data[0]["final_action_json"])
 ```
 
-`scenario_description` is annotation-side context. Use observed events and
-retrieved evidence as agent input. See the [data format](docs/data_format.md)
-for field definitions and annotation notes.
+## Data format
+
+Each row in `data/halo_8k.jsonl` is one annotated response.
+
+| Fields | Content |
+| --- | --- |
+| `item_id`, `model`, `domain`, `need_type`, `instance`, `scenario`, `checkpoint` | Response identity and scenario context. |
+| `instance_description`, `personal_description`, `scenario_description` | Environment, user, and construction-side scenario descriptions. |
+| `event_prefix_json` | Observed events through the checkpoint. |
+| `inspection_trace_json` | Retrieval commands and their results. |
+| `final_action_json`, `execution_result_json` | Final command and execution result, or JSON `null`. |
+| `action_level`, `verdict`, `timing`, `intensity` | Final human labels. |
+| `failed_dimensions`, `other_issues`, `rationale` | Rejection dimensions, issue categories, and written diagnosis. |
+| `retrieval_rounds` | Inspection turns, each possibly containing multiple commands. |
+| `input_tokens`, `output_tokens`, `completion_tokens`, `reasoning_tokens` | Recorded token usage. Unreported counts remain missing. |
+
+Decode the four `*_json` fields with `json.loads`. Keep `scenario_description`
+out of agent inputs because it may describe future events.
+
+`verdict` is `acceptable` or `unacceptable`. Timing is `Timely`, `Premature`,
+`Belated`, or `Inaction`. Intensity is `Appropriate`, `Insufficient`, or
+`Excessive`, and is missing for rejected L0 responses.
+
+For Claude, `completion_tokens` excludes reported thinking tokens included in
+`output_tokens`. Token accounting varies by provider. The original human
+judgments are preserved in `annotations/eval-annotations.csv`.
 
 <details>
 <summary>Citation</summary>
@@ -281,86 +304,6 @@ for field definitions and annotation notes.
 ```
 
 </details>
-'''
-
-
-def dataset_details(stats):
-    model_lines = "\n".join(f"| `{model}` | {count:,} |" for model, count in stats["models"].items())
-    return f'''# HALO-8K data format
-
-[Dataset overview](../README.md)
-
-The release has one `evaluation` split. Responses share scenarios and environments
-across models and checkpoints, so a random row split does not create independent
-scenarios. Each model contributes two selected checkpoints per scenario, rather
-than covering every model–checkpoint pair.
-
-## Files and fields
-
-- `data/halo_8k.jsonl`: one row per annotated response.
-- `annotations/eval-annotations.csv`: the original 8,000-row annotation export,
-  preserving its labels and text exactly.
-- `release_manifest.json`: coverage, label counts, and file SHA-256 checksums.
-
-| Field | Meaning |
-| --- | --- |
-| `item_id` | Stable annotation item ID. |
-| `model`, `domain`, `need_type`, `instance`, `scenario`, `checkpoint` | Saved response identity and context grouping. |
-| `instance_description`, `personal_description` | Saved environment and user descriptions supplied to the agent. |
-| `scenario_description` | Construction-side scenario summary available during annotation. It is **not agent input** and may describe later developments. |
-| `event_prefix_json` | Ordered observed events through the selected checkpoint, with event IDs. No later events are included. |
-| `inspection_trace_json` | Ordered inspection command/result pairs from that checkpoint. One retrieval round may contain multiple commands. |
-| `final_action_json` | Final command, or JSON `null` for no action. |
-| `execution_result_json` | Saved result of the final command, or JSON `null`. |
-| `action_level` | Human-annotated action level. This is the authoritative evaluation label. |
-| `verdict` | `acceptable` or `unacceptable`. |
-| `failed_dimensions` | Human-selected rejection dimensions, as a list. |
-| `timing` | `Timely`, `Premature`, `Belated`, or `Inaction`. |
-| `intensity` | `Appropriate`, `Insufficient`, `Excessive`, or missing. |
-| `other_issues` | Optional human-selected issue categories, as a list. |
-| `rationale` | Human-written annotation rationale. |
-| `retrieval_rounds` | Number of completed intermediate inspection rounds. |
-| `input_tokens`, `output_tokens` | Aggregate usage counts across retained calls, including retries. |
-| `reasoning_tokens` | Recorded reasoning count. Unreported reasoning is missing. |
-| `completion_tokens` | Completion count. For Claude, hosted thinking tokens are subtracted from `output_tokens`. |
-
-The four `*_json` fields contain JSON-encoded strings so heterogeneous app
-parameters, query results, and execution results retain their original shapes.
-Decode these fields with `json.loads`.
-
-## Annotation semantics
-
-Action levels are L0 (Observation), L1 (Attention), L2 (Preparation), and
-L3 (Execution). The `action_level` field contains the final human annotation.
-
-Acceptability is judged at the observed checkpoint. Rejected L0 responses are
-assigned Inaction without a further intensity choice. For rejected L1–L3
-responses, timing and intensity are separate questions. The export alias
-`Timely` denotes appropriate timing. Other issues are Unsupported Evidence,
-Irrelevant Action, Factual Contradiction, and Others with a written explanation.
-
-The annotation export contains {stats['verdicts']['acceptable']:,} acceptable
-and {stats['verdicts']['unacceptable']:,} unacceptable responses.
-
-| Model | Responses |
-| --- | ---: |
-{model_lines}
-
-## Context and usage notes
-
-Use the observed event prefix and inspection results to reconstruct the
-agent-visible evidence. Keep `scenario_description` out of agent inputs to
-avoid revealing construction-side information. The full executable environment
-and app definitions are provided in the project repository. This response
-release is not a dump of initial environment stores or raw API messages.
-
-For Claude, reasoning counts use the hosted usage field
-`output_tokens_details.thinking_tokens`, since its normalized reasoning field
-does not carry those counts. Other models use reported normalized reasoning
-counts. Missing components remain missing. Tokenization and usage accounting
-are provider-dependent. Retrieval rounds count inspection turns, rather than
-individual commands or API calls.
-
 '''
 
 
@@ -417,8 +360,6 @@ def main():
         for row in rows:
             handle.write(encode_json(row) + "\n")
     shutil.copyfile(args.annotations, args.output / "annotations/eval-annotations.csv")
-    (args.output / "docs").mkdir()
-    (args.output / "docs/data_format.md").write_text(dataset_details(stats), encoding="utf-8")
     (args.output / "assets").mkdir()
     shutil.copyfile(ROOT / "assets/halo_wordmark.svg", args.output / "assets/halo_wordmark.svg")
     if args.overview:
