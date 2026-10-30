@@ -283,10 +283,6 @@ out of agent inputs because it may describe future events.
 `Belated`, or `Inaction`. Intensity is `Appropriate`, `Insufficient`, or
 `Excessive`, and is missing for rejected L0 responses.
 
-For Claude, `completion_tokens` excludes reported thinking tokens included in
-`output_tokens`. Token accounting varies by provider. The original human
-judgments are preserved in `annotations/eval-annotations.csv`.
-
 <details>
 <summary>Citation</summary>
 
