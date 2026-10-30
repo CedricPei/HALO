@@ -14,11 +14,7 @@
 
 <p align="center">
   <a href="https://arxiv.org/abs/2610.39086">📄 Paper</a> &nbsp;&middot;&nbsp;
-  <a href="https://huggingface.co/datasets/CedPei/HALO-8K">🤗 Hugging Face</a> &nbsp;&middot;&nbsp;
-  <a href="#overview">Overview</a> &nbsp;&middot;&nbsp;
-  <a href="#quick-start">Quick start</a> &nbsp;&middot;&nbsp;
-  <a href="#data-and-tools">Data and tools</a> &nbsp;&middot;&nbsp;
-  <a href="#human-annotation">Human annotation</a>
+  <a href="https://huggingface.co/datasets/CedPei/HALO-8K">🤗 Hugging Face</a>
 </p>
 
 <p align="center">
