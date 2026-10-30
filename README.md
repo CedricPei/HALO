@@ -13,6 +13,7 @@
 </p>
 
 <p align="center">
+  <a href="https://arxiv.org/abs/2610.39086">📄 Paper</a> &nbsp;&middot;&nbsp;
   <a href="https://huggingface.co/datasets/CedPei/HALO-8K">🤗 Hugging Face</a> &nbsp;&middot;&nbsp;
   <a href="#overview">Overview</a> &nbsp;&middot;&nbsp;
   <a href="#quick-start">Quick start</a> &nbsp;&middot;&nbsp;
