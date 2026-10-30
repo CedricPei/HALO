@@ -70,15 +70,23 @@ starts from an independent copy of the simulated environment.
 
 ## 🗂️ Code Structure
 
-| Path | Purpose |
-| --- | --- |
-| [`domains/`](domains/) | Personal environments, app stores, documents, and scenarios. |
-| [`env/`](env/) | App interfaces and execution backends. |
-| [`creators/`](creators/) | Environment and scenario construction. |
-| [`evaluation/`](evaluation/) | Agent evaluation and result export. |
-| [`annotation_app/`](annotation_app/) | Human annotation platform and exported judgments. |
-| [`eval_results/`](eval_results/) | Saved model runs and evaluation summaries. |
-| [`build_benchmark.py`](build_benchmark.py) | Benchmark construction and validation entry point. |
+```text
+HALO/
+├── domains/                # Personal environments and scenarios
+├── env/
+│   ├── apps/               # Simulated app backends
+│   └── app_surfaces/       # App interfaces for agents
+├── creators/               # Environment and scenario construction
+├── evaluation/
+│   ├── runner.py           # Agent evaluation
+│   ├── export.py           # Evaluation summaries
+│   └── export_halo_8k.py   # HALO-8K dataset export
+├── annotation_app/
+│   ├── app.py              # Human annotation platform
+│   └── data/               # Exported human judgments
+├── eval_results/           # Saved model runs and summaries
+└── build_benchmark.py      # Benchmark construction and validation
+```
 
 ## 📝 Human Annotation
 
