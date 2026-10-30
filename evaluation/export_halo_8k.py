@@ -264,24 +264,45 @@ action = json.loads(data[0]["final_action_json"])
 
 Each row is one annotated response.
 
-| Fields | Content |
+### Context and response
+
+| Field | Description |
 | --- | --- |
-| `item_id`, `model`, `domain`, `need_type`, `instance`, `scenario`, `checkpoint` | Response identity and scenario context. |
-| `instance_description`, `personal_description`, `scenario_description` | Environment, user, and construction-side scenario descriptions. |
-| `event_prefix_json` | Observed events through the checkpoint. |
-| `inspection_trace_json` | Retrieval commands and their results. |
-| `final_action_json`, `execution_result_json` | Final command and execution result, or JSON `null`. |
-| `action_level`, `verdict`, `timing`, `intensity` | Final human labels. |
-| `failed_dimensions`, `other_issues`, `rationale` | Rejection dimensions, issue categories, and written diagnosis. |
+| `item_id` | Unique identifier for the annotated response. |
+| `model`, `domain` | Identifiers of the evaluated model and everyday domain. |
+| `need_type` | Proactive need category: `dependency`, `blockage`, `risk`, or `opportunity`. |
+| `instance`, `scenario`, `checkpoint` | Personal environment, scenario, and event at which the response was evaluated. |
+| `instance_description`, `personal_description` | Background descriptions of the environment and simulated user. |
+| `scenario_description` | Construction-side scenario summary. It may describe future events and must be excluded from agent inputs. |
+| `event_prefix_json` | Ordered list of observed events up to and including the checkpoint. |
+| `inspection_trace_json` | Ordered retrieval steps, each containing a command and its result. |
+| `final_action_json` | Final command object, or JSON `null` when no action is taken. |
+| `execution_result_json` | Result returned by the final command, or JSON `null`. |
+
+The four `*_json` fields are JSON-encoded strings. Decode them with `json.loads`
+to recover the event list, retrieval trace, command, or execution result.
+
+### Human judgments
+
+| Field | Description |
+| --- | --- |
+| `action_level` | Final human annotation: L0 Observation, L1 Attention, L2 Preparation, or L3 Execution. |
+| `verdict` | Whether the response is `acceptable` or `unacceptable` at the observed checkpoint. |
+| `timing` | `Timely` for appropriate timing, `Premature` for acting too early, `Belated` for acting too late, or `Inaction` for failing to act when needed. |
+| `intensity` | Whether the intervention is `Appropriate`, `Insufficient`, or `Excessive`. |
+| `failed_dimensions` | List of rejection dimensions: `Timing`, `Intensity`, and/or `Other issues`. |
+| `other_issues` | List of specific issues: `Unsupported Evidence`, `Irrelevant Action`, `Factual Contradiction`, or `Others`. |
+| `rationale` | Human-written explanation of the judgment. |
+
+Rejected L0 responses use `Inaction` as their timing label and have no intensity
+label. Their `intensity` value is missing rather than an additional category.
+
+### Resource usage
+
+| Field | Description |
+| --- | --- |
 | `retrieval_rounds` | Inspection turns, each possibly containing multiple commands. |
-| `input_tokens`, `output_tokens`, `completion_tokens`, `reasoning_tokens` | Recorded token usage. Unreported counts remain missing. |
-
-Decode the four `*_json` fields with `json.loads`. Keep `scenario_description`
-out of agent inputs because it may describe future events.
-
-`verdict` is `acceptable` or `unacceptable`. Timing is `Timely`, `Premature`,
-`Belated`, or `Inaction`. Intensity is `Appropriate`, `Insufficient`, or
-`Excessive`, and is missing for rejected L0 responses.
+| `input_tokens`, `output_tokens`, `completion_tokens`, `reasoning_tokens` | Recorded input, output, completion, and reasoning token counts across the response's model calls. Unreported counts remain missing. |
 
 <details>
 <summary>Citation</summary>
