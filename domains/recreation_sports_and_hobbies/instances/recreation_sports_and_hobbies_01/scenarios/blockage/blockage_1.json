@@ -1,0 +1,90 @@
+{
+  "scenario_description": "Objective: Recover Cassian’s usable Trailhead Field Round entry before the same-evening roster closes without paying twice.\nEmerging Need: A new checkout has started but duplicate detection stops it against an earlier paid entry that used Cassian’s old club alias.\nDecision Context: His saved receipt distinguishes the paid adult-recurve entry from the unpaid duplicate. The registrar can reconcile the existing entry before the roster lock; restarting payment or cancelling the paid entry would be the wrong recovery.\nConsequence: If reconciliation is missed, the paid entry remains unmatched and cannot appear on tomorrow’s final start roster; later refund handling does not restore that start.",
+  "events": {
+    "event1": {
+      "time": "2026-03-28T18:02:00-07:00",
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "entries@hawthornebowmen.org",
+        "recipients": [
+          "cassian.montoya@example.com"
+        ],
+        "subject": "Trailhead Field Round entries close tonight",
+        "body": "Final Trailhead Field Round roster closes at 7:55 PM tonight. Paid registrations normally carry forward automatically to the starter’s list.",
+        "timestamp": "2026-03-28T18:01:00-07:00"
+      }
+    },
+    "event2": {
+      "time": "2026-03-28T18:18:00-07:00",
+      "app": "calendar",
+      "function": "create_event",
+      "parameter": {
+        "title": "Submit Trailhead Field Round entry",
+        "start_time": "2026-03-28T19:25:00-07:00",
+        "end_time": "2026-03-28T19:50:00-07:00",
+        "description": "Use the online entry form after dinner; complete before the 7:55 PM cutoff.",
+        "location": "Online registration portal",
+        "attendees": [
+          "Cassian Reed Montoya"
+        ],
+        "organizer": "Cassian Reed Montoya",
+        "status": "confirmed"
+      }
+    },
+    "event3": {
+      "time": "2026-03-28T19:31:00-07:00",
+      "app": "wallet",
+      "function": "create_draft",
+      "parameter": {
+        "merchant": "Hawthorne Bowmen Trailhead Field Round",
+        "amount": 22,
+        "timestamp": "2026-03-28T19:30:00-07:00",
+        "category": "archery registration",
+        "reference": "Trailhead Field Round entry draft",
+        "description": "Checkout draft opened for Cassian's entry; payment not submitted yet."
+      }
+    },
+    "event4": {
+      "time": "2026-03-28T19:36:00-07:00",
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "noreply@archeryentries.example",
+        "recipients": [
+          "cassian.montoya@example.com"
+        ],
+        "subject": "Trailhead checkout stopped by duplicate paid-entry match",
+        "body": "New checkout draft has stopped: another captured payment is attached to the same club account under an older entrant alias. No second payment has been taken. The older entry must be reconciled, not repurchased. The registrar can reconcile a paid receipt and current entrant name by email to entries@hawthornebowmen.org until 7:55 PM; the payment notice does not expose prior receipt details.",
+        "timestamp": "2026-03-28T19:35:00-07:00"
+      }
+    },
+    "event5": {
+      "time": "2026-03-28T19:43:00-07:00",
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "Mara Voss",
+        "recipients": [
+          "Cassian Reed Montoya"
+        ],
+        "content": "I am at the roster desk until 7:55. Duplicate-payment flags need the existing paid receipt reference, paid division and the current entrant name. We can discard an unpaid duplicate draft after matching; cancelling the paid entry would release the place. The entry desk inbox is being monitored now.",
+        "timestamp": "2026-03-28T19:42:00-07:00"
+      }
+    },
+    "event6": {
+      "time": "2026-03-28T19:57:00-07:00",
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "noreply@archeryentries.example",
+        "recipients": [
+          "cassian.montoya@example.com"
+        ],
+        "subject": "Trailhead Field Round entry draft expired",
+        "body": "The 7:55 final starter roster has been sent. The older alias entry remained unmatched, so Cassian has no admitted start on tomorrow’s roster; the new unpaid draft has expired. Any refund query can be handled next week, but the starter cannot add names tomorrow.",
+        "timestamp": "2026-03-28T19:56:00-07:00"
+      }
+    }
+  }
+}

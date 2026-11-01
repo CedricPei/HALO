@@ -1,0 +1,1 @@
+"""HALO cloud annotation application."""

@@ -1,0 +1,86 @@
+{
+  "scenario_description": "Objective: Recover the already-paid replacement MetroRide card from the library kiosk so its transferred value can be used Monday.\nEmerging Need: The transfer succeeds, but the card is physically retained behind a jammed dispenser shutter.\nDecision Context: The stored old-card serial and paid replacement receipt allow staff to identify the retained card. Prepare a no-charge release request and collection plan; do not retry the transfer, purchase another card or pry the kiosk.\nConsequence: After the visiting attendant seals the kiosk for the holiday, the replacement cannot be collected before Monday travel.",
+  "events": {
+    "event1": {
+      "time": "2026-04-19T08:10:00-05:00",
+      "app": "calendar",
+      "function": "create_reminder",
+      "parameter": {
+        "title": "MetroRide card replacement transfer",
+        "remind_time": "2026-04-19T08:15:00-05:00",
+        "content": "Collect a replacement for the lost green MetroRide card and move its existing stored value; no new pass or auto-reload.",
+        "due_time": "2026-04-19T14:00:00-05:00",
+        "completed": false
+      }
+    },
+    "event2": {
+      "time": "2026-04-19T09:04:00-05:00",
+      "app": "wallet",
+      "function": "pay",
+      "parameter": {
+        "merchant": "MetroRide Kiosk",
+        "amount": 5,
+        "timestamp": "2026-04-19T09:03:00-05:00",
+        "status": "completed",
+        "category": "transit",
+        "reference": "replacement-card-2026-04-19",
+        "description": "Replacement MetroRide card purchase at the library kiosk; receipt notes a stored-value transfer flow offered after activation."
+      }
+    },
+    "event3": {
+      "time": "2026-04-19T09:07:00-05:00",
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "no-reply@metroride.example",
+        "recipients": [
+          "Mina Solenne Faraday"
+        ],
+        "subject": "Stored value transferred; replacement card dispensing",
+        "body": "The existing value has transferred successfully to the replacement purchased under receipt replacement-card-2026-04-19. The kiosk is dispensing that paid card; do not start a second transfer.",
+        "timestamp": "2026-04-19T09:07:00-05:00"
+      }
+    },
+    "event4": {
+      "time": "2026-04-19T09:23:00-05:00",
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "Mina Solenne Faraday",
+        "recipients": [
+          "Jules Rivera"
+        ],
+        "content": "The kiosk finished the transfer but the plastic replacement card never came out. Its screen says the dispenser shutter is jammed and the card is safely retained inside. I am still at the library and can return this afternoon; I am not going to pry the slot.",
+        "timestamp": "2026-04-19T09:23:00-05:00"
+      }
+    },
+    "event5": {
+      "time": "2026-04-19T10:05:00-05:00",
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "support@metroride.example",
+        "recipients": [
+          "Mina Solenne Faraday"
+        ],
+        "subject": "Library kiosk attendant collection window",
+        "body": "The visiting attendant can release retained replacements at no charge today 13:00-14:00. Send the old registered card serial and replacement purchase reference to the stored MetroRide intake before 13:00 so the attendant can identify the card; Mina must collect it in person by 14:00. No new card fee or fare purchase is needed. The library kiosk will then be sealed until Tuesday.",
+        "timestamp": "2026-04-19T10:05:00-05:00"
+      }
+    },
+    "event6": {
+      "time": "2026-04-19T14:06:00-05:00",
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "support@metroride.example",
+        "recipients": [
+          "Mina Solenne Faraday"
+        ],
+        "subject": "Library kiosk sealed until Tuesday",
+        "body": "The visiting attendant has left and the kiosk is sealed until Tuesday morning. The uncollected paid replacement remains safely inside; its value is not lost, but it cannot be collected for Monday's journey through today's window.",
+        "timestamp": "2026-04-19T14:06:00-05:00"
+      }
+    }
+  }
+}

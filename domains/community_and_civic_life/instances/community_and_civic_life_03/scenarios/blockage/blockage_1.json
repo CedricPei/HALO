@@ -1,0 +1,64 @@
+{
+  "scenario_description": "Objective: Finish the active import of six moth-light observations into the afternoon public display.\nEmerging Need: Preview succeeds, but final validation finds duplicate observation keys because two stations reused local sequence numbers.\nDecision Context: Saved source notes preserve station identity and the permitted compound-key format. Dropping apparent duplicates would lose distinct observations; a reversible identifier-only patch can resume the same held import.\nConsequence: Correcting keys before the held job and packet freeze preserves all six observations; after the packet is built there is no same-day display insertion.",
+  "events": {
+    "event1": {
+      "time": "2026-05-10T09:00:00-05:00",
+      "app": "calendar",
+      "function": "create_event",
+      "parameter": {
+        "title": "Brindlewood moth-light observation layer import",
+        "start_time": "2026-05-10T13:00:00-05:00",
+        "end_time": "2026-05-10T14:50:00-05:00",
+        "description": "Finalize neutral moth-light observation pins for the afternoon public display packet.",
+        "location": "Lakehaven Library GIS kiosk",
+        "attendees": [
+          "Quentin Elias Moreau",
+          "Pilar Santos"
+        ],
+        "organizer": "Quentin Elias Moreau",
+        "status": "confirmed"
+      }
+    },
+    "event2": {
+      "time": "2026-05-10T13:12:00-05:00",
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "Pilar Santos",
+        "recipients": [
+          "Quentin Elias Moreau"
+        ],
+        "content": "The CSV preview has started and all six moth-light pins are visible. I am staying at terminal 2 through 14:20 while you review the public labels; I can apply an owner-approved correction within the held job if needed.",
+        "timestamp": "2026-05-10T13:11:00-05:00"
+      }
+    },
+    "event3": {
+      "time": "2026-05-10T13:29:00-05:00",
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "gis-kiosk@lakehavenwi.gov",
+        "recipients": [
+          "Quentin Elias Moreau"
+        ],
+        "subject": "Import job halted: Brindlewood observation layer",
+        "body": "Kiosk job BW-MOTH-0510 stopped at final validation on terminal 2: observation_id values 01, 02 and 03 each occur twice. The source station_code column shows SHELTER rows 01–03 and MEADOW rows 01–03. Coordinates and observation text passed validation; no rows were saved. A corrected identifier column can resume the held job without a new login until the 14:20 afternoon packet freeze.",
+        "timestamp": "2026-05-10T13:27:00-05:00"
+      }
+    },
+    "event4": {
+      "time": "2026-05-10T14:23:00-05:00",
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "gis-kiosk@lakehavenwi.gov",
+        "recipients": [
+          "Quentin Elias Moreau"
+        ],
+        "subject": "Recoverable hold expired: Brindlewood observation layer",
+        "body": "The hold for BW-MOTH-0510 expired at 14:20 and the afternoon display packet has been built and distributed without the moth-light layer. Its six preview rows were purged; this packet has no later insertion slot today.",
+        "timestamp": "2026-05-10T14:21:00-05:00"
+      }
+    }
+  }
+}

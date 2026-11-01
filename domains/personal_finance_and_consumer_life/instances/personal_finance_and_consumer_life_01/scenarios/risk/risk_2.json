@@ -1,0 +1,73 @@
+{
+  "scenario_description": "Objective: Keep a dormant CloudVault trial from being converted into a paid annual archive plan during weekend billing.\nEmerging Need: A broad migration notice becomes relevant after a verification hold, a same-day choice window, and a reachable verification code connect the old cancellation to an account that could renew.\nDecision Context: The subscription workpad and inactive obligation record contain the cancellation confirmation, account email, support address, and no-paid-plan preference needed to interpret the notices without authorizing a new service.\nConsequence: Timely attention can preserve the cancelled status; after the queue locks, the cancellation information can no longer prevent the first annual term from being scheduled.",
+  "events": {
+    "event1": {
+      "time": "2026-11-25T08:20:00-06:00",
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "notices@cloudvault.example",
+        "recipients": [
+          "mina.faraday@example.com"
+        ],
+        "subject": "CloudVault archive migration starts today",
+        "body": "We are moving dormant archive trials into the 2027 plan system today. Some inactive trials may receive account-choice prompts during the migration; this notice alone does not create a charge. Accounts with prior cancellation confirmations can keep cancelled status after verification.",
+        "timestamp": "2026-11-25T08:18:00-06:00"
+      }
+    },
+    "event2": {
+      "time": "2026-11-25T09:35:00-06:00",
+      "app": "wallet",
+      "function": "pay",
+      "parameter": {
+        "merchant": "CloudVault Archive",
+        "amount": 1,
+        "timestamp": "2026-11-25T09:33:00-06:00",
+        "status": "pending",
+        "category": "subscriptions",
+        "reference": "cloudvault-migration-verification",
+        "description": "Temporary account-verification hold labelled 'CloudVault archived trial migration—releases if account remains cancelled'."
+      }
+    },
+    "event3": {
+      "time": "2026-11-25T10:38:00-06:00",
+      "app": "calendar",
+      "function": "create_event",
+      "parameter": {
+        "title": "CloudVault renewal-choice window",
+        "start_time": "2026-11-25T11:00:00-06:00",
+        "end_time": "2026-11-25T14:00:00-06:00",
+        "description": "Imported from CloudVault: portal confirmation for archived-trial accounts runs 11:00-14:00. Accounts without a verified prior-cancellation code by the end enter the $84 weekend annual-renewal queue. The portal sends its access code to the phone number on the original trial.",
+        "organizer": "CloudVault Archive",
+        "status": "confirmed"
+      }
+    },
+    "event4": {
+      "time": "2026-11-25T13:05:00-06:00",
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "Jules Rivera",
+        "recipients": [
+          "Mina Solenne Faraday"
+        ],
+        "content": "CloudVault just texted my old family-plan phone a login code for Mina's archive account. It says it expires at 13:35. I can read it until about 13:25, then I'm driving until after 17:00.",
+        "timestamp": "2026-11-25T13:04:00-06:00"
+      }
+    },
+    "event5": {
+      "time": "2026-11-25T14:08:00-06:00",
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "queue@cloudvault.example",
+        "recipients": [
+          "mina.faraday@example.com"
+        ],
+        "subject": "CloudVault annual-renewal queue has closed",
+        "body": "The 14:00 handoff is complete. Accounts still lacking a verified cancellation status are queued for weekend annual-plan activation. Cancellation confirmations received after the handoff apply after the first annual term is created; today's prevention window is no longer open.",
+        "timestamp": "2026-11-25T14:06:00-06:00"
+      }
+    }
+  }
+}

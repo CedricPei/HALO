@@ -1,0 +1,81 @@
+{
+  "scenario_description": "Objective: Keep LM-4627's patient portal pilot copy from carrying an avoidable enrollment-term ambiguity into Cascadia Care's immunization preview.\nEmerging Need: A routine freeze becomes risky when the pilot adds immunization enrollment screens and QA shows the translations reuse account-signup wording.\nDecision Context: The event stream separates ordinary scheduling from a narrow risk-note window; internal guidance and contacts identify who can confirm clinical program terminology before lock.\nConsequence: If the ambiguity remains unraised before the pilot copy locks, patients and reviewers may see a misleading opt-in label, and later correction shifts to post-pilot cleanup.",
+  "events": {
+    "event1": {
+      "time": "2026-07-14T08:40:00-07:00",
+      "app": "calendar",
+      "function": "create_event",
+      "parameter": {
+        "title": "LM-4627 pilot copy freeze checkpoint",
+        "start_time": "2026-07-15T13:30:00-07:00",
+        "end_time": "2026-07-15T14:00:00-07:00",
+        "description": "Final risk notes for the patient portal pilot are accepted until the checkpoint starts; routine wording cleanup continues until then.",
+        "location": "Luminara secure workspace",
+        "attendees": [
+          "tessa.elian@luminara.example",
+          "marisol.vera@luminara.example"
+        ],
+        "organizer": "marisol.vera@luminara.example",
+        "status": "confirmed"
+      }
+    },
+    "event2": {
+      "time": "2026-07-14T10:05:00-07:00",
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "portalops@cascadiacare.example",
+        "recipients": [
+          "tessa.elian@luminara.example",
+          "marisol.vera@luminara.example"
+        ],
+        "subject": "Thursday pilot scope: immunization enrollment screens added",
+        "body": "The Thursday patient portal pilot now includes the adult immunization program enrollment card alongside the existing portal-account enrollment pages. New screenshots are expected tomorrow morning; no terminology questions are currently open from the client side.",
+        "timestamp": "2026-07-14T10:03:00-07:00"
+      }
+    },
+    "event3": {
+      "time": "2026-07-14T16:20:00-07:00",
+      "app": "messaging",
+      "function": "create_message",
+      "parameter": {
+        "sender": "marisol.vera@luminara.example",
+        "recipients": [
+          "tessa.elian@luminara.example"
+        ],
+        "content": "Vendor QA snapshot for LM-4627: rows APP-ENROLL-07 and IMM-OPT-02 both use the English source word \"enrollment.\" Spanish currently repeats \"inscripción\" for both, and Tagalog repeats \"pagpaparehistro\" for both. QA did not file a defect because the English source is identical.",
+        "timestamp": "2026-07-14T16:18:00-07:00"
+      }
+    },
+    "event4": {
+      "time": "2026-07-15T09:10:00-07:00",
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "localizebot@luminara.example",
+        "recipients": [
+          "tessa.elian@luminara.example",
+          "marisol.vera@luminara.example"
+        ],
+        "subject": "LM-4627 pilot package queued for 13:30 risk-note cutoff",
+        "body": "The queued pilot package includes IMM-OPT-02 on the immunization enrollment card and APP-ENROLL-07 on the portal-account registration page. Any client-risk note attached before 13:30 Pacific will be visible to the build reviewer; rows without notes at 13:30 will lock into pilot copy.",
+        "timestamp": "2026-07-15T09:08:00-07:00"
+      }
+    },
+    "event5": {
+      "time": "2026-07-15T13:42:00-07:00",
+      "app": "email",
+      "function": "create_email",
+      "parameter": {
+        "sender": "localizebot@luminara.example",
+        "recipients": [
+          "tessa.elian@luminara.example",
+          "marisol.vera@luminara.example"
+        ],
+        "subject": "LM-4627 pilot copy locked",
+        "body": "Pilot rows APP-ENROLL-07 and IMM-OPT-02 locked at 13:30 Pacific with no attached client-risk note. New terminology notes for these rows will route to the post-pilot backlog rather than the Thursday preview build.",
+        "timestamp": "2026-07-15T13:41:00-07:00"
+      }
+    }
+  }
+}
