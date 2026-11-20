@@ -13,11 +13,6 @@
 </p>
 
 <p align="center">
-  <a href="https://arxiv.org/abs/2610.39086">📄 Paper</a> &nbsp;&middot;&nbsp;
-  <a href="https://huggingface.co/datasets/CedPei/HALO-8K">🤗 Hugging Face</a>
-</p>
-
-<p align="center">
   <img src="assets/halo-overview.png" width="100%" alt="HALO overview: personal app environments, evidence retrieval and proactive intervention, followed by human verdicts and diagnosis.">
 </p>
 
@@ -101,18 +96,3 @@ HALO/
 </p>
 
 <p align="center"><sub>Agent response evaluation</sub></p>
-
-## 📖 Citation
-
-```bibtex
-@misc{pei2026halohumangroundedgranularevaluation,
-  title={HALO: Human-Grounded Granular Evaluation of Proactive Agents},
-  author={Wenqi Pei and Xinyu Wang and Jinrui Liu and Cynthia Zhuge and
-          Jie Sheng and Zihan Wang and Tenghao Huang and Muhao Chen},
-  year={2026},
-  eprint={2610.39086},
-  archivePrefix={arXiv},
-  primaryClass={cs.CL},
-  url={https://arxiv.org/abs/2610.39086},
-}
-```
